@@ -4,6 +4,8 @@ namespace App\Console\Commands;
 
 use App\Models\Orgao;
 use App\Models\User;
+use Database\Seeders\FluxosPadrao;
+use Database\Seeders\ModelosPadrao;
 use Database\Seeders\PerfisSeeder;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -51,6 +53,9 @@ class InstalarNexplangov extends Command
         }
 
         $orgao = Orgao::firstOrCreate(['sigla' => mb_strtoupper($orgaoSigla)], ['nome' => $orgaoNome]);
+
+        ModelosPadrao::instalarPara($orgao);
+        FluxosPadrao::instalarPara($orgao);
 
         $admin = User::create([
             'name' => $nome,

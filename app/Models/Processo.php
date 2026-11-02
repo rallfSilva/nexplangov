@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  * Processo de contratação: licitação ou contratação direta. A situação só muda pela
  * App\Licitacao\TramitacaoProcesso, que aplica as regras da Lei 14.133.
  */
-#[Fillable(['orgao_id', 'unidade_id', 'demanda_id', 'responsavel_id', 'numero', 'ano', 'numero_compra', 'objeto', 'modalidade', 'amparo_legal', 'criterio_julgamento', 'modo_disputa', 'categoria', 'srp', 'orcamento_sigiloso', 'com_disputa', 'natureza_despesa', 'abertura_propostas_em', 'encerramento_propostas_em'])]
+#[Fillable(['orgao_id', 'unidade_id', 'demanda_id', 'responsavel_id', 'fluxo_id', 'numero', 'ano', 'numero_compra', 'objeto', 'modalidade', 'amparo_legal', 'criterio_julgamento', 'modo_disputa', 'categoria', 'srp', 'orcamento_sigiloso', 'com_disputa', 'natureza_despesa', 'abertura_propostas_em', 'encerramento_propostas_em'])]
 class Processo extends Model
 {
     use Auditable, BelongsToOrgao;
@@ -71,6 +71,16 @@ class Processo extends Model
     public function itens(): HasMany
     {
         return $this->hasMany(ItemProcesso::class)->orderBy('numero');
+    }
+
+    public function fluxo(): BelongsTo
+    {
+        return $this->belongsTo(Fluxo::class);
+    }
+
+    public function etapas(): HasMany
+    {
+        return $this->hasMany(EtapaProcesso::class)->orderBy('ordem');
     }
 
     public function documentos(): HasMany
