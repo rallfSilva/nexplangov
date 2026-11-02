@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 64" role="img" aria-label="NexPlanGov, por NexMind">
+  <defs>
+    <linearGradient id="npg-fundo-h" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#34729C"/>
+      <stop offset="1" stop-color="#1E5470"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#npg-fundo-h)"/>
+  <path d="M46.6 46.1A20.5 20.5 0 1 1 52.5 32" fill="none" stroke="#6EC1D1" stroke-width="3.6" stroke-linecap="round"/>
+  <path d="M23 46V39M32 46V32M41 46V26M23 46H41" fill="none" stroke="#FFFFFF" stroke-width="3.4" stroke-linecap="round"/>
+  <circle cx="23" cy="35.4" r="3.3" fill="none" stroke="#D1ECFF" stroke-width="2.6"/>
+  <circle cx="32" cy="28.4" r="3.3" fill="none" stroke="#D1ECFF" stroke-width="2.6"/>
+  <circle cx="41" cy="22.4" r="3.3" fill="#6EC1D1" stroke="#6EC1D1" stroke-width="2.6"/>
+  <text x="78" y="37" font-family="'Plus Jakarta Sans','Segoe UI',system-ui,sans-serif" font-size="30" font-weight="800" letter-spacing="-0.8" fill="#1E5470">NexPlan<tspan fill="#34729C">Gov</tspan></text>
+  <text x="79" y="55" font-family="'Plus Jakarta Sans','Segoe UI',system-ui,sans-serif" font-size="10.5" font-weight="700" letter-spacing="2.2" fill="#6CB1DA">POR NEXMIND</text>
+</svg>

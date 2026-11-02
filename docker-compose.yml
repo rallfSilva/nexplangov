@@ -1,0 +1,61 @@
+# NexPlanGov: sobe tudo com "docker compose up -d" (veja o README).
+services:
+  app:
+    build: .
+    image: nexplangov-publico:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+    ports:
+      - "${NEXPLANGOV_PORTA:-8080}:8080"
+    volumes:
+      - arquivos:/var/www/html/storage/app
+      - logs:/var/www/html/storage/logs
+    depends_on:
+      db:
+        condition: service_healthy
+
+  fila:
+    image: nexplangov-publico:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      NEXPLANGOV_MIGRAR: "false"
+    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--max-time=3600"]
+    # A fila não roda o Nginx: a verificação de saúde da imagem (porta 8080) não se aplica aqui.
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'queue:work' >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+    volumes:
+      - arquivos:/var/www/html/storage/app
+      - logs:/var/www/html/storage/logs
+    depends_on:
+      app:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      TZ: America/Boa_Vista
+    volumes:
+      - banco:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  banco:
+  arquivos:
+  logs:

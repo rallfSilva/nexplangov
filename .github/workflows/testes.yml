@@ -1,0 +1,76 @@
+name: Testes
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+
+jobs:
+  testes:
+    name: Testes automáticos e padrão de código
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: nexplangov_test
+          POSTGRES_USER: nexplangov
+          POSTGRES_PASSWORD: nexplangov
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U nexplangov"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USERNAME: nexplangov
+      DB_PASSWORD: nexplangov
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_pgsql, intl, zip, gd, bcmath
+          coverage: none
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: npm ci && npm run build
+      - run: cp .env.example .env && php artisan key:generate
+      - name: Padrão de código (Pint)
+        run: vendor/bin/pint --test
+      - name: Testes
+        run: php artisan test
+
+  docker:
+    name: Instalação com Docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Prepara o .env
+        run: |
+          cp .env.example .env
+          sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=senha-de-teste-ci/" .env
+          sed -i "s|^APP_KEY=.*|APP_KEY=base64:$(openssl rand -base64 32)|" .env
+          echo "NEXPLANGOV_DEMO=true" >> .env
+      - name: Sobe o sistema com um comando
+        run: docker compose up -d --build --wait --wait-timeout 300
+      - name: Confere que responde
+        run: |
+          curl -fsS http://localhost:8080/up
+          curl -fsS http://localhost:8080/login | grep -q "Entrar no sistema"
+      - name: Comando de instalação
+        run: docker compose exec -T app php artisan nexplangov:instalar --orgao-nome="Órgão CI" --orgao-sigla=CI --nome="Admin CI" --email=admin@ci.local --senha=SenhaForte123
+      - name: Backup e restauração
+        run: |
+          ./scripts/backup.sh ./backups
+          PASTA=$(ls -d ./backups/nexplangov_* | tail -1)
+          echo RESTAURAR | ./scripts/restaurar.sh "$PASTA"
+          docker compose exec -T db psql -U nexplangov -d nexplangov -tAc "select count(*) from users where email='admin@ci.local'" | grep -qx 1
+      - name: Registros em caso de falha
+        if: failure()
+        run: docker compose logs --tail=200
