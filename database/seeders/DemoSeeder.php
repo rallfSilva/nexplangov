@@ -55,6 +55,11 @@ class DemoSeeder extends Seeder
             'municipio' => 'Vale Verde',
         ]);
 
+        foreach ([$pm, $camara] as $orgaoDemo) {
+            ModelosPadrao::instalarPara($orgaoDemo);
+            FluxosPadrao::instalarPara($orgaoDemo);
+        }
+
         $u = [];
         foreach ([
             ['admin@nexplangov.local', 'Administrador do Sistema', null, 'administrador-geral'],

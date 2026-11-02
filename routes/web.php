@@ -6,9 +6,11 @@ use App\Http\Controllers\ContratoController;
 use App\Http\Controllers\DemandaController;
 use App\Http\Controllers\DispensaController;
 use App\Http\Controllers\DocumentoProcessoController;
+use App\Http\Controllers\FluxoController;
 use App\Http\Controllers\FornecedorController;
 use App\Http\Controllers\ItemProcessoController;
 use App\Http\Controllers\LgpdController;
+use App\Http\Controllers\ModeloController;
 use App\Http\Controllers\OrgaoController;
 use App\Http\Controllers\PainelController;
 use App\Http\Controllers\PcaController;
@@ -17,6 +19,7 @@ use App\Http\Controllers\ProcessoController;
 use App\Http\Controllers\SegurancaController;
 use App\Http\Controllers\UnidadeController;
 use App\Http\Controllers\UsuarioController;
+use App\Http\Controllers\ValidacaoAssinaturaController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/painel');
@@ -25,6 +28,10 @@ Route::redirect('/', '/painel');
 Route::view('/privacidade', 'lgpd.privacidade')->name('privacidade');
 Route::get('/lgpd/solicitar', [LgpdController::class, 'formularioPublico'])->name('lgpd.publico');
 Route::post('/lgpd/solicitar', [LgpdController::class, 'registrarPublico'])->middleware('throttle:5,10')->name('lgpd.publico.registrar');
+
+// Validação pública de assinatura eletrônica (código ou QR Code da folha de assinaturas).
+Route::post('/validar', [ValidacaoAssinaturaController::class, 'buscar'])->middleware('throttle:20,1')->name('assinaturas.buscar');
+Route::get('/validar/{codigo?}', [ValidacaoAssinaturaController::class, 'mostrar'])->middleware('throttle:30,1')->where('codigo', '[A-Za-z0-9-]+')->name('assinaturas.validar');
 
 Route::middleware(['auth', 'ativo'])->group(function () {
     // Fica fora da exigência de 2FA: é aqui que o administrador ativa a verificação.
@@ -88,6 +95,30 @@ Route::middleware(['auth', 'ativo'])->group(function () {
         Route::post('/processos/{processo}/tramitar', [ProcessoController::class, 'tramitar'])->middleware('can:processos.ver')->name('processos.tramitar');
         Route::get('/processos/{processo}/documentos/{tipo}', [DocumentoProcessoController::class, 'edit'])->middleware('can:processos.ver')->name('documentos.edit');
         Route::post('/processos/{processo}/documentos/{tipo}', [DocumentoProcessoController::class, 'salvar'])->middleware('can:processos.ver')->name('documentos.salvar');
+        Route::post('/processos/{processo}/documentos/{tipo}/decidir', [DocumentoProcessoController::class, 'decidir'])->middleware('can:processos.ver')->name('documentos.decidir');
+        Route::post('/processos/{processo}/documentos/{tipo}/assinar', [DocumentoProcessoController::class, 'assinar'])->middleware(['can:processos.ver', 'throttle:10,1'])->name('documentos.assinar');
+        Route::get('/processos/{processo}/documentos/{tipo}/folha', [DocumentoProcessoController::class, 'folha'])->middleware('can:processos.ver')->name('documentos.folha');
+        Route::get('/processos/{processo}/arquivos/{documento}', [DocumentoProcessoController::class, 'arquivo'])->middleware('can:processos.ver')->name('documentos.arquivo');
+        Route::post('/processos/{processo}/fluxo', [FluxoController::class, 'aplicar'])->middleware('can:processos.gerenciar')->name('processos.fluxo');
+
+        Route::middleware('can:modelos.gerenciar')->group(function () {
+            Route::get('/modelos', [ModeloController::class, 'index'])->name('modelos.index');
+            Route::get('/modelos/novo', [ModeloController::class, 'create'])->name('modelos.create');
+            Route::post('/modelos', [ModeloController::class, 'store'])->name('modelos.store');
+            Route::get('/modelos/{modelo}', [ModeloController::class, 'edit'])->name('modelos.edit');
+            Route::put('/modelos/{modelo}', [ModeloController::class, 'update'])->name('modelos.update');
+            Route::post('/modelos/{modelo}/duplicar', [ModeloController::class, 'duplicar'])->name('modelos.duplicar');
+            Route::post('/modelos/{modelo}/alternar', [ModeloController::class, 'alternar'])->name('modelos.alternar');
+            Route::post('/modelos/{modelo}/restaurar/{versao}', [ModeloController::class, 'restaurar'])->whereNumber('versao')->name('modelos.restaurar');
+        });
+        Route::middleware('can:fluxos.gerenciar')->group(function () {
+            Route::get('/fluxos', [FluxoController::class, 'index'])->name('fluxos.index');
+            Route::get('/fluxos/novo', [FluxoController::class, 'create'])->name('fluxos.create');
+            Route::post('/fluxos', [FluxoController::class, 'store'])->name('fluxos.store');
+            Route::get('/fluxos/{fluxo}', [FluxoController::class, 'edit'])->name('fluxos.edit');
+            Route::put('/fluxos/{fluxo}', [FluxoController::class, 'update'])->name('fluxos.update');
+            Route::delete('/fluxos/{fluxo}', [FluxoController::class, 'destroy'])->name('fluxos.destroy');
+        });
         Route::get('/limite-dispensa', DispensaController::class)->middleware('can:processos.ver')->name('dispensa.simulador');
 
         // Fornecedores

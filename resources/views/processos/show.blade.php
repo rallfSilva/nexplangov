@@ -105,6 +105,14 @@
         <section class="card">
             <h2>Checklist da instrução</h2>
             <p class="hint">{{ $direta ? 'Contratação direta: art. 72, incisos I a VIII.' : 'Fase preparatória: art. 18 e parecer do art. 53.' }} Cada peça concluída fica com hash e não muda mais; alterar gera nova versão.</p>
+            @if ($fluxos->isNotEmpty())
+                @can('processos.gerenciar')
+                    <form method="POST" action="{{ route('processos.fluxo', $processo) }}" class="filtros" style="margin-top:8px">@csrf
+                        <div class="campo"><label for="fluxo-sel">Fluxo de documentos deste processo</label><select id="fluxo-sel" name="fluxo_id" class="input">@foreach ($fluxos as $f)<option value="{{ $f->id }}" @selected($processo->fluxo_id === $f->id)>{{ $f->nome }}</option>@endforeach</select></div>
+                        <div class="btns"><button class="btn btn-s btn-sm" type="submit">Aplicar fluxo</button></div>
+                    </form>
+                @endcan
+            @endif
             <div class="checklist" style="margin-top:8px">
                 @foreach ($checklist as $item)
                     <div class="check-item {{ $item['cumprido'] ? 'ok' : 'pendente' }}">
@@ -112,7 +120,10 @@
                         <div style="flex:1;min-width:0">
                             <b>{{ $item['rotulo'] }}</b>
                             <div class="base">{{ $item['base'] }}@if ($item['detalhe']) · {{ $item['detalhe'] }}@endif
-                                @if (isset($documentos[$item['chave']])) · versão {{ $documentos[$item['chave']]->versao }} ({{ $documentos[$item['chave']]->situacao === 'concluido' ? 'concluída' : 'rascunho' }})@endif</div>
+                                @if (isset($documentos[$item['chave']])) · versão {{ $documentos[$item['chave']]->versao }}@endif
+                                @if (isset($estados[$item['chave']]) && ($etapas->has($item['chave']) || isset($documentos[$item['chave']]))) · <span class="b {{ $estados[$item['chave']]['classe'] }}">{{ $estados[$item['chave']]['rotulo'] }}</span>@endif
+                                @if (($e = $etapas[$item['chave']] ?? null) && $e->prazo_em && ! $item['cumprido']) · prazo {{ $e->prazo_em->format('d/m/Y') }}@if ($e->prazoVencido()) <span class="b b-err">vencido</span>@endif @endif
+                                @if (! $item['cumprido'] && ($estados[$item['chave']]['pendencias'] ?? [])) · depende de {{ implode(', ', $estados[$item['chave']]['pendencias']) }}@endif</div>
                         </div>
                         @if (isset($tipos[$item['chave']]))
                             <a href="{{ route('documentos.edit', [$processo, $item['chave']]) }}" class="btn btn-s btn-sm">{{ isset($documentos[$item['chave']]) ? 'Abrir' : 'Preencher' }}</a>

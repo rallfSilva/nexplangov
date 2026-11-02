@@ -50,6 +50,12 @@
                 <a href="{{ route('orgaos.index') }}" class="{{ $nav('orgaos.*') }}"><x-icone nome="predio" />Órgãos</a>
                 <a href="{{ route('configuracoes.index') }}" class="{{ $nav('configuracoes.*') }}"><x-icone nome="engrenagem" />Valores da lei</a>
             @endcan
+            @can('modelos.gerenciar')
+                <a href="{{ route('modelos.index') }}" class="{{ $nav('modelos.*') }}"><x-icone nome="pasta" />Modelos de documentos</a>
+            @endcan
+            @can('fluxos.gerenciar')
+                <a href="{{ route('fluxos.index') }}" class="{{ $nav('fluxos.*') }}"><x-icone nome="liga" />Fluxos de documentos</a>
+            @endcan
             @can('unidades.ver')
                 <a href="{{ route('unidades.index') }}" class="{{ $nav('unidades.*') }}"><x-icone nome="organograma" />Unidades</a>
             @endcan

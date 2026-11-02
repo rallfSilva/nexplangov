@@ -47,3 +47,12 @@ Cada regra está em `app/Licitacao/Regras` e tem teste em `tests/Unit/Lei14133` 
 ## Publicidade (PNCP)
 
 Publicação do edital ou aviso de contratação direta enfileira a compra; homologação, revogação, anulação, deserto e fracassado enfileiram a retificação. Contratos e termos aditivos também vão à fila. Ver [integracao-pncp.md](integracao-pncp.md).
+
+## Fluxo de documentos, modelos e assinatura eletrônica
+
+- **Fluxo por órgão** (`fluxos`, `fluxo_etapas`): para cada peça do art. 18 e art. 53, o órgão define dependências, prazo em dias, revisão, aprovação, assinatura, responsável, substituto, revisor e aprovador. Ao abrir o processo o fluxo padrão é copiado para `etapas_processo` e fica congelado: mudar o fluxo depois não altera processos em andamento. Sem fluxo, a peça conclui direto (comportamento anterior).
+- **Segregação**: quem escreveu a peça não a revisa nem a aprova, e quem revisou não aprova (segregação de funções, art. 5º e art. 7º, § 1º).
+- **Estados da peça**: rascunho, em revisão, em aprovação, aguardando assinatura, concluída (e substituída quando uma peça assinada é devolvida: nasce nova versão).
+- **Biblioteca de modelos** (`modelos_documento`): cerca de 53 modelos NexMind instalados por órgão (`php artisan nexplangov:modelos-padrao`), editáveis, com versões e campos dinâmicos `{{objeto}}`, `{{orgao}}` etc. Todo modelo avisa que precisa de revisão da assessoria jurídica.
+- **Assinatura eletrônica**: confirmação da senha do signatário, hash SHA-256 do conteúdo (ordenado, porque o jsonb não guarda a ordem das chaves), selo HMAC com a chave da aplicação, código de 12 caracteres e QR Code. A página pública `/validar/{codigo}` mostra só metadados e avisa se a peça mudou depois de assinada. A tabela `assinaturas` é imutável.
+- **Arquivo pronto**: PDF, DOCX, ODT, XLSX, ODS, PNG ou JPG até 30 MB, em disco privado, com SHA-256 e download auditado.

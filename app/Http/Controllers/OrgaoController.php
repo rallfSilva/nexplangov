@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Orgao;
 use App\Rules\Cnpj;
+use Database\Seeders\FluxosPadrao;
+use Database\Seeders\ModelosPadrao;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -26,6 +28,8 @@ class OrgaoController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $orgao = Orgao::create($this->validar($request));
+        ModelosPadrao::instalarPara($orgao);
+        FluxosPadrao::instalarPara($orgao);
 
         return redirect()->route('orgaos.index')->with('sucesso', "Órgão {$orgao->sigla} cadastrado.");
     }

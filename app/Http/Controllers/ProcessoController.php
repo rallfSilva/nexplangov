@@ -8,6 +8,7 @@ use App\Licitacao\Enums\CriterioJulgamento;
 use App\Licitacao\Enums\Modalidade;
 use App\Licitacao\Enums\ModoDisputa;
 use App\Licitacao\Enums\SituacaoProcesso;
+use App\Licitacao\Fluxo\FluxoDocumento;
 use App\Licitacao\Regras\InstrucaoProcesso;
 use App\Licitacao\Regras\LimiteDispensa;
 use App\Licitacao\Regras\PesquisaPrecos;
@@ -15,6 +16,7 @@ use App\Licitacao\RegraViolada;
 use App\Licitacao\TiposDocumento;
 use App\Licitacao\TramitacaoProcesso;
 use App\Models\Demanda;
+use App\Models\Fluxo;
 use App\Models\Fornecedor;
 use App\Models\Processo;
 use App\Models\Unidade;
@@ -77,6 +79,8 @@ class ProcessoController extends Controller
             $processo->demanda->update(['situacao' => 'atendida']);
         }
 
+        app(FluxoDocumento::class)->aplicar($processo); // fluxo padrão do órgão, se houver
+
         return redirect()->route('processos.show', $processo)->with('sucesso', "Processo {$processo->identificacao()} aberto. Agora instrua a fase preparatória.");
     }
 
@@ -124,6 +128,9 @@ class ProcessoController extends Controller
             'processo' => $processo,
             'aba' => $aba,
             'checklist' => $instrucao->checklist($processo),
+            'estados' => collect(array_keys(TiposDocumento::todos()))->mapWithKeys(fn ($t) => [$t => app(FluxoDocumento::class)->estado($processo, $t)])->all(),
+            'etapas' => $processo->etapas()->get()->keyBy('tipo'),
+            'fluxos' => $aba === 'instrucao' && $processo->editavel() ? Fluxo::where('ativo', true)->orderBy('nome')->get() : collect(),
             'destinos' => $tramitacao->destinosPara($processo, $request->user()),
             'precos' => $precos,
             'dispensa' => $dispensa,
