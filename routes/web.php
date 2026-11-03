@@ -142,12 +142,14 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::get('/processos/{processo}/editar', [ProcessoController::class, 'edit'])->name('processos.edit');
             Route::put('/processos/{processo}', [ProcessoController::class, 'update'])->name('processos.update');
             Route::post('/processos/{processo}/itens', [ItemProcessoController::class, 'store'])->name('processos.itens.store');
+            Route::put('/processos/{processo}/itens/{item}', [ItemProcessoController::class, 'update'])->name('processos.itens.update');
             Route::delete('/processos/{processo}/itens/{item}', [ItemProcessoController::class, 'destroy'])->name('processos.itens.destroy');
             Route::get('/processos/{processo}/itens/{item}/compras-gov', [PrecosComprasGovController::class, 'mostrar'])->middleware('throttle:20,1')->name('processos.comprasgov');
             Route::post('/processos/{processo}/itens/{item}/compras-gov', [PrecosComprasGovController::class, 'importar'])->name('processos.comprasgov.importar');
             Route::patch('/processos/{processo}/itens/{item}/metodo', [ItemProcessoController::class, 'metodo'])->name('processos.itens.metodo');
             Route::patch('/processos/{processo}/itens/{item}/resultado', [ItemProcessoController::class, 'resultado'])->name('processos.itens.resultado');
             Route::post('/processos/{processo}/itens/{item}/cotacoes', [ItemProcessoController::class, 'adicionarCotacao'])->name('processos.cotacoes.store');
+            Route::put('/processos/{processo}/cotacoes/{cotacao}', [ItemProcessoController::class, 'editarCotacao'])->name('processos.cotacoes.update');
             Route::patch('/processos/{processo}/cotacoes/{cotacao}', [ItemProcessoController::class, 'desconsiderarCotacao'])->name('processos.cotacoes.desconsiderar');
             Route::delete('/processos/{processo}/cotacoes/{cotacao}', [ItemProcessoController::class, 'excluirCotacao'])->name('processos.cotacoes.destroy');
         });
