@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /** Ata de registro de preços de um fornecedor (arts. 82 a 86). */
-#[Fillable(['orgao_id', 'processo_id', 'fornecedor_id', 'criada_por', 'ano', 'numero', 'assinatura', 'vigencia_inicio', 'vigencia_fim', 'prorrogada', 'fundamento_prorrogacao', 'situacao', 'motivo_cancelamento'])]
+#[Fillable(['orgao_id', 'processo_id', 'fornecedor_id', 'criada_por', 'ano', 'numero', 'assinatura', 'vigencia_inicio', 'vigencia_fim', 'prorrogada', 'fundamento_prorrogacao', 'situacao', 'motivo_cancelamento', 'numero_controle_pncp'])]
 class Ata extends Model
 {
     use Auditable, BelongsToOrgao;

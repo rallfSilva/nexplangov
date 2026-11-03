@@ -26,4 +26,14 @@ final class NumeroControle
 
         return [(int) $m[1], (int) $m[2]];
     }
+
+    /** Último número do caminho (ata: .../atas/3; resultado: .../resultados/1). */
+    public static function ultimoSequencial(?string $location): ?int
+    {
+        if (! $location || ! preg_match('~/(\d+)/?$~', $location, $m)) {
+            return null;
+        }
+
+        return (int) $m[1];
+    }
 }

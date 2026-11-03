@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
-#[Fillable(['orgao_id', 'processo_id', 'fornecedor_id', 'gestor_id', 'fiscal_id', 'numero', 'ano', 'tipo', 'objeto', 'categoria', 'servico_continuo', 'reforma_equipamento', 'valor_inicial', 'valor_global', 'garantia_percentual', 'justificativa_garantia', 'assinatura', 'vigencia_inicio', 'vigencia_fim', 'fundamento_vigencia_especial', 'situacao'])]
+#[Fillable(['orgao_id', 'processo_id', 'fornecedor_id', 'gestor_id', 'fiscal_id', 'numero', 'ano', 'tipo', 'objeto', 'categoria', 'servico_continuo', 'reforma_equipamento', 'valor_inicial', 'valor_global', 'garantia_percentual', 'justificativa_garantia', 'assinatura', 'vigencia_inicio', 'vigencia_fim', 'fundamento_vigencia_especial', 'situacao', 'arquivo_caminho', 'arquivo_nome', 'arquivo_hash'])]
 class Contrato extends Model
 {
     use Auditable, BelongsToOrgao;

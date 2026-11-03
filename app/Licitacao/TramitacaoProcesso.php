@@ -191,6 +191,10 @@ final class TramitacaoProcesso
             $this->fila->agendar($processo, 'compra', $processo->numero_controle_pncp ? 'retificar' : 'inserir', $usuario);
         } elseif ($processo->numero_controle_pncp && in_array($destino, [S::Revogado, S::Anulado, S::Homologado, S::Deserto, S::Fracassado], true)) {
             $this->fila->agendar($processo, 'compra', 'retificar', $usuario);
+            // Na homologação, o resultado de cada item vai junto (art. 71, IV, e art. 174).
+            if ($destino === S::Homologado) {
+                $this->fila->agendarResultados($processo, $usuario);
+            }
         }
     }
 
