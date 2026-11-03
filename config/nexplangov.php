@@ -31,6 +31,9 @@ return [
     // vigência da ata. A Lei 14.133 deixa ao regulamento; o federal (Decreto nº 11.462/2023) adota 90 dias.
     'carona_prazo_contratacao_dias' => (int) env('NEXPLANGOV_CARONA_PRAZO', 90),
 
+    // Prazo (dias corridos) para pagar depois da liquidação, quando o contrato não fixar outro (art. 92, V).
+    'pagamento_prazo_dias' => (int) env('NEXPLANGOV_PRAZO_PAGAMENTO', 30),
+
     // Validade (dias) do link enviado ao fornecedor para aceitar ou recusar o fornecimento ao aderente.
     'carona_link_aceite_dias' => 15,
 

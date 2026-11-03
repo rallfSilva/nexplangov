@@ -117,7 +117,7 @@ class ContratoController extends Controller
 
     public function show(Contrato $contrato, AlteracaoContratual $alteracao): View
     {
-        $contrato->load(['fornecedor', 'processo', 'gestor', 'fiscal', 'termos', 'enviosPncp']);
+        $contrato->load(['fornecedor', 'processo', 'gestor', 'fiscal', 'termos', 'enviosPncp', 'medicoes.liquidacao']);
         $base = $contrato->valorInicialAtualizado();
 
         return view('contratos.show', [

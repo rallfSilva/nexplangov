@@ -40,10 +40,11 @@
             @endcan
             @can('fornecedores.ver')
                 <a href="{{ route('fornecedores.index') }}" class="{{ $nav('fornecedores.*') }}"><x-icone nome="fornecedor" />Fornecedores</a>
-                <a href="{{ route('sancoes.index') }}" class="{{ $nav('sancoes.*') }}"><x-icone nome="alerta" />Sanções</a>
+                <a href="{{ route('sancoes.index') }}" class="{{ $nav('sancoes.*') }}"><x-icone nome="balanca" />Sanções</a>
             @endcan
             @can('contratos.ver')
                 <a href="{{ route('atas.index') }}" class="{{ $nav('atas.*') }}"><x-icone nome="contrato" />Atas de registro de preços</a>
+                <a href="{{ route('pagamentos.index') }}" class="{{ $nav('pagamentos.*') }}"><x-icone nome="cifrao" />Pagamentos</a>
             @endcan
             @can('requisicoes.ver')
                 <a href="{{ route('requisicoes.index') }}" class="{{ $nav('requisicoes.*') }}"><x-icone nome="demanda" />Requisições de fornecimento</a>
