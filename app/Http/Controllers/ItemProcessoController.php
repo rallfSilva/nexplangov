@@ -49,6 +49,29 @@ class ItemProcessoController extends Controller
         return redirect()->route('processos.show', [$processo, 'aba' => 'itens'])->with('sucesso', 'Item incluído. Agora registre as cotações da pesquisa de preços.');
     }
 
+    /**
+     * Corrige descrição, quantidade, unidade, catálogo ou benefício ME/EPP do item na fase preparatória.
+     * As cotações ficam; a quantidade nova refaz o total do item e o valor estimado do processo (art. 23).
+     */
+    public function update(Request $request, Processo $processo, ItemProcesso $item): RedirectResponse
+    {
+        $this->doProcesso($processo, $item);
+        $this->exigirFasePreparatoria($processo);
+        $request->merge(['quantidade' => decimal_br($request->input('quantidade'))]);
+
+        $item->update($request->validate([
+            'material_servico' => ['required', Rule::in(['M', 'S'])],
+            'codigo_catalogo' => ['nullable', 'string', 'max:20', 'regex:/^[0-9]+$/', new CodigoDeCatalogo($request->input('material_servico'))],
+            'descricao' => ['required', 'string', 'max:2000'],
+            'unidade_medida' => ['required', 'string', 'max:30'],
+            'quantidade' => ['required', 'numeric', 'gt:0'],
+            'tipo_beneficio' => ['required', Rule::in(array_keys(ItemProcesso::BENEFICIOS))],
+        ]));
+        $this->recalcular($item);
+
+        return redirect()->route('processos.show', [$processo, 'aba' => 'itens'])->withFragment("item-{$item->id}")->with('sucesso', "Item {$item->numero} alterado e valor estimado recalculado.");
+    }
+
     public function destroy(Processo $processo, ItemProcesso $item): RedirectResponse
     {
         $this->doProcesso($processo, $item);

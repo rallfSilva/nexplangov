@@ -150,8 +150,18 @@
             <section class="card" id="item-{{ $item->id }}">
                 <div class="row">
                     <div style="min-width:0"><h2>Item {{ $item->numero }} · {{ $item->descricao }}</h2><p class="hint">{{ numero_br($item->quantidade, 0) }} {{ $item->unidade_medida }} · {{ $item->material_servico === 'M' ? 'Material' : 'Serviço' }}@if ($item->codigo_catalogo) · {{ $item->codigo_catalogo }}@endif · {{ \App\Models\ItemProcesso::BENEFICIOS[$item->tipo_beneficio] }}</p></div>
-                    <div style="text-align:right"><div class="valor" style="font-size:22px;font-weight:800">{{ reais($item->valor_total_estimado) }}</div><div class="small muted">unitário {{ reais($item->valor_unitario_estimado, 4) }} · {{ \App\Licitacao\Regras\PesquisaPrecos::METODOS[$item->metodo_preco] }}</div></div>
+                    <div style="text-align:right"><div class="valor" style="font-size:22px;font-weight:800">{{ reais($item->valor_total_estimado) }}</div><div class="small muted">unitário {{ reais($item->valor_unitario_estimado, 4) }} · {{ \App\Licitacao\Regras\PesquisaPrecos::METODOS[$item->metodo_preco] }}</div>
+                        @if ($podeInstruir)
+                            <div class="btns" style="justify-content:flex-end;margin-top:8px">
+                                <a class="btn btn-s btn-sm" href="{{ route('processos.show', [$processo, 'aba' => 'itens', 'item' => $item->id]) }}#item-{{ $item->id }}"><x-icone nome="editar" tamanho="16" />Editar item</a>
+                                <form method="POST" action="{{ route('processos.itens.destroy', [$processo, $item]) }}" style="display:inline" onsubmit="return confirm('Excluir o item {{ $item->numero }} e todas as suas cotações?')">@csrf @method('DELETE')<button class="btn btn-d btn-sm" type="submit"><x-icone nome="lixeira" tamanho="16" />Excluir item</button></form>
+                            </div>
+                        @endif
+                    </div>
                 </div>
+                @if ($podeInstruir && ((int) request('item') === $item->id || old('form_item') === "editar-item-{$item->id}"))
+                    @include('processos._form-item')
+                @endif
                 @foreach ($r['alertas'] as $a)<div class="flash flash-aviso" style="margin-top:12px"><x-icone nome="alerta" style="flex:none" /><div>{{ $a }}</div></div>@endforeach
                 <div class="tbl-wrap" style="margin-top:12px">
                     <table class="tbl">
