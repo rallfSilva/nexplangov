@@ -33,6 +33,7 @@ final class Sessao
     {
         $this->exigirLicitacao($p, ['publicado', 'em_julgamento']);
         $this->exigirItem($p, $item);
+        $this->exigirSessaoAberta($p);
         $motivos = [];
 
         if (! $f->ativo) {
@@ -77,6 +78,7 @@ final class Sessao
     {
         $p = $prop->processo;
         $this->exigirLicitacao($p, ['em_julgamento']);
+        $this->exigirSessaoAberta($p);
 
         if (! in_array($p->modo_disputa, [1, 3], true)) {
             throw new RegraViolada(['Este processo não tem disputa aberta (modo de disputa: '.ModoDisputa::from($p->modo_disputa)->rotulo().', art. 56).']);
@@ -208,6 +210,11 @@ final class Sessao
         if (count($c['empatadas']) > 1 && in_array($prop->id, $c['empatadas'], true) && ! $prop->desempate_criterio) {
             $motivos[] = 'Há propostas empatadas: registre o critério de desempate aplicado (art. 60).';
         }
+        // Recurso pendente suspende o ato recorrido (art. 168): o item só é adjudicado depois da decisão.
+        $pendentes = $p->recursos()->where(fn ($q) => $q->whereNull('item_id')->orWhere('item_id', $item->id))->get()->filter->pendente();
+        if ($pendentes->isNotEmpty()) {
+            $motivos[] = 'Há recurso pendente sobre este item: a adjudicação espera a decisão (art. 168).';
+        }
         if ($c['empate_ficto'] !== [] && ! $prop->me_epp && trim((string) $empateFictoTratado) === '') {
             $motivos[] = 'Há ME/EPP em empate ficto com a melhor proposta: ofereça a elas a chance de cobrir (registre um lance) ou informe como o empate foi tratado (art. 4º).';
         }
@@ -243,6 +250,14 @@ final class Sessao
         }
         if (! in_array($p->situacao, $situacoes, true)) {
             throw new RegraViolada(['Esta ação só vale com o processo '.(in_array('publicado', $situacoes, true) ? 'publicado ou em julgamento' : 'em julgamento').'.']);
+        }
+    }
+
+    /** Depois de lavrada a ata, não entram propostas nem lances novos; habilitação e adjudicação seguem (efeito dos recursos). */
+    private function exigirSessaoAberta(Processo $p): void
+    {
+        if ($p->sessaoEncerrada()) {
+            throw new RegraViolada(['A sessão pública foi encerrada e a ata lavrada. Para registrar proposta ou lance, reabra a sessão com justificativa.']);
         }
     }
 

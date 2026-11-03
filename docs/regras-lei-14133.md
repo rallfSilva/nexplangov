@@ -93,3 +93,11 @@ Publicação do edital ou aviso de contratação direta enfileira a compra; homo
 - **LGPD**: CPF, e-mail, telefone e CEP são trocados por marcadores antes do envio (art. 6º, III, necessidade). O registro `usos_ia` guarda quem usou, onde e o consumo, com o hash do pedido e sem o texto; é imutável.
 - **Capacitação** (art. 7º, II, e art. 173): cursos por agente, com tema, carga horária, escola de governo e certificado. Conta como atualizado por 24 meses (`NEXPLANGOV_CAPACITACAO_MESES`). Cada um registra o próprio; o administrador do órgão registra de todos.
 - **Painel de governança** (art. 11, parágrafo único): execução do PCA, peso das contratações diretas (quantidade e valor), economia entre estimado e homologado, tempo médio da fase preparatória, prazos em atraso (peças, impugnações, entregas) e percentual de agentes capacitados.
+
+## Sessão pública e recursos (arts. 17, 71, 165 a 168)
+
+- **Sessão pública.** Enquanto aberta, recebe propostas, lances e intenções de recurso. O encerramento lavra a **ata da sessão em PDF** (propostas, lances em ordem cronológica, adjudicações e intenções de recurso) com hash SHA-256; a ata fica pública na página do edital. Reabrir exige motivo registrado.
+- **Pregão ou concorrência presencial** (art. 17, § 2º): o encerramento exige a **gravação em áudio e vídeo** (link https ou arquivo, com hash SHA-256). Sem sessão encerrada e gravação, o processo não é homologado.
+- **Intenção de recurso** (art. 165, § 1º, I): registrada durante a sessão, por licitante com proposta; depois do encerramento há preclusão.
+- **Prazos em dias úteis** (`PrazosRecurso`): razões em 3 dias úteis do encerramento (art. 165, I); contrarrazões em 3 dias úteis do fim do prazo das razões (art. 165, § 4º); reconsideração em 3 dias úteis (art. 165, § 2º); decisão da autoridade superior em 10 dias úteis (art. 165, § 2º).
+- **Efeito suspensivo** (art. 168): recurso pendente impede a adjudicação do item e a homologação do processo. A decisão superior exige a permissão `processos.autorizar` e não pode ser tomada por quem negou a reconsideração.

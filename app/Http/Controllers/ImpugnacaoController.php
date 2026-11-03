@@ -9,6 +9,7 @@ use App\Models\Impugnacao;
 use App\Models\Processo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -49,7 +50,17 @@ class ImpugnacaoController extends Controller
             'processo' => $processo->load('orgao'),
             'respostas' => $processo->impugnacoes()->whereIn('situacao', ['respondida', 'nao_conhecida'])->get(),
             'aceita' => in_array($processo->situacao, ['publicado', 'em_julgamento'], true),
+            'recursos' => $processo->recursos()->with(['fornecedor', 'item', 'contrarrazoes.fornecedor'])->orderBy('id')->get(),
         ]);
+    }
+
+    /** Ata da sessão pública: documento público do processo (art. 165, § 5º, vista dos autos). */
+    public function ataPublica(Processo $processo)
+    {
+        abort_unless($processo->ata_sessao_caminho && ! Modalidade::from($processo->modalidade)->ehContratacaoDireta()
+            && Storage::disk('local')->exists($processo->ata_sessao_caminho), 404);
+
+        return Storage::disk('local')->download($processo->ata_sessao_caminho, 'ata-sessao-'.str_replace('/', '-', $processo->identificacao()).'.pdf');
     }
 
     public function pedidoPublico(Request $request, Processo $processo): RedirectResponse
