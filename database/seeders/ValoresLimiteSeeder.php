@@ -15,8 +15,8 @@ class ValoresLimiteSeeder extends Seeder
     public const VALORES = [
         [2025, 'art75_I', 125451.15, 'Decreto nº 12.343/2024', true],
         [2025, 'art75_II', 62725.59, 'Decreto nº 12.343/2024', true],
-        [2026, 'art75_I', 130984.20, 'Decreto de atualização para 2026 (conferir número e valor no DOU)', false],
-        [2026, 'art75_II', 65492.11, 'Decreto de atualização para 2026 (conferir número e valor no DOU)', false],
+        [2026, 'art75_I', 130984.20, 'Decreto nº 12.807/2025 (conferir valor no DOU)', false],
+        [2026, 'art75_II', 65492.11, 'Decreto nº 12.807/2025 (conferir valor no DOU)', false],
     ];
 
     public function run(): void

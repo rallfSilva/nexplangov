@@ -28,7 +28,7 @@ Cada regra está em `app/Licitacao/Regras` e tem teste em `tests/Unit/Lei14133` 
 
 - Limites do ano na tabela `valores_limite`, atualizados por decreto (art. 182).
   - 2025: R$ 125.451,15 (obras e serviços de engenharia) e R$ 62.725,59 (demais), Decreto 12.343/2024.
-  - 2026: R$ 130.984,20 e R$ 65.492,11. **Conferir com o decreto publicado antes de usar em produção.**
+  - 2026: R$ 130.984,20 e R$ 65.492,11, Decreto nº 12.807/2025 (vigente desde 1º/01/2026). Os valores foram conferidos em fonte secundária; **confirme no DOU** e marque como conferidos na tela de configurações.
 - Soma das dispensas do mesmo exercício e da mesma natureza de despesa no órgão (§ 1º, fracionamento).
 - Limite em dobro para consórcio público e agência executiva (§ 2º), configurado no cadastro do órgão.
 
@@ -82,7 +82,7 @@ Publicação do edital ou aviso de contratação direta enfileira a compra; homo
 
 ## Etapa E: catálogo CATMAT/CATSER e painel master
 
-- **Catálogo** (art. 19, I; art. 174, § 3º, V): tabela `catalogo_itens`, única para todos os órgãos. Carregada com `php artisan nexplangov:catalogo-importar arquivo.csv --tipo=M|S` (CSV `;` com `codigo;descricao;classe_codigo;classe_nome;unidade;situacao`), idempotente. O sistema não traz dados prontos: use os arquivos oficiais do Compras.gov.br.
+- **Catálogo** (art. 19, II): tabela `catalogo_itens`, única para todos os órgãos. Carregada com `php artisan nexplangov:catalogo-importar arquivo.csv --tipo=M|S` (CSV `;` com `codigo;descricao;classe_codigo;classe_nome;unidade;situacao`), idempotente. O sistema não traz dados prontos: use os arquivos oficiais do Compras.gov.br.
 - **Conferência**: com o catálogo do tipo carregado, o PCA e os itens do processo recusam código inexistente, inativo ou de outro tipo. Sem catálogo carregado o código não é conferido (a tela avisa).
 - **Painel master** (`/master`, só administrador geral sem órgão): por órgão, usuários ativos e sem 2FA, processos em andamento, contratos vigentes, erros do PNCP e última atividade; confere a cadeia de hash da auditoria. Não mostra o conteúdo dos processos.
 

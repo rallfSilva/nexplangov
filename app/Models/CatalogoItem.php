@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
-/** Item do catálogo nacional de materiais (CATMAT) ou serviços (CATSER). Lei 14.133/2021, art. 19, I e art. 174, § 3º, V. */
+/** Item do catálogo nacional de materiais (CATMAT) ou serviços (CATSER). Lei 14.133/2021, art. 19, II. */
 #[Fillable(['tipo', 'codigo', 'descricao', 'classe_codigo', 'classe_nome', 'unidade_padrao', 'ativo', 'fonte'])]
 class CatalogoItem extends Model
 {

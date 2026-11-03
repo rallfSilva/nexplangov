@@ -1,7 +1,7 @@
 <x-layouts.app titulo="Catálogo CATMAT/CATSER">
     <div>
         <h1 class="h1">Catálogo CATMAT/CATSER</h1>
-        <p class="sub">Códigos padronizados para materiais e serviços <span class="lei">art. 19, I; art. 174, § 3º, V</span> · {{ number_format($total['M'], 0, ',', '.') }} materiais e {{ number_format($total['S'], 0, ',', '.') }} serviços carregados</p>
+        <p class="sub">Códigos padronizados para materiais e serviços <span class="lei">art. 19, II</span> · {{ number_format($total['M'], 0, ',', '.') }} materiais e {{ number_format($total['S'], 0, ',', '.') }} serviços carregados</p>
     </div>
     @if ($total['M'] + $total['S'] === 0)
         <div class="aviso-lei" style="border-color:#E0A458;background:#FFF7EC;color:#7A3B0B">O catálogo ainda não foi carregado. O administrador do sistema importa os arquivos do Compras.gov.br com <code>php artisan nexplangov:catalogo-importar arquivo.csv --tipo=M</code>. Enquanto isso o código digitado não é conferido.</div>
