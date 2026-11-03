@@ -4,6 +4,7 @@ namespace App\Licitacao\Ia;
 
 use App\Licitacao\RegraViolada;
 use App\Licitacao\TiposDocumento;
+use App\Models\Orgao;
 use App\Models\Processo;
 use App\Models\User;
 use App\Models\UsoIa;
@@ -30,6 +31,12 @@ final class AssistenteIa
     public static function habilitada(): bool
     {
         return (bool) config('nexplangov.ia.habilitada');
+    }
+
+    /** Na turma de treinamento o assistente só funciona se a implantação liberar (cada uso tem custo). */
+    public static function habilitadaPara(?Orgao $orgao): bool
+    {
+        return self::habilitada() && (! $orgao?->treinamento || (bool) config('nexplangov.treinamento.ia'));
     }
 
     public function sugerir(Processo $p, string $tipo, string $campo, array $conteudo, User $u): string

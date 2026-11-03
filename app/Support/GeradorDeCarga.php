@@ -46,7 +46,7 @@ final class GeradorDeCarga
             for ($i = 0; $i < $qtdFornecedores; $i++) {
                 $n = $base + $i;
                 $fornecedores[] = Fornecedor::create([
-                    'orgao_id' => $orgao->id, 'tipo_pessoa' => 'PJ', 'documento' => $this->cnpj($orgao->id, $n),
+                    'orgao_id' => $orgao->id, 'tipo_pessoa' => 'PJ', 'documento' => self::cnpj($orgao->id, $n),
                     'razao_social' => 'Fornecedor de Carga '.str_pad((string) ($n + 1), 4, '0', STR_PAD_LEFT).' Ltda (fictícia)',
                     'porte' => ['ME', 'EPP', 'DEMAIS'][$n % 3], 'municipio' => 'Vale Verde', 'uf' => 'RR', 'email' => "carga{$n}@exemplo.com.br",
                 ]);
@@ -120,9 +120,9 @@ final class GeradorDeCarga
     }
 
     /** CNPJ fictício da série 99.9xx com dígitos verificadores válidos. */
-    private function cnpj(int $orgaoId, int $n): string
+    public static function cnpj(int $orgaoId, int $n, string $prefixo = '999'): string
     {
-        $base = '999'.str_pad((string) ($orgaoId % 100), 2, '0', STR_PAD_LEFT).str_pad((string) ($n % 1000), 3, '0', STR_PAD_LEFT).'0001';
+        $base = $prefixo.str_pad((string) ($orgaoId % 100), 2, '0', STR_PAD_LEFT).str_pad((string) ($n % 1000), 3, '0', STR_PAD_LEFT).'0001';
         foreach ([[5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2], [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]] as $pesos) {
             $soma = 0;
             foreach ($pesos as $k => $peso) {

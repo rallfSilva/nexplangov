@@ -31,6 +31,7 @@ use App\Http\Controllers\PrecosComprasGovController;
 use App\Http\Controllers\ProcessoController;
 use App\Http\Controllers\RequisicaoController;
 use App\Http\Controllers\SegurancaController;
+use App\Http\Controllers\TreinamentoController;
 use App\Http\Controllers\UnidadeController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\ValidacaoAssinaturaController;
@@ -89,6 +90,10 @@ Route::middleware(['auth', 'ativo'])->group(function () {
         Route::get('/processos/{processo}/dossie', [IntegracaoController::class, 'dossie'])->middleware(['can:processos.ver', 'throttle:10,1'])->name('processos.dossie');
         Route::patch('/processos/{processo}/sei', [IntegracaoController::class, 'numeroSei'])->middleware('can:processos.gerenciar')->name('processos.sei');
         Route::get('/master', MasterController::class)->middleware('can:master.ver')->name('master');
+        Route::middleware('can:master.ver')->group(function () {
+            Route::post('/master/treinamento', [TreinamentoController::class, 'store'])->name('treinamento.store');
+            Route::post('/master/treinamento/{orgao}/encerrar', [TreinamentoController::class, 'encerrar'])->name('treinamento.encerrar');
+        });
 
         // PCA (art. 12, VII)
         Route::get('/pca', [PcaController::class, 'index'])->middleware('can:pca.ver')->name('pca.index');

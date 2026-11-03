@@ -25,6 +25,19 @@ class FilaPncp
         $montado = $this->montador->montar($alvo, $recurso, $operacao);
         $orgao = $alvo->getRelationValue('orgao') ?? $alvo->orgao;
 
+        // Turma de treinamento: o envio é montado e conferido como de verdade, mas nunca sai do sistema.
+        if ($orgao?->treinamento) {
+            return EnvioPncp::create([
+                'orgao_id' => $alvo->getAttribute('orgao_id'), 'user_id' => $usuario?->id,
+                'publicavel_type' => $alvo->getMorphClass(), 'publicavel_id' => $alvo->getKey(),
+                'recurso' => $recurso, 'operacao' => $operacao,
+                'estado' => $montado['pendencias'] === [] ? 'simulado' : 'erro', 'ambiente' => 'treinamento',
+                'payload' => $montado['corpo'], 'metodo' => $montado['metodo'], 'rota' => $montado['rota'],
+                'erro' => $montado['pendencias'] === [] ? null : 'Antes de enviar: '.implode(' ', $montado['pendencias']),
+                'resposta' => ['simulado' => true, 'mensagem' => 'Ambiente de treinamento: nada foi enviado ao PNCP.'],
+            ]);
+        }
+
         $envio = EnvioPncp::create([
             'orgao_id' => $alvo->getAttribute('orgao_id'),
             'user_id' => $usuario?->id,

@@ -22,6 +22,14 @@ class GarantirUsuarioAtivo
             return redirect()->route('login')->withErrors(['email' => 'Seu acesso está desativado. Procure o administrador do órgão.']);
         }
 
+        if ($user && $user->orgao?->treinamentoEncerrado()) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')->withErrors(['email' => 'O período desta turma de treinamento terminou.']);
+        }
+
         return $next($request);
     }
 }
