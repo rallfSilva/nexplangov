@@ -114,3 +114,37 @@ Guarde-as em tabelas `pncp_dominios` versionadas e sincronize com o Swagger vige
 - Separe homologação e produção por configuração do tenant. Um cliente novo começa em homologação.
 - Nunca marque um objeto como publicado sem resposta 2xx do PNCP.
 - Testes automatizados com mocks do PNCP e uma suíte de integração rodando contra `treina.pncp.gov.br`.
+
+## 8. O que o NexPlanGov já faz (novembro de 2026)
+
+| Evento no sistema | Envio | Documento anexado |
+|---|---|---|
+| Autoridade autoriza a publicação (licitação) | Inclusão da compra, multipart com a parte `compra` (JSON) e a parte `documento` | Edital (tipo 2): o PDF enviado na peça "Minuta do edital" ou, se a peça foi redigida no sistema, um PDF gerado dela |
+| Autoridade autoriza a contratação direta | Inclusão da compra | Aviso de contratação direta (tipo 1), gerado com objeto, fundamento e decisão da autoridade (art. 72, parágrafo único) |
+| Revogação, anulação, deserção, fracasso, homologação | Retificação da compra (objeto completo + `justificativa`) | |
+| Homologação | Um resultado por item homologado com vencedor (`.../itens/{n}/resultados`); o sequencial devolvido fica no item e o reenvio vira retificação | |
+| Botão "Publicar no PNCP" na ata | Inclusão da ata; em seguida, o PDF da ata (tipo 11) em `.../atas/{seq}/arquivos` | Gerado do registro da ata |
+| Botão "Publicar no PNCP" no PCA aprovado | Inclusão do PCA com `itensPlano` | |
+| Botão "Publicar no PNCP" no contrato | Inclusão do contrato; se houver contrato assinado anexado, em seguida o arquivo (tipo 12) | O PDF que o usuário anexou (SHA-256 guardado) |
+| Termo de contrato | Inclusão do termo | |
+| "Excluir no PNCP" na lista de envios | `DELETE` com `justificativa` obrigatória (mín. 10 caracteres), que fica pública | |
+
+Regras implementadas: título do documento cortado em 50 caracteres e sem acento; a compra sem edital concluído não sai (pendência "Conclua a peça Minuta do edital", art. 54); arquivo de contrato só em PDF até 20 MB; órgão de turma de treinamento nunca envia (estado "Simulado").
+
+Os PDFs gerados usam o Dompdf com acesso remoto desligado e ficam em `storage/app/private/orgaos/{id}/pncp/`.
+
+### Homologação no ambiente de treinamento do PNCP
+
+Feito uma vez por órgão, antes de mudar o ambiente para produção:
+
+```bash
+# 1. Só leitura: login, cadastro do órgão e das unidades compradoras no PNCP
+php artisan nexplangov:pncp-homologar --orgao=SIGLA
+
+# 2. Publicação de teste em treina.pncp.gov.br (recusado se o órgão estiver em produção)
+php artisan nexplangov:pncp-homologar --orgao=SIGLA --ciclo --processo=ID
+```
+
+O servidor precisa alcançar `treina.pncp.gov.br` e `pncp.gov.br` (porta 443). Depois do ciclo, confira a compra no portal de treinamento e só então altere o ambiente do órgão para produção em Órgãos.
+
+Pontos a conferir no Swagger vigente, porque o manual 1.0.0 não detalha: a tabela de categoria do item do PCA (`MontadorPayload::categoriaItemPca`) e os campos opcionais do resultado. O ciclo de teste mostra a mensagem do PNCP quando algum campo mudou.

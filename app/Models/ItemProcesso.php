@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['orgao_id', 'processo_id', 'item_pca_id', 'numero', 'material_servico', 'codigo_catalogo', 'descricao', 'unidade_medida', 'quantidade', 'metodo_preco', 'tipo_beneficio', 'situacao', 'fornecedor_vencedor_id', 'valor_unitario_homologado', 'proposta_id', 'adjudicado_em', 'adjudicado_por'])]
+#[Fillable(['orgao_id', 'processo_id', 'item_pca_id', 'numero', 'material_servico', 'codigo_catalogo', 'descricao', 'unidade_medida', 'quantidade', 'metodo_preco', 'tipo_beneficio', 'situacao', 'fornecedor_vencedor_id', 'valor_unitario_homologado', 'proposta_id', 'adjudicado_em', 'adjudicado_por', 'sequencial_resultado_pncp'])]
 class ItemProcesso extends Model
 {
     use Auditable, BelongsToOrgao;

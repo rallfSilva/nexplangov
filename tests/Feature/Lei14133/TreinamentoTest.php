@@ -77,7 +77,7 @@ class TreinamentoTest extends TestCase
         $p = Processo::withoutGlobalScopes()->where('orgao_id', $o->id)->firstOrFail();
         $e = EnvioPncp::create(['orgao_id' => $o->id, 'publicavel_type' => $p->getMorphClass(), 'publicavel_id' => $p->id, 'recurso' => 'compra', 'operacao' => 'inserir', 'estado' => 'pendente', 'ambiente' => 'treinamento', 'payload' => [], 'metodo' => 'POST', 'rota' => '/x']);
 
-        (new EnviarAoPncp($e->id))->handle(app(PncpCliente::class));
+        (new EnviarAoPncp($e->id))->handle(app(PncpCliente::class), app(FilaPncp::class));
 
         Http::assertNothingSent();
         $this->assertSame('pendente', $e->fresh()->estado);

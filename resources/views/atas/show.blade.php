@@ -6,6 +6,10 @@
         <h1 class="h1" style="margin-top:8px">Ata {{ $ata->identificacao() }} <span class="b {{ $ata->vigente() ? 'b-ok' : 'b-mute' }}" style="vertical-align:middle">{{ $ata->situacaoExibida() }}</span></h1>
         <p class="sub">{{ $ata->fornecedor->razao_social }} · processo <a href="{{ route('processos.show', $ata->processo) }}">{{ $ata->processo->identificacao() }}</a> · vigência {{ $ata->vigencia_inicio->format('d/m/Y') }} a {{ $ata->vigencia_fim->format('d/m/Y') }}@if ($ata->prorrogada) (prorrogada)@endif</p>
         @if ($ata->motivo_cancelamento)<p class="small">Cancelada: {{ $ata->motivo_cancelamento }}</p>@endif
+        @can('pncp.enviar')
+            <form method="POST" action="{{ route('pncp.ata', $ata) }}" style="margin-top:10px">@csrf<button class="btn btn-s" type="submit"><x-icone nome="pncp" />{{ $ata->numero_controle_pncp ? 'Retificar no PNCP' : 'Publicar no PNCP' }}</button>
+                <span class="small muted">{{ $ata->numero_controle_pncp ? 'Ata nº '.$ata->numero_controle_pncp.' no PNCP.' : 'O PDF da ata segue logo depois da publicação.' }} <span class="lei">art. 174, § 2º, II</span></span></form>
+        @endcan
     </div>
 
     @foreach ($ata->itens as $ai)

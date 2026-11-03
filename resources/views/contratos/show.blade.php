@@ -6,7 +6,9 @@
             <p class="sub">{{ $contrato->fornecedor->razao_social }} · {{ $contrato->fornecedor->documento }}</p>
         </div>
         @can('pncp.enviar')
-            <form method="POST" action="{{ route('pncp.contrato', $contrato) }}">@csrf<button class="btn btn-p" type="submit"><x-icone nome="pncp" />{{ $contrato->numero_controle_pncp ? 'Retificar no PNCP' : 'Publicar no PNCP' }}</button></form>
+            <div class="btns">
+                <form method="POST" action="{{ route('pncp.contrato', $contrato) }}">@csrf<button class="btn btn-p" type="submit"><x-icone nome="pncp" />{{ $contrato->numero_controle_pncp ? 'Retificar no PNCP' : 'Publicar no PNCP' }}</button></form>
+            </div>
         @endcan
     </div>
 
@@ -16,6 +18,20 @@
         <div class="card kpi"><span class="lbl">Acréscimos (limite {{ $contrato->reforma_equipamento ? '50' : '25' }}%)</span><span class="val">{{ numero_br($limites['percentual_acrescimo']) }}%</span><div class="barra {{ $limites['percentual_acrescimo'] > ($contrato->reforma_equipamento ? 40 : 20) ? 'alerta' : '' }}"><span style="width:{{ min(100, $limites['percentual_acrescimo'] / ($contrato->reforma_equipamento ? 50 : 25) * 100) }}%"></span></div></div>
         <div class="card kpi"><span class="lbl">Supressões (limite 25%)</span><span class="val">{{ numero_br($limites['percentual_supressao']) }}%</span><div class="barra"><span style="width:{{ min(100, $limites['percentual_supressao'] / 25 * 100) }}%"></span></div></div>
     </div>
+
+    <section class="card">
+        <h2>Contrato assinado</h2>
+        <p class="hint">O arquivo assinado vai ao PNCP junto da publicação do contrato <span class="lei">art. 94</span>. Só PDF, até 20 MB.</p>
+        @if ($contrato->arquivo_caminho)
+            <p class="small"><a href="{{ route('contratos.assinado', $contrato) }}">{{ $contrato->arquivo_nome ?: 'contrato.pdf' }}</a> <span class="muted">SHA-256 {{ \Illuminate\Support\Str::limit($contrato->arquivo_hash, 16, '…') }}</span></p>
+        @endif
+        @can('pncp.enviar')
+            <form method="POST" action="{{ route('pncp.contrato.arquivo', $contrato) }}" enctype="multipart/form-data" class="btns">@csrf
+                <label for="contrato-assinado" class="small">{{ $contrato->arquivo_caminho ? 'Substituir arquivo' : 'Arquivo assinado' }}</label>
+                <input id="contrato-assinado" type="file" name="arquivo" accept="application/pdf" required class="input" style="width:auto">
+                <button class="btn btn-s btn-sm" type="submit">Anexar</button></form>
+        @endcan
+    </section>
 
     <div class="g2">
         <section class="card">

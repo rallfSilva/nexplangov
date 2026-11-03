@@ -6,10 +6,12 @@ use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
- * Cliente da API do PNCP (manual de integração v1.0.0). Autentica com o login da plataforma,
+ * Cliente da API do PNCP (manual de integração). Autentica com o login da plataforma,
  * guarda o JWT por 55 minutos (ele vale 1 hora) e repete a chamada uma vez se receber 401.
  */
 class PncpCliente
@@ -52,16 +54,51 @@ class PncpCliente
         });
     }
 
-    /** @param  array<string, mixed>  $corpo */
-    public function enviar(string $ambiente, string $metodo, string $rota, array $corpo = []): Response
+    /**
+     * Envia JSON, ou multipart quando há documento: a inclusão da compra leva a parte "compra" (JSON) e a
+     * parte "documento" (arquivo); os endpoints de arquivos levam só a parte "arquivo". O título e o tipo
+     * do documento vão nos cabeçalhos Titulo-Documento e Tipo-Documento-Id.
+     *
+     * @param  array<string, mixed>  $corpo
+     * @param  array{caminho: string, titulo: string, tipo: int}|null  $documento
+     */
+    public function enviar(string $ambiente, string $metodo, string $rota, array $corpo = [], ?array $documento = null, ?string $parteJson = null): Response
     {
-        $resposta = $this->requisicao($ambiente, $this->token($ambiente))->send($metodo, $rota, $corpo === [] ? [] : ['json' => $corpo]);
+        $chamar = function (string $token) use ($ambiente, $metodo, $rota, $corpo, $documento, $parteJson) {
+            $req = $this->requisicao($ambiente, $token);
+
+            if ($documento === null) {
+                return $req->send($metodo, $rota, $corpo === [] ? [] : ['json' => $corpo]);
+            }
+
+            $req = $req->withHeaders(['Titulo-Documento' => self::tituloDocumento($documento['titulo']), 'Tipo-Documento-Id' => (string) $documento['tipo']]);
+            if ($parteJson) {
+                $req = $req->attach($parteJson, json_encode($corpo, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), null, ['Content-Type' => 'application/json']);
+            }
+
+            return $req->attach($parteJson ? 'documento' : 'arquivo', Storage::disk('local')->get($documento['caminho']), Str::slug($documento['titulo']).'.pdf', ['Content-Type' => 'application/pdf'])
+                ->post($rota);
+        };
+
+        $resposta = $chamar($this->token($ambiente));
 
         if ($resposta->status() === 401) {
-            $resposta = $this->requisicao($ambiente, $this->token($ambiente, renovar: true))->send($metodo, $rota, $corpo === [] ? [] : ['json' => $corpo]);
+            $resposta = $chamar($this->token($ambiente, renovar: true));
         }
 
         return $resposta;
+    }
+
+    /** O cabeçalho aceita até 50 caracteres; sem acento para não depender da codificação do servidor. */
+    public static function tituloDocumento(string $titulo): string
+    {
+        return mb_substr(trim(preg_replace('/\s+/', ' ', Str::ascii(str_replace('·', '-', $titulo)))), 0, 50);
+    }
+
+    /** Consulta (GET) usada na homologação: órgão, unidades e o que foi publicado. */
+    public function consultar(string $ambiente, string $rota): Response
+    {
+        return $this->requisicao($ambiente, $this->token($ambiente))->get($rota);
     }
 
     private function requisicao(string $ambiente, string $token): PendingRequest

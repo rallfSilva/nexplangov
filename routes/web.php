@@ -246,10 +246,16 @@ Route::middleware(['auth', 'ativo'])->group(function () {
 
         // PNCP
         Route::get('/pncp', [PncpController::class, 'index'])->middleware('can:processos.ver')->name('pncp.index');
+        Route::get('/contratos/{contrato}/assinado', [PncpController::class, 'baixarContrato'])->middleware('can:contratos.ver')->name('contratos.assinado');
         Route::middleware('can:pncp.enviar')->group(function () {
             Route::post('/pncp/contratos/{contrato}', [PncpController::class, 'publicarContrato'])->name('pncp.contrato');
             Route::post('/pncp/termos/{termo}', [PncpController::class, 'publicarTermo'])->name('pncp.termo');
             Route::post('/pncp/envios/{envio}/reenviar', [PncpController::class, 'reenviar'])->name('pncp.reenviar');
+            Route::post('/pncp/envios/{envio}/excluir', [PncpController::class, 'excluir'])->name('pncp.excluir');
+            Route::post('/pncp/atas/{ata}', [PncpController::class, 'publicarAta'])->name('pncp.ata');
+            Route::post('/pncp/pca/{plano}', [PncpController::class, 'publicarPca'])->name('pncp.pca');
+            Route::post('/pncp/processos/{processo}/resultados', [PncpController::class, 'publicarResultados'])->name('pncp.resultados');
+            Route::post('/pncp/contratos/{contrato}/arquivo', [PncpController::class, 'anexarContrato'])->name('pncp.contrato.arquivo');
         });
 
         // LGPD

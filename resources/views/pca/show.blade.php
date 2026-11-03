@@ -17,6 +17,11 @@
                     <form method="POST" action="{{ route('pca.aprovar', $plano) }}" onsubmit="return confirm('Aprovar o PCA {{ $plano->ano }}? Depois disso, mudanças só por revisão registrada.')">@csrf<button class="btn btn-p" type="submit"><x-icone nome="ok" />Aprovar PCA</button></form>
                 @endif
             @endcan
+            @can('pncp.enviar')
+                @if ($plano->situacao === 'aprovado')
+                    <form method="POST" action="{{ route('pncp.pca', $plano) }}">@csrf<button class="btn btn-s" type="submit"><x-icone nome="pncp" />{{ $plano->numero_controle_pncp ? 'Atualizar no PNCP' : 'Publicar no PNCP' }}</button></form>
+                @endif
+            @endcan
         </div>
     </div>
 

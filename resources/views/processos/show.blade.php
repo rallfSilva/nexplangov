@@ -282,6 +282,12 @@
         <section class="card">
             <h2>Publicações no PNCP</h2>
             <p class="hint">@if ($processo->numero_controle_pncp)Compra publicada sob a referência {{ $processo->numero_controle_pncp }}.@else Ainda não publicado. A publicação vai para a fila quando a autoridade autoriza.@endif</p>
+            @can('pncp.enviar')
+                @if ($processo->numero_controle_pncp && in_array($sit, [S::Homologado, S::Contratado], true))
+                    <form method="POST" action="{{ route('pncp.resultados', $processo) }}" class="btns">@csrf<button class="btn btn-s btn-sm" type="submit"><x-icone nome="pncp" />Publicar resultado dos itens</button>
+                        <span class="small muted">Vai sozinho na homologação; use para reenviar depois de corrigir. <span class="lei">art. 71, IV</span></span></form>
+                @endif
+            @endcan
             @include('pncp._lista', ['envios' => $processo->enviosPncp])
         </section>
     @endif

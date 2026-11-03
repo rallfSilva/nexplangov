@@ -8,12 +8,19 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
-#[Fillable(['orgao_id', 'user_id', 'publicavel_type', 'publicavel_id', 'recurso', 'operacao', 'estado', 'ambiente', 'tentativas', 'payload', 'metodo', 'rota', 'http_status', 'resposta', 'location', 'erro', 'publicado_em'])]
+#[Fillable(['orgao_id', 'user_id', 'publicavel_type', 'publicavel_id', 'recurso', 'operacao', 'estado', 'ambiente', 'tentativas', 'payload', 'metodo', 'rota', 'http_status', 'resposta', 'location', 'erro', 'publicado_em', 'arquivo_caminho', 'documento_titulo', 'tipo_documento_id', 'justificativa'])]
 class EnvioPncp extends Model
 {
     use BelongsToOrgao;
 
     protected $table = 'envios_pncp';
+
+    public const RECURSOS = [
+        'compra' => 'Compra', 'contrato' => 'Contrato', 'termo' => 'Termo de contrato', 'resultado' => 'Resultado de item',
+        'ata' => 'Ata de registro de preços', 'pca' => 'PCA', 'arquivo_contrato' => 'Contrato assinado (PDF)', 'arquivo_ata' => 'Ata (PDF)',
+    ];
+
+    public const AMBIENTES = ['producao' => 'Produção', 'homologacao' => 'Homologação', 'treinamento' => 'Treinamento'];
 
     public const ESTADOS = ['pendente' => 'Na fila', 'enviando' => 'Enviando', 'publicado' => 'Publicado', 'simulado' => 'Simulado (treinamento)', 'erro' => 'Com erro'];
 

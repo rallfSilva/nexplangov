@@ -80,6 +80,10 @@ class FluxoProcessoTest extends TestCase
         $this->assertSame(1, $envio->payload['tipoInstrumentoConvocatorioId']);
         $this->assertCount(1, $envio->payload['itensCompra']);
         Http::assertSent(fn ($r) => $r->hasHeader('Authorization', 'Bearer token-teste') && str_ends_with($r->url(), '/compras'));
+        // O edital vai anexado no mesmo envio (multipart: parte "compra" em JSON e parte "documento" em PDF).
+        Http::assertSent(fn ($r) => str_ends_with($r->url(), '/compras') && $r->isMultipart() && $r->hasHeader('Tipo-Documento-Id', '2')
+            && collect($r->data())->pluck('name')->sort()->values()->all() === ['compra', 'documento']);
+        $this->assertSame(2, $envio->tipo_documento_id);
 
         $this->assertCount(3, $p->eventos);
     }
@@ -110,8 +114,10 @@ class FluxoProcessoTest extends TestCase
             '*/v1/usuarios/login' => Http::response(null, 200, ['Authorization' => 'Bearer t']),
             '*/compras' => Http::response(['message' => 'Unidade compradora inexistente'], 422),
         ]);
-        $p = $this->processo([], 'aguardando_autorizacao');
+        $p = $this->processo();
         $this->itemComPrecoDireto($p);
+        $this->concluirDocumento($p, 'minuta_edital', $this->u['planejamento']);
+        $p->forceFill(['situacao' => 'aguardando_autorizacao'])->save();
         $this->concluirDocumento($p, 'autorizacao', $this->u['autoridade']);
 
         $this->actingAs($this->u['autoridade'])->post("/processos/{$p->id}/tramitar", ['destino' => 'publicado'])->assertSessionHas('sucesso');
