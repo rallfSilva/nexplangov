@@ -15,6 +15,26 @@
         <p class="muted small">Nenhuma resposta divulgada até agora.</p>
     @endforelse
 
+    @if ($processo->ata_sessao_caminho)
+        <p style="margin-top:14px"><a href="{{ route('edital.ata', $processo) }}" style="font-weight:600">Ata da sessão pública (PDF)</a> <span class="muted small">lavrada em {{ $processo->sessao_encerrada_em?->format('d/m/Y H:i') }}</span></p>
+    @endif
+
+    @if ($recursos->isNotEmpty())
+        <h2 style="margin-top:18px">Recursos <span class="lei">arts. 165 a 168</span></h2>
+        @foreach ($recursos as $r)
+            <div class="aviso-lei" style="margin:8px 0">
+                <b>{{ $r->fornecedor->razao_social }}</b> · {{ \App\Models\Recurso::TIPOS[$r->tipo] }}@if ($r->item) · item {{ $r->item->numero }}@endif
+                · <b>{{ \App\Models\Recurso::SITUACOES[$r->situacaoAtual()] }}</b>
+                @if ($r->prazo_razoes && $r->situacao === 'intencao')<br>Razões até {{ $r->prazo_razoes->format('d/m/Y') }}.@endif
+                @if ($r->prazo_contrarrazoes && $r->situacao === 'razoes')<br>Contrarrazões até {{ $r->prazo_contrarrazoes->format('d/m/Y') }}.@endif
+                @if ($r->razoes)<hr style="border:0;border-top:1px solid #CBEAEC;margin:8px 0"><b>Razões:</b> <span style="white-space:pre-line">{{ $r->razoes }}</span>@endif
+                @foreach ($r->contrarrazoes as $c)<hr style="border:0;border-top:1px solid #CBEAEC;margin:8px 0"><b>Contrarrazões de {{ $c->fornecedor->razao_social }}:</b> <span style="white-space:pre-line">{{ $c->texto }}</span>@endforeach
+                @if ($r->reconsideracao_texto)<hr style="border:0;border-top:1px solid #CBEAEC;margin:8px 0"><b>{{ $r->reconsideracao === 'reconsiderou' ? 'Reconsideração do agente' : 'Agente manteve o ato' }}:</b> <span style="white-space:pre-line">{{ $r->reconsideracao_texto }}</span>@endif
+                @if ($r->decisao)<hr style="border:0;border-top:1px solid #CBEAEC;margin:8px 0"><b>Decisão da autoridade ({{ \App\Models\Recurso::RESULTADOS[$r->resultado] }}):</b> <span style="white-space:pre-line">{{ $r->decisao }}</span>@endif
+            </div>
+        @endforeach
+    @endif
+
     @if ($aceita)
         <h2 style="margin-top:18px">Pedir esclarecimento ou impugnar o edital <span class="lei">art. 164</span></h2>
         <p class="small muted">O pedido vale até 3 dias úteis antes da abertura. Seu nome e e-mail são usados só para responder (LGPD).</p>

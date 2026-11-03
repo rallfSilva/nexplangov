@@ -7,8 +7,7 @@ use App\Licitacao\TiposDocumento;
 use App\Models\Ata;
 use App\Models\Contrato;
 use App\Models\Processo;
-use Dompdf\Dompdf;
-use Dompdf\Options;
+use App\Support\Pdf;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -89,18 +88,10 @@ final class DocumentosPncp
     /** @return Doc */
     private function gerar($orgao, string $titulo, ?string $subtitulo, array $secoes, ?array $tabela, string $tituloPncp, TipoDocumentoPncp $tipo, string $pasta): array
     {
-        $html = view('pncp.documento-pdf', ['orgao' => $orgao, 'titulo' => $titulo, 'subtitulo' => $subtitulo, 'secoes' => $secoes, 'tabela' => $tabela, 'rodape' => $tipo->rotulo()])->render();
-
-        $opcoes = new Options;
-        $opcoes->setIsRemoteEnabled(false);
-        $opcoes->setDefaultFont('DejaVu Sans');
-        $pdf = new Dompdf($opcoes);
-        $pdf->loadHtml($html, 'UTF-8');
-        $pdf->setPaper('A4');
-        $pdf->render();
+        $pdf = Pdf::daView('pncp.documento-pdf', ['orgao' => $orgao, 'titulo' => $titulo, 'subtitulo' => $subtitulo, 'secoes' => $secoes, 'tabela' => $tabela, 'rodape' => $tipo->rotulo()]);
 
         $caminho = $pasta.'/'.Str::uuid().'.pdf';
-        Storage::disk('local')->put($caminho, $pdf->output());
+        Storage::disk('local')->put($caminho, $pdf);
 
         return ['caminho' => $caminho, 'titulo' => Str::limit($tituloPncp, 250, ''), 'tipo' => $tipo->value];
     }

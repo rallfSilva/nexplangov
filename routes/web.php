@@ -50,6 +50,7 @@ Route::get('/validar/{codigo?}', [ValidacaoAssinaturaController::class, 'mostrar
 
 // Página pública do edital: respostas divulgadas e pedido de impugnação ou esclarecimento (art. 164).
 Route::get('/editais/{processo}', [ImpugnacaoController::class, 'edital'])->middleware('throttle:60,1')->name('edital.publico');
+Route::get('/editais/{processo}/ata-sessao', [ImpugnacaoController::class, 'ataPublica'])->middleware('throttle:30,1')->name('edital.ata');
 Route::post('/editais/{processo}/pedidos', [ImpugnacaoController::class, 'pedidoPublico'])->middleware('throttle:5,10')->name('edital.pedido');
 
 Route::middleware(['auth', 'ativo'])->group(function () {
@@ -163,6 +164,11 @@ Route::middleware(['auth', 'ativo'])->group(function () {
         });
         // NexLicita: sessão de julgamento, impugnações e IRP
         Route::get('/processos/{processo}/licitacao', [LicitacaoController::class, 'show'])->middleware('can:processos.ver')->name('licitacao.show');
+        Route::middleware('can:processos.ver')->group(function () {
+            Route::get('/processos/{processo}/sessao/ata', [LicitacaoController::class, 'ata'])->name('licitacao.ata');
+            Route::get('/processos/{processo}/sessao/gravacao', [LicitacaoController::class, 'baixarGravacao'])->name('licitacao.gravacao.baixar');
+        });
+        Route::post('/processos/{processo}/recursos/{recurso}/decidir', [LicitacaoController::class, 'decidirRecurso'])->middleware('can:processos.autorizar')->name('recursos.decidir');
         Route::get('/processos/{processo}/impugnacoes', [ImpugnacaoController::class, 'index'])->middleware('can:processos.ver')->name('impugnacoes.index');
         Route::middleware('can:licitacao.conduzir')->group(function () {
             Route::post('/processos/{processo}/impugnacoes', [ImpugnacaoController::class, 'store'])->name('impugnacoes.store');
@@ -175,6 +181,13 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::post('/processos/{processo}/propostas/{proposta}/desempate', [LicitacaoController::class, 'desempate'])->name('licitacao.desempate');
             Route::post('/processos/{processo}/itens/{item}/adjudicar', [LicitacaoController::class, 'adjudicar'])->name('licitacao.adjudicar');
             Route::post('/processos/{processo}/itens/{item}/revogar-adjudicacao', [LicitacaoController::class, 'revogarAdjudicacao'])->name('licitacao.revogar');
+            Route::post('/processos/{processo}/sessao/gravacao', [LicitacaoController::class, 'gravacao'])->name('licitacao.gravacao');
+            Route::post('/processos/{processo}/sessao/encerrar', [LicitacaoController::class, 'encerrar'])->name('licitacao.encerrar');
+            Route::post('/processos/{processo}/sessao/reabrir', [LicitacaoController::class, 'reabrir'])->name('licitacao.reabrir');
+            Route::post('/processos/{processo}/recursos', [LicitacaoController::class, 'intencao'])->name('recursos.intencao');
+            Route::post('/processos/{processo}/recursos/{recurso}/razoes', [LicitacaoController::class, 'razoes'])->name('recursos.razoes');
+            Route::post('/processos/{processo}/recursos/{recurso}/contrarrazoes', [LicitacaoController::class, 'contrarrazoes'])->name('recursos.contrarrazoes');
+            Route::post('/processos/{processo}/recursos/{recurso}/reconsiderar', [LicitacaoController::class, 'reconsiderar'])->name('recursos.reconsiderar');
         });
 
         Route::middleware('can:irp.ver')->group(function () {

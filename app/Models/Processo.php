@@ -28,7 +28,7 @@ class Processo extends Model
         return [
             'srp' => 'boolean', 'orcamento_sigiloso' => 'boolean', 'com_disputa' => 'boolean',
             'valor_estimado' => 'decimal:2', 'valor_homologado' => 'decimal:2',
-            'abertura_propostas_em' => 'datetime', 'encerramento_propostas_em' => 'datetime',
+            'abertura_propostas_em' => 'datetime', 'encerramento_propostas_em' => 'datetime', 'sessao_encerrada_em' => 'datetime',
             'modalidade' => 'integer', 'amparo_legal' => 'integer', 'criterio_julgamento' => 'integer', 'modo_disputa' => 'integer', 'categoria' => 'integer',
         ];
     }
@@ -51,6 +51,21 @@ class Processo extends Model
     public function categoriaEnum(): CategoriaProcesso
     {
         return CategoriaProcesso::from($this->categoria);
+    }
+
+    public function recursos(): HasMany
+    {
+        return $this->hasMany(Recurso::class);
+    }
+
+    public function sessaoEncerrada(): bool
+    {
+        return $this->sessao_encerrada_em !== null;
+    }
+
+    public function temGravacao(): bool
+    {
+        return filled($this->gravacao_link) || filled($this->gravacao_caminho);
     }
 
     public function unidade(): BelongsTo

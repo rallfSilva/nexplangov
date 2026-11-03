@@ -1,7 +1,10 @@
 <x-layouts.app titulo="Sessão de julgamento">
     @php($conduz = auth()->user()->can('licitacao.conduzir'))
     @php($emJulgamento = $processo->situacao === 'em_julgamento')
-    @php($recebe = in_array($processo->situacao, ['publicado', 'em_julgamento'], true))
+    @php($encerrada = $processo->sessaoEncerrada())
+    @php($recebe = in_array($processo->situacao, ['publicado', 'em_julgamento'], true) && ! $encerrada)
+    @php($presencial = $processo->modalidadeEnum()->ehPresencial())
+    @php($autoridade = auth()->user()->can('processos.autorizar'))
     <div>
         <a href="{{ route('processos.show', [$processo, 'aba' => 'resultado']) }}" class="small" style="font-weight:600;display:inline-flex;gap:4px;align-items:center"><x-icone nome="voltar" tamanho="16" />Processo {{ $processo->identificacao() }}</a>
         <h1 class="h1" style="margin-top:8px">Sessão de julgamento</h1>
@@ -12,7 +15,58 @@
         <div class="aviso-lei">Propostas podem ser registradas com o processo publicado. Lances, habilitação e adjudicação só com o processo <b>em julgamento</b> (abra a sessão na tramitação).</div>
     @endunless
 
-    @forelse ($processo->itens as $item)
+    <section class="card">
+        <div class="row">
+            <div>
+                <h2 style="margin:0">Sessão pública @if ($encerrada)<span class="b b-ok">Encerrada</span>@elseif ($emJulgamento)<span class="b b-info">Aberta</span>@endif</h2>
+                <p class="hint">
+                    @if ($encerrada)
+                        Ata lavrada em {{ $processo->sessao_encerrada_em->format('d/m/Y H:i') }}. Propostas e lances novos só com a sessão reaberta.
+                    @else
+                        Ao fim da disputa e da habilitação, abra a oportunidade de recurso, registre as intenções e encerre a sessão para lavrar a ata <span class="lei">art. 165, § 1º, I</span>.
+                    @endif
+                    @if ($presencial) Na forma presencial, a gravação em áudio e vídeo é obrigatória <span class="lei">art. 17, § 5º</span>.@endif
+                </p>
+            </div>
+            <div class="btns">
+                @if ($processo->ata_sessao_caminho)<a class="btn btn-s btn-sm" href="{{ route('licitacao.ata', $processo) }}"><x-icone nome="download" tamanho="16" />Ata da sessão (PDF)</a>@endif
+                @if ($processo->gravacao_caminho)<a class="btn btn-s btn-sm" href="{{ route('licitacao.gravacao.baixar', $processo) }}">Baixar gravação</a>@endif
+                @if ($processo->gravacao_link)<a class="btn btn-s btn-sm" href="{{ $processo->gravacao_link }}" rel="noopener noreferrer" target="_blank">Abrir gravação</a>@endif
+            </div>
+        </div>
+        @if ($processo->gravacao_hash)<p class="small muted">Arquivo da gravação: {{ $processo->gravacao_nome }} · SHA-256 {{ \Illuminate\Support\Str::limit($processo->gravacao_hash, 16, '…') }}</p>@endif
+
+        @if ($conduz && $emJulgamento)
+            <div class="g2" style="margin-top:10px">
+                <form method="POST" action="{{ route('licitacao.gravacao', $processo) }}" enctype="multipart/form-data" class="form-grid">@csrf
+                    <div class="campo full"><label for="gravacao-link">Endereço da gravação (https)</label><input id="gravacao-link" name="gravacao_link" type="url" class="input" value="{{ old('gravacao_link', $processo->gravacao_link) }}" placeholder="https://"></div>
+                    <div class="campo full"><label for="gravacao-arquivo">Ou o arquivo de áudio e vídeo (até 2 GB)</label><input id="gravacao-arquivo" name="gravacao_arquivo" type="file" class="input" accept="video/*,audio/*"></div>
+                    <div class="form-acoes full"><button class="btn btn-s btn-sm" type="submit">Registrar gravação</button></div>
+                </form>
+                <div>
+                    @if (! $encerrada)
+                        <form method="POST" action="{{ route('licitacao.encerrar', $processo) }}" onsubmit="return confirm('Encerrar a sessão e lavrar a ata? A partir de agora corre o prazo de 3 dias úteis das razões de recurso.')">@csrf
+                            <button class="btn btn-p" type="submit"><x-icone nome="ok" tamanho="16" />Encerrar sessão e lavrar ata</button></form>
+                    @else
+                        <form method="POST" action="{{ route('licitacao.reabrir', $processo) }}" class="form-grid">@csrf
+                            <div class="campo full"><label for="reabrir-motivo">Motivo da reabertura</label><input id="reabrir-motivo" name="motivo" class="input" minlength="20" required placeholder="Ex.: recurso provido, refazer a habilitação do item 2"></div>
+                            <div class="form-acoes full"><button class="btn btn-s btn-sm" type="submit">Reabrir sessão</button></div></form>
+                    @endif
+                </div>
+            </div>
+        @endif
+    </section>
+
+    @if ($processo->itens->count() > 1)
+        <nav class="btns" aria-label="Itens da sessão" style="margin:4px 0 12px">
+            <a href="{{ route('licitacao.show', $processo) }}" class="btn btn-sm {{ $foco ? 'btn-s' : 'btn-p' }}" @unless ($foco) aria-current="page" @endunless>Todos os itens</a>
+            @foreach ($processo->itens as $it)
+                <a href="{{ route('licitacao.show', [$processo, 'item' => $it->numero]) }}" class="btn btn-sm {{ $foco === $it->numero ? 'btn-p' : 'btn-s' }}" @if ($foco === $it->numero) aria-current="page" @endif>Item {{ $it->numero }}@if ($it->adjudicado_em) ✓@endif</a>
+            @endforeach
+        </nav>
+    @endif
+
+    @forelse ($processo->itens->when($foco, fn ($c) => $c->where('numero', $foco)) as $item)
         @php($c = $classificacoes[$item->id])
         <section class="card">
             <div class="row">
@@ -68,6 +122,14 @@
                 </tbody>
             </table></div>
 
+            @php($historico = $item->propostas->flatMap(fn ($pr) => $pr->lances->map(fn ($l) => ['quando' => $l->created_at, 'quem' => $pr->fornecedor->razao_social, 'valor' => $l->valor]))->sortByDesc('quando'))
+            @if ($historico->isNotEmpty())
+                <details style="margin-top:10px"><summary class="small" style="font-weight:600;cursor:pointer">Histórico de lances ({{ $historico->count() }})</summary>
+                    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Hora</th><th>Licitante</th><th class="num">Lance</th></tr></thead>
+                        <tbody>@foreach ($historico as $l)<tr><td class="small">{{ $l['quando']?->format('H:i:s') }}</td><td>{{ $l['quem'] }}</td><td class="num valor">{{ number_format((float) $l['valor'], 4, ',', '.') }}</td></tr>@endforeach</tbody></table></div>
+                </details>
+            @endif
+
             @if ($conduz && $recebe && ! $item->adjudicado_em)
                 <form method="POST" action="{{ route('licitacao.proposta', [$processo, $item]) }}" class="btns" style="margin-top:12px">@csrf
                     <select name="fornecedor_id" class="input" style="width:auto;min-width:240px" aria-label="Fornecedor" required><option value="">Fornecedor</option>@foreach ($fornecedores as $f)<option value="{{ $f->id }}">{{ $f->razao_social }}</option>@endforeach</select>
@@ -82,4 +144,6 @@
     @empty
         <div class="card vazio"><b>O processo não tem itens.</b></div>
     @endforelse
+
+    @include('licitacao._recursos')
 </x-layouts.app>

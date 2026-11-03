@@ -178,6 +178,21 @@ final class TramitacaoProcesso
             if ($semAdjudicar->isNotEmpty()) {
                 $motivos[] = 'Adjudique antes de homologar (art. 71, IV): item(ns) '.$semAdjudicar->implode(', ').'.';
             }
+
+            // Efeito suspensivo dos recursos (art. 168) e recursos exauridos antes da homologação (art. 71, caput).
+            $pendentes = $processo->recursos()->get()->filter->pendente();
+            if ($pendentes->isNotEmpty()) {
+                $motivos[] = 'Há '.$pendentes->count().' recurso(s) pendente(s): a homologação espera a decisão (arts. 71 e 168).';
+            }
+
+            // Forma presencial: sessão encerrada com ata e gravação em áudio e vídeo (art. 17, §§ 2º e 5º).
+            if ($processo->modalidadeEnum()->ehPresencial() && $processo->itens()->whereHas('propostas')->exists()) {
+                if (! $processo->sessaoEncerrada()) {
+                    $motivos[] = 'Encerre a sessão pública e lavre a ata antes de homologar.';
+                } elseif (! $processo->temGravacao()) {
+                    $motivos[] = 'Registre a gravação da sessão presencial (art. 17, § 5º).';
+                }
+            }
         }
 
         if ($motivos !== []) {
