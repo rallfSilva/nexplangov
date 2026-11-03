@@ -110,3 +110,13 @@ Publicação do edital ou aviso de contratação direta enfileira a compra; homo
 - **Limites** (§§ 4º e 5º): até 50% do registrado por aderente e o dobro no total, conferidos no pedido e de novo na autorização.
 - **Prazo para contratar**: 90 dias corridos da autorização, como no regulamento federal, nunca além da vigência da ata. Ajuste em `NEXPLANGOV_CARONA_PRAZO` conforme o regulamento do ente. Depois do prazo, o consumo do aderente é recusado.
 - **Ofício de autorização em PDF** com **QR Code** e código de verificação. A página pública `/carona/verificar/{código}` confirma a autenticidade e mostra o hash do PDF.
+
+## Processo sancionador (arts. 155 a 163, 166 a 168)
+
+- **Instauração**: fatos, infrações do art. 155 (I a XII) e sanção em tese. Impedimento e inidoneidade exigem **comissão de 2 ou mais servidores estáveis** (art. 158).
+- **Compatibilidade** (`Regras\Sancoes`): advertência só para o inciso I (art. 156, § 2º); impedimento para II a VII (§ 4º); inidoneidade para VIII a XII ou, justificadamente, II a VII (§ 5º); multa de 0,5% a 30% do contrato (§ 3º), cumulável (§ 7º). Duração: impedimento de 1 a 36 meses; inidoneidade de 36 a 72 meses.
+- **Intimação** com notificação em PDF e **defesa em 15 dias úteis** (arts. 157 e 158). Defesa fora do prazo é recusada. Sem defesa, a autoridade decide depois do prazo. Com pedido de provas, há instrução e **alegações finais em 15 dias úteis** (art. 158, § 2º).
+- **Análise jurídica** obrigatória antes da inidoneidade (art. 156, § 6º). **Decisão** pela autoridade (`processos.autorizar`), com dosimetria (art. 156, § 1º).
+- **Recurso em 15 dias úteis** (art. 166): quem decidiu reconsidera ou mantém em 5 dias úteis. Se mantiver, a autoridade superior decide em 20 dias úteis, e não pode ser quem aplicou ou manteve a sanção. Na inidoneidade, cabe **pedido de reconsideração** decidido em 20 dias úteis (art. 167). Há efeito suspensivo (art. 168): a sanção só vira definitiva e só bloqueia o fornecedor depois do prazo ou da decisão do recurso.
+- **CEIS/CNEP** (art. 161): prazo de 15 dias úteis a partir da sanção definitiva, com alerta na lista. Há uma planilha CSV com os dados do cadastro e o registro da data e do comprovante do lançamento. A geração da planilha fica na auditoria.
+- **Reabilitação** (art. 163): exige no mínimo 1 ano (impedimento) ou 3 anos (inidoneidade), reparação do dano, multa paga, condições cumpridas e parecer jurídico. Para os incisos VIII e XII, também programa de integridade.

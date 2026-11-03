@@ -31,6 +31,7 @@ use App\Http\Controllers\PncpController;
 use App\Http\Controllers\PrecosComprasGovController;
 use App\Http\Controllers\ProcessoController;
 use App\Http\Controllers\RequisicaoController;
+use App\Http\Controllers\SancaoController;
 use App\Http\Controllers\SegurancaController;
 use App\Http\Controllers\TreinamentoController;
 use App\Http\Controllers\UnidadeController;
@@ -261,6 +262,32 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::get('/fornecedores/{fornecedor}/editar', [FornecedorController::class, 'edit'])->name('fornecedores.edit');
             Route::put('/fornecedores/{fornecedor}', [FornecedorController::class, 'update'])->name('fornecedores.update');
             Route::post('/fornecedores/{fornecedor}/sancoes', [FornecedorController::class, 'registrarSancao'])->name('fornecedores.sancoes.store');
+        });
+
+        // Processo sancionador (arts. 155 a 163)
+        Route::middleware('can:sancoes.conduzir')->group(function () {
+            Route::get('/sancoes/novo', [SancaoController::class, 'create'])->name('sancoes.create');
+            Route::get('/sancoes/ceis.csv', [SancaoController::class, 'exportarCeis'])->name('sancoes.ceis.exportar');
+            Route::post('/sancoes', [SancaoController::class, 'store'])->name('sancoes.store');
+            Route::post('/sancoes/{sancionador}/intimar', [SancaoController::class, 'intimar'])->name('sancoes.intimar');
+            Route::post('/sancoes/{sancionador}/defesa', [SancaoController::class, 'defesa'])->name('sancoes.defesa');
+            Route::post('/sancoes/{sancionador}/instrucao', [SancaoController::class, 'instrucao'])->name('sancoes.instrucao');
+            Route::post('/sancoes/{sancionador}/alegacoes', [SancaoController::class, 'alegacoes'])->name('sancoes.alegacoes');
+            Route::post('/sancoes/{sancionador}/recurso', [SancaoController::class, 'recurso'])->name('sancoes.recurso');
+            Route::post('/sancoes/{sancionador}/definitiva', [SancaoController::class, 'definitiva'])->name('sancoes.definitiva');
+            Route::post('/sancoes/{sancionador}/ceis', [SancaoController::class, 'ceis'])->name('sancoes.ceis');
+        });
+        Route::middleware('can:fornecedores.ver')->group(function () {
+            Route::get('/sancoes', [SancaoController::class, 'index'])->name('sancoes.index');
+            Route::get('/sancoes/{sancionador}', [SancaoController::class, 'show'])->whereNumber('sancionador')->name('sancoes.show');
+            Route::get('/sancoes/{sancionador}/arquivos/{tipo}', [SancaoController::class, 'arquivo'])->whereIn('tipo', ['intimacao', 'defesa'])->name('sancoes.arquivo');
+        });
+        Route::post('/sancoes/{sancionador}/parecer', [SancaoController::class, 'parecer'])->middleware('can:processos.parecer')->name('sancoes.parecer');
+        Route::middleware('can:processos.autorizar')->group(function () {
+            Route::post('/sancoes/{sancionador}/decidir', [SancaoController::class, 'decidir'])->name('sancoes.decidir');
+            Route::post('/sancoes/{sancionador}/reconsiderar', [SancaoController::class, 'reconsiderar'])->name('sancoes.reconsiderar');
+            Route::post('/sancoes/{sancionador}/decidir-recurso', [SancaoController::class, 'decidirRecurso'])->name('sancoes.recurso.decidir');
+            Route::post('/sancoes/{sancionador}/reabilitar', [SancaoController::class, 'reabilitar'])->name('sancoes.reabilitar');
         });
 
         // Contratos

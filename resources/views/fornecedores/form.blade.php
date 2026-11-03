@@ -35,7 +35,8 @@
                     <div class="li muted">Nenhuma sanção registrada.</div>
                 @endforelse
             </div>
-            <details style="margin-top:12px"><summary class="btn btn-s btn-sm" style="list-style:none">+ Registrar sanção</summary>
+            @can('sancoes.conduzir')<p style="margin-top:12px"><a class="btn btn-p btn-sm" href="{{ route('sancoes.create', ['fornecedor' => $fornecedor->id]) }}">Instaurar processo sancionador</a> <span class="small muted">com defesa, decisão e recurso (arts. 155 a 163)</span></p>@endcan
+            <details style="margin-top:12px"><summary class="btn btn-s btn-sm" style="list-style:none">+ Registrar sanção aplicada fora do sistema</summary>
                 <form method="POST" action="{{ route('fornecedores.sancoes.store', $fornecedor) }}" class="form-grid" style="margin-top:14px">
                     @csrf
                     <x-campo nome="tipo" rotulo="Tipo" obrigatorio><select id="campo-tipo" name="tipo" class="input">@foreach (\App\Models\SancaoFornecedor::TIPOS as $v => $r)<option value="{{ $v }}">{{ $r }}</option>@endforeach</select></x-campo>
