@@ -55,6 +55,9 @@
                     <label for="c-{{ $campo }}">{{ $d['rotulo'] }}@if ($d['obrigatorio']) <span aria-hidden="true" style="color:#9F1D1D">*</span>@endif</label>
                     <textarea id="c-{{ $campo }}" name="conteudo[{{ $campo }}]" class="input" rows="5" @disabled(! $podeEditar)>{{ old("conteudo.$campo", $valores[$campo] ?? $atual?->conteudo[$campo] ?? '') }}</textarea>
                     @isset($d['ajuda'])<span class="ajuda">{{ $d['ajuda'] }}</span>@endisset
+                    @if ($podeIa)<button type="button" class="btn btn-s btn-sm ia-sugerir" data-campo="{{ $campo }}" style="margin-top:6px;align-self:flex-start"><x-icone nome="liga" tamanho="16" />Sugerir com a NexMind IA</button>
+                        <div class="ia-resposta" data-para="{{ $campo }}" hidden style="margin-top:8px;border:1px solid #6CB1DA;background:#D1ECFF33;border-radius:10px;padding:10px 12px"><div class="ia-texto small" style="white-space:pre-wrap"></div>
+                            <div class="btns" style="margin-top:8px"><button type="button" class="btn btn-p btn-sm ia-usar">Usar este texto</button><button type="button" class="btn btn-s btn-sm ia-descartar">Descartar</button></div></div>@endif
                 </div>
             @endforeach
         </div>
@@ -72,6 +75,48 @@
             <p class="small muted" style="margin-top:12px">Somente leitura agora: a peça está em tramitação, depende de outras, é feita por outro responsável ou o processo já passou desta etapa.</p>
         @endif
     </form>
+
+    @if ($podeIa)
+        <section class="card" id="ia-revisao">
+            <h2>Revisão pela NexMind IA</h2>
+            <p class="hint">A IA aponta o que falta e o que pode gerar questionamento, com o artigo da Lei 14.133/2021. É apoio, não parecer: confira cada ponto. CPF, e-mail e telefone são removidos antes do envio.</p>
+            <button type="button" class="btn btn-s" id="ia-revisar"><x-icone nome="busca" />Revisar esta peça</button>
+            <div id="ia-revisao-texto" class="small" style="white-space:pre-wrap;margin-top:12px" aria-live="polite"></div>
+        </section>
+        <script>
+        (() => {
+            const url = @json(route('documentos.ia', [$processo, $tipo]));
+            const token = @json(csrf_token());
+            const conteudo = () => Object.fromEntries([...document.querySelectorAll('#bloco-form textarea')].map(t => [t.name.slice(9, -1), t.value]));
+            const pedir = async (dados) => {
+                const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token }, body: JSON.stringify({ ...dados, conteudo: conteudo() }) });
+                const j = await r.json().catch(() => ({ erro: 'Resposta inválida.' }));
+                if (!r.ok) throw new Error(j.erro || j.message || 'Não foi possível usar a IA agora.');
+                return j.texto;
+            };
+            document.querySelectorAll('.ia-sugerir').forEach(b => b.addEventListener('click', async () => {
+                const caixa = document.querySelector(`.ia-resposta[data-para="${b.dataset.campo}"]`);
+                b.disabled = true; caixa.hidden = false; caixa.querySelector('.ia-texto').textContent = 'Escrevendo a sugestão...';
+                try { caixa.querySelector('.ia-texto').textContent = await pedir({ acao: 'sugerir', campo: b.dataset.campo }); }
+                catch (e) { caixa.querySelector('.ia-texto').textContent = e.message; }
+                b.disabled = false;
+            }));
+            document.querySelectorAll('.ia-usar').forEach(b => b.addEventListener('click', () => {
+                const caixa = b.closest('.ia-resposta');
+                document.getElementById('c-' + caixa.dataset.para).value = caixa.querySelector('.ia-texto').textContent;
+                caixa.hidden = true;
+            }));
+            document.querySelectorAll('.ia-descartar').forEach(b => b.addEventListener('click', () => { b.closest('.ia-resposta').hidden = true; }));
+            const rev = document.getElementById('ia-revisar');
+            rev?.addEventListener('click', async () => {
+                const out = document.getElementById('ia-revisao-texto');
+                rev.disabled = true; out.textContent = 'Revisando...';
+                try { out.textContent = await pedir({ acao: 'revisar' }); } catch (e) { out.textContent = e.message; }
+                rev.disabled = false;
+            });
+        })();
+        </script>
+    @endif
 
     @if ($podeDecidir)
         <section class="card">
