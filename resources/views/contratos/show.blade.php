@@ -164,5 +164,7 @@
         </table></div>
     </section>
 
+    @include('contratos._medicoes')
+
     <section class="card"><h2>Publicações no PNCP</h2>@include('pncp._lista', ['envios' => $contrato->enviosPncp])</section>
 </x-layouts.app>

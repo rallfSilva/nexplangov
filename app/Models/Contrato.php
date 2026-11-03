@@ -61,6 +61,22 @@ class Contrato extends Model
         return $this->hasMany(Reequilibrio::class)->orderByDesc('solicitado_em');
     }
 
+    public function medicoes(): HasMany
+    {
+        return $this->hasMany(Medicao::class)->orderBy('numero');
+    }
+
+    public function liquidacoes(): HasMany
+    {
+        return $this->hasMany(Liquidacao::class)->orderBy('id');
+    }
+
+    /** Teto para medir e pagar: valor inicial atualizado, mais acréscimos, menos supressões. */
+    public function valorAtualizadoTotal(): float
+    {
+        return round($this->valorInicialAtualizado() + $this->totalAcrescimos() - $this->totalSupressoes(), 2);
+    }
+
     public function rescisoes(): HasMany
     {
         return $this->hasMany(Rescisao::class)->orderByDesc('id');

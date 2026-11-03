@@ -25,6 +25,7 @@ use App\Http\Controllers\MasterController;
 use App\Http\Controllers\ModeloController;
 use App\Http\Controllers\OrdemController;
 use App\Http\Controllers\OrgaoController;
+use App\Http\Controllers\PagamentoController;
 use App\Http\Controllers\PainelController;
 use App\Http\Controllers\PcaController;
 use App\Http\Controllers\PncpController;
@@ -66,6 +67,9 @@ Route::get('/carona/aceite/{adesao}', [CaronaController::class, 'aceite'])->midd
 Route::post('/carona/aceite/{adesao}', [CaronaController::class, 'responderAceite'])->middleware(['signed', 'throttle:5,10'])->name('carona.aceite.responder');
 Route::get('/carona/verificar/{codigo}', [CaronaController::class, 'verificar'])->middleware('throttle:30,1')->where('codigo', '[A-Za-z0-9-]+')->name('carona.verificar');
 Route::get('/carona/verificar/{codigo}/pdf', [CaronaController::class, 'autorizacao'])->middleware('throttle:30,1')->where('codigo', '[A-Za-z0-9-]+')->name('carona.autorizacao');
+
+// Ordem cronológica de pagamentos e justificativas, divulgada todo mês (art. 141, § 3º).
+Route::get('/transparencia/{orgao}/pagamentos', [PagamentoController::class, 'publico'])->middleware('throttle:60,1')->whereNumber('orgao')->name('pagamentos.publico');
 
 Route::middleware(['auth', 'ativo'])->group(function () {
     // Fica fora da exigência de 2FA: é aqui que o administrador ativa a verificação.
@@ -263,6 +267,21 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::put('/fornecedores/{fornecedor}', [FornecedorController::class, 'update'])->name('fornecedores.update');
             Route::post('/fornecedores/{fornecedor}/sancoes', [FornecedorController::class, 'registrarSancao'])->name('fornecedores.sancoes.store');
         });
+
+        // Medição, liquidação e pagamento na ordem cronológica (arts. 140 e 141)
+        Route::get('/pagamentos', [PagamentoController::class, 'index'])->middleware('can:contratos.ver')->name('pagamentos.index');
+        Route::middleware('can:contratos.gerenciar')->group(function () {
+            Route::post('/contratos/{contrato}/medicoes', [PagamentoController::class, 'medir'])->name('medicoes.store');
+            Route::post('/contratos/{contrato}/medicoes/{medicao}/decidir', [PagamentoController::class, 'decidirMedicao'])->name('medicoes.decidir');
+        });
+        Route::middleware('can:pagamentos.gerenciar')->group(function () {
+            Route::post('/medicoes/{medicao}/liquidar', [PagamentoController::class, 'liquidarMedicao'])->name('medicoes.liquidar');
+            Route::post('/ordens/{ordem}/liquidar', [PagamentoController::class, 'liquidarOrdem'])->name('ordens.liquidar');
+            Route::post('/pagamentos/{liquidacao}/pagar', [PagamentoController::class, 'pagar'])->name('pagamentos.pagar');
+            Route::post('/pagamentos/{liquidacao}/comunicacao', [PagamentoController::class, 'comunicacao'])->name('pagamentos.comunicacao');
+            Route::post('/pagamentos/{liquidacao}/cancelar', [PagamentoController::class, 'cancelar'])->name('pagamentos.cancelar');
+        });
+        Route::post('/pagamentos/{liquidacao}/quebra', [PagamentoController::class, 'quebra'])->middleware('can:processos.autorizar')->name('pagamentos.quebra');
 
         // Processo sancionador (arts. 155 a 163)
         Route::middleware('can:sancoes.conduzir')->group(function () {
