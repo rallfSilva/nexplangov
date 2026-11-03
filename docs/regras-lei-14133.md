@@ -56,3 +56,11 @@ Publicação do edital ou aviso de contratação direta enfileira a compra; homo
 - **Biblioteca de modelos** (`modelos_documento`): cerca de 53 modelos NexMind instalados por órgão (`php artisan nexplangov:modelos-padrao`), editáveis, com versões e campos dinâmicos `{{objeto}}`, `{{orgao}}` etc. Todo modelo avisa que precisa de revisão da assessoria jurídica.
 - **Assinatura eletrônica**: confirmação da senha do signatário, hash SHA-256 do conteúdo (ordenado, porque o jsonb não guarda a ordem das chaves), selo HMAC com a chave da aplicação, código de 12 caracteres e QR Code. A página pública `/validar/{codigo}` mostra só metadados e avisa se a peça mudou depois de assinada. A tabela `assinaturas` é imutável.
 - **Arquivo pronto**: PDF, DOCX, ODT, XLSX, ODS, PNG ou JPG até 30 MB, em disco privado, com SHA-256 e download auditado.
+
+## NexLicita: julgamento, impugnações e IRP
+
+- **Propostas e lances** (`propostas`, `lances`): por item e fornecedor. Fornecedor impedido não propõe (art. 14, III, e art. 156). Preço acima do orçamento estimado desclassifica (art. 59, III); em obras e serviços de engenharia, abaixo de 75% do orçado é inexequível (art. 59, § 4º). Lances só em disputa aberta ou aberta e fechada (art. 56), sempre melhores que o vigente. O lance não se altera nem se apaga.
+- **Classificação** (`Regras/Julgamento`): menor preço, maior desconto e maior lance. Empate ficto da ME/EPP (até 10%, ou 5% no pregão) e desempate do art. 60 (disputa final, desempenho contratual, equidade, integridade) ficam registrados com justificativa.
+- **Habilitação e adjudicação** (arts. 62 a 71): só a primeira colocada habilitada é adjudicada; inabilitar promove a seguinte. A homologação exige os itens adjudicados.
+- **Impugnações** (art. 164): pedido até 3 dias úteis antes da abertura e resposta em até 3 dias úteis, limitada ao último dia útil antes da abertura. Página pública `/editais/{processo}` recebe os pedidos (limite de taxa, campo-isca, e-mail cifrado) e divulga só as respostas. Dias úteis desconsideram feriados nacionais; acrescente os locais em `NEXPLANGOV_FERIADOS_EXTRAS`.
+- **IRP** (art. 86): abertura com prazo mínimo de manifestação (`NEXPLANGOV_IRP_PRAZO_MINIMO`, padrão 8 dias úteis; confirme no regulamento do ente), manifestação dos participantes, aceite ou recusa motivada e consolidação em itens do processo de registro de preços.

@@ -171,6 +171,15 @@ final class TramitacaoProcesso
             }
         }
 
+        if ($destino === S::Homologado) {
+            // Quem recebeu propostas pelo NexLicita só homologa o que foi adjudicado (art. 71, IV e V).
+            $semAdjudicar = $processo->itens()->where('situacao', 'pendente')->whereNull('adjudicado_em')->whereHas('propostas')->pluck('numero');
+
+            if ($semAdjudicar->isNotEmpty()) {
+                $motivos[] = 'Adjudique antes de homologar (art. 71, IV): item(ns) '.$semAdjudicar->implode(', ').'.';
+            }
+        }
+
         if ($motivos !== []) {
             throw new RegraViolada($motivos);
         }

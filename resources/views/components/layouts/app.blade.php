@@ -38,6 +38,9 @@
             @can('fornecedores.ver')
                 <a href="{{ route('fornecedores.index') }}" class="{{ $nav('fornecedores.*') }}"><x-icone nome="fornecedor" />Fornecedores</a>
             @endcan
+            @can('irp.ver')
+                <a href="{{ route('irp.index') }}" class="{{ $nav('irp.*') }}"><x-icone nome="liga" />Intenção de registro de preços</a>
+            @endcan
             @can('contratos.ver')
                 <a href="{{ route('contratos.index') }}" class="{{ $nav('contratos.*') }}"><x-icone nome="contrato" />Contratos</a>
             @endcan

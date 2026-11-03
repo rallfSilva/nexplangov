@@ -32,6 +32,10 @@ class PerfisSeeder extends Seeder
         'processos.gerenciar' => 'Instruir processos: ETP, TR, riscos e pesquisa de preços',
         'processos.parecer' => 'Emitir parecer jurídico (art. 53)',
         'processos.autorizar' => 'Autorizar, homologar, revogar ou anular (autoridade)',
+        'licitacao.conduzir' => 'Conduzir a licitação: propostas, lances, julgamento, habilitação e adjudicação',
+        'irp.ver' => 'Ver intenções de registro de preços (art. 86)',
+        'irp.manifestar' => 'Manifestar necessidade em uma IRP',
+        'irp.gerenciar' => 'Abrir, decidir e consolidar IRP (órgão gerenciador)',
         'modelos.gerenciar' => 'Gerenciar a biblioteca de modelos de documentos',
         'fluxos.gerenciar' => 'Configurar fluxos de documentos e prazos',
         'contratos.ver' => 'Ver contratos e atas',
@@ -45,14 +49,14 @@ class PerfisSeeder extends Seeder
     /** @var array<string, list<string>> */
     public const PERFIS = [
         'administrador-geral' => ['*'],
-        'administrador-orgao' => ['unidades.ver', 'unidades.gerenciar', 'usuarios.ver', 'usuarios.gerenciar', 'auditoria.ver', 'painel.ver', 'pca.ver', 'demandas.ver', 'processos.ver', 'contratos.ver', 'fornecedores.ver', 'lgpd.gerenciar', 'modelos.gerenciar', 'fluxos.gerenciar'],
-        'autoridade' => ['unidades.ver', 'painel.ver', 'pca.ver', 'pca.aprovar', 'demandas.ver', 'processos.ver', 'processos.autorizar', 'contratos.ver', 'fornecedores.ver'],
-        'agente-contratacao' => ['unidades.ver', 'painel.ver', 'pca.ver', 'demandas.ver', 'processos.ver', 'processos.gerenciar', 'contratos.ver', 'fornecedores.ver', 'fornecedores.gerenciar', 'pncp.enviar'],
-        'planejamento' => ['unidades.ver', 'usuarios.ver', 'painel.ver', 'pca.ver', 'pca.gerenciar', 'demandas.ver', 'demandas.criar', 'processos.ver', 'processos.gerenciar', 'contratos.ver', 'fornecedores.ver', 'fornecedores.gerenciar', 'pncp.enviar', 'modelos.gerenciar', 'fluxos.gerenciar'],
-        'juridico' => ['painel.ver', 'pca.ver', 'demandas.ver', 'processos.ver', 'processos.parecer', 'contratos.ver', 'fornecedores.ver', 'modelos.gerenciar'],
-        'gestor-contrato' => ['painel.ver', 'processos.ver', 'contratos.ver', 'contratos.gerenciar', 'fornecedores.ver', 'pncp.enviar'],
-        'requisitante' => ['painel.ver', 'pca.ver', 'demandas.ver', 'demandas.criar'],
-        'auditor' => ['unidades.ver', 'usuarios.ver', 'auditoria.ver', 'painel.ver', 'pca.ver', 'demandas.ver', 'processos.ver', 'contratos.ver', 'fornecedores.ver'],
+        'administrador-orgao' => ['unidades.ver', 'unidades.gerenciar', 'usuarios.ver', 'usuarios.gerenciar', 'auditoria.ver', 'painel.ver', 'pca.ver', 'demandas.ver', 'processos.ver', 'contratos.ver', 'fornecedores.ver', 'lgpd.gerenciar', 'modelos.gerenciar', 'fluxos.gerenciar', 'irp.ver', 'irp.manifestar', 'irp.gerenciar'],
+        'autoridade' => ['unidades.ver', 'painel.ver', 'pca.ver', 'pca.aprovar', 'demandas.ver', 'processos.ver', 'processos.autorizar', 'contratos.ver', 'fornecedores.ver', 'irp.ver'],
+        'agente-contratacao' => ['unidades.ver', 'painel.ver', 'pca.ver', 'demandas.ver', 'processos.ver', 'processos.gerenciar', 'contratos.ver', 'fornecedores.ver', 'fornecedores.gerenciar', 'pncp.enviar', 'licitacao.conduzir', 'irp.ver', 'irp.manifestar', 'irp.gerenciar'],
+        'planejamento' => ['unidades.ver', 'usuarios.ver', 'painel.ver', 'pca.ver', 'pca.gerenciar', 'demandas.ver', 'demandas.criar', 'processos.ver', 'processos.gerenciar', 'contratos.ver', 'fornecedores.ver', 'fornecedores.gerenciar', 'pncp.enviar', 'modelos.gerenciar', 'fluxos.gerenciar', 'irp.ver', 'irp.manifestar', 'irp.gerenciar'],
+        'juridico' => ['painel.ver', 'pca.ver', 'demandas.ver', 'processos.ver', 'processos.parecer', 'contratos.ver', 'fornecedores.ver', 'modelos.gerenciar', 'irp.ver'],
+        'gestor-contrato' => ['painel.ver', 'processos.ver', 'contratos.ver', 'contratos.gerenciar', 'fornecedores.ver', 'pncp.enviar', 'irp.ver', 'irp.manifestar'],
+        'requisitante' => ['painel.ver', 'pca.ver', 'demandas.ver', 'demandas.criar', 'irp.ver', 'irp.manifestar'],
+        'auditor' => ['unidades.ver', 'usuarios.ver', 'auditoria.ver', 'painel.ver', 'pca.ver', 'demandas.ver', 'processos.ver', 'contratos.ver', 'fornecedores.ver', 'irp.ver'],
     ];
 
     public function run(): void

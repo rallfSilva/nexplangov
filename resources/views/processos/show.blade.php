@@ -213,6 +213,13 @@
     @endif
 
     @if ($aba === 'resultado')
+        @unless (\App\Licitacao\Enums\Modalidade::from($processo->modalidade)->ehContratacaoDireta())
+            <div class="card" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                <span class="small muted" style="margin-right:auto">Propostas, lances, habilitação e adjudicação (arts. 33, 59 a 71) e pedidos ao edital (art. 164).</span>
+                <a class="btn btn-s btn-sm" href="{{ route('licitacao.show', $processo) }}">Sessão de julgamento</a>
+                <a class="btn btn-s btn-sm" href="{{ route('impugnacoes.index', $processo) }}">Impugnações e esclarecimentos</a>
+            </div>
+        @endunless
         <section class="card card-flush">
             <div class="tbl-wrap">
                 <table class="tbl">
