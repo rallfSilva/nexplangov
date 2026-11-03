@@ -891,6 +891,12 @@ function toast(msg, tipo = 'ok') {
     setTimeout(() => el.classList.add('sai'), 3600);
     setTimeout(() => el.remove(), 4000);
 }
+// Inclusão e edição da cotação usam o mesmo formulário; na edição, data-i indica a linha corrigida (art. 23, § 1º).
+function formCotacao(d, c) {
+    const edicao = Boolean(c);
+    abrirModal(edicao ? 'Editar cotação' : 'Nova cotação', `<form data-form="cotacao" data-p="${d.p}" data-it="${d.it}" ${edicao ? `data-i="${d.i}"` : ''} class="form-grid">${campo('fonte', 'Fonte', sel('fonte', Object.fromEntries(Object.entries(FONTES).map(([k, v]) => [k, `${v.rot} (inciso ${v.inc}${v.val ? ', vale ' + v.val + ' meses' : ''})`])), edicao ? c.fonte : ''), '', 'full')}${campo('origem', 'Origem (fornecedor, órgão, sítio)', inp('origem', edicao ? c.origem : '', 'required'), '', 'full')}${campo('data', 'Data da cotação', inp('data', edicao ? c.data : hoje(), 'type="date" required'))}${campo('valor', 'Valor unitário (R$)', inp('valor', edicao ? String(c.valor) : '', 'type="number" min="0" step="0.01" required'))}<div class="full">${acoesForm(edicao ? 'Salvar alterações' : 'Incluir')}</div></form>`);
+}
+
 function abrirModal(titulo, corpo, largo) {
     const m = $('#modal');
     m.innerHTML = `<div class="modal-fundo" data-acao="fechar-modal"></div><div class="modal-caixa${largo ? ' largo' : ''}" role="dialog" aria-modal="true" aria-labelledby="modal-t"><div class="modal-topo"><h2 id="modal-t">${titulo}</h2><button type="button" class="btn btn-g btn-icone" data-acao="fechar-modal" aria-label="Fechar">${ico('fechar')}</button></div><div class="modal-corpo">${corpo}</div></div>`;
@@ -1094,7 +1100,7 @@ function abaItens(p) {
     const edita = pode('processos.gerenciar') && p.situacao === 'planejamento';
     const itens = p.itens.map(it => {
         const r = pesquisa(it);
-        const linhas = it.cotacoes.map((c, i) => { const valida = r.validas.includes(i); return `<tr class="${valida ? '' : 'riscada'}"><td>${esc(FONTES[c.fonte].rot)} <span class="lei">art. 23, § 1º, ${FONTES[c.fonte].inc}</span><div class="small muted">${esc(c.origem)}</div></td><td>${dataBR(c.data)}</td><td class="num valor">${reais(c.valor)}</td><td>${valida ? badge('Válida', 'b-ok') : `<span class="b b-err">Descartada</span><div class="small muted" style="margin-top:4px;max-width:280px">${esc(r.descartadas[i])}</div>`}</td>${edita ? `<td class="acoes"><button class="btn btn-g btn-sm btn-icone" data-acao="cotacao-remover" data-p="${p.id}" data-it="${it.id}" data-i="${i}" aria-label="Remover cotação">${ico('lixeira', 16)}</button></td>` : ''}</tr>`; }).join('');
+        const linhas = it.cotacoes.map((c, i) => { const valida = r.validas.includes(i); return `<tr class="${valida ? '' : 'riscada'}"><td>${esc(FONTES[c.fonte].rot)} <span class="lei">art. 23, § 1º, ${FONTES[c.fonte].inc}</span><div class="small muted">${esc(c.origem)}</div></td><td>${dataBR(c.data)}</td><td class="num valor">${reais(c.valor)}</td><td>${valida ? badge('Válida', 'b-ok') : `<span class="b b-err">Descartada</span><div class="small muted" style="margin-top:4px;max-width:280px">${esc(r.descartadas[i])}</div>`}</td>${edita ? `<td class="acoes"><button class="btn btn-g btn-sm btn-icone" data-acao="cotacao-editar" data-p="${p.id}" data-it="${it.id}" data-i="${i}" aria-label="Editar cotação" title="Editar cotação">${ico('editar', 16)}</button><button class="btn btn-g btn-sm btn-icone" data-acao="cotacao-remover" data-p="${p.id}" data-it="${it.id}" data-i="${i}" aria-label="Remover cotação" title="Remover cotação">${ico('lixeira', 16)}</button></td>` : ''}</tr>`; }).join('');
         return `<section class="card"><div class="row"><div><h2>${esc(it.descricao)}</h2><p class="hint">${num(it.qtd, 0)} ${esc(it.unidade)}</p></div><div class="btns">${edita ? `<label class="small muted" for="m-${it.id}">Método</label><select class="input input-sm" id="m-${it.id}" data-metodo data-p="${p.id}" data-it="${it.id}">${Object.entries({ mediana: 'Mediana', media: 'Média', menor: 'Menor preço' }).map(([k, v]) => `<option value="${k}" ${k === r.metodo ? 'selected' : ''}>${v}</option>`).join('')}</select><button class="btn btn-s btn-sm" data-acao="cotacao-nova" data-p="${p.id}" data-it="${it.id}">${ico('mais', 16)}Cotação</button>` : ''}</div></div>
         <div class="tbl-wrap" style="margin-top:12px"><table class="tbl"><thead><tr><th>Fonte</th><th>Data</th><th class="num">Valor unitário</th><th>Resultado</th>${edita ? '<th></th>' : ''}</tr></thead><tbody>${linhas || `<tr><td colspan="5">${vazio('Sem cotações', 'Inclua ao menos 3 preços.')}</td></tr>`}</tbody></table></div>
         <div class="resumo-preco"><div><span class="muted small">Valor unitário estimado (${{ mediana: 'mediana', media: 'média', menor: 'menor preço' }[r.metodo]})</span><b class="valor">${reais(r.valor)}</b></div><div><span class="muted small">Total do item</span><b class="valor">${reais(r.valor * it.qtd)}</b></div><div><span class="muted small">Preços válidos</span><b>${r.validas.length}</b></div><div><span class="muted small">Coeficiente de variação</span><b>${pct(r.cv)}</b></div></div>
@@ -1293,7 +1299,8 @@ const ACOES = {
     'doc-abrir': d => abrirDoc(d.p, d.tipo),
     'doc-nova-versao': d => { const p = processo(d.p), doc = p.docs[d.tipo]; if (!podeEditarDoc(p, d.tipo)) return naoPode(); doc.situacao = 'rascunho'; doc.versao += 1; auditar('Nova versão de peça', `${DOCS[d.tipo].rot} · ${p.numero}`, 'v' + doc.versao); salvar(); abrirDoc(d.p, d.tipo); render(); },
     'item-novo': d => abrirModal('Novo item', `<form data-form="item" data-p="${d.p}" class="form-grid">${campo('descricao', 'Descrição', inp('descricao', '', 'required'), '', 'full')}${campo('qtd', 'Quantidade', inp('qtd', '1', 'type="number" min="1" step="1" required'))}${campo('unidade', 'Unidade de medida', inp('unidade', 'unidade', 'required'))}<div class="full">${acoesForm('Incluir')}</div></form>`),
-    'cotacao-nova': d => abrirModal('Nova cotação', `<form data-form="cotacao" data-p="${d.p}" data-it="${d.it}" class="form-grid">${campo('fonte', 'Fonte', sel('fonte', Object.fromEntries(Object.entries(FONTES).map(([k, v]) => [k, `${v.rot} (inciso ${v.inc}${v.val ? ', vale ' + v.val + ' meses' : ''})`]))), '', 'full')}${campo('origem', 'Origem (fornecedor, órgão, sítio)', inp('origem', '', 'required'), '', 'full')}${campo('data', 'Data da cotação', inp('data', hoje(), 'type="date" required'))}${campo('valor', 'Valor unitário (R$)', inp('valor', '', 'type="number" min="0" step="0.01" required'))}<div class="full">${acoesForm('Incluir')}</div></form>`),
+    'cotacao-nova': d => formCotacao(d),
+    'cotacao-editar': d => { const c = processo(d.p).itens.find(i => i.id === d.it).cotacoes[Number(d.i)]; if (c) formCotacao(d, c); },
     'cotacao-remover': d => { const it = processo(d.p).itens.find(i => i.id === d.it); const c = it.cotacoes.splice(Number(d.i), 1)[0]; auditar('Cotação removida', it.descricao, `${FONTES[c.fonte].rot} · ${reais(c.valor)}`); atualizar(); },
     transitar: d => {
         const p = processo(d.p), dest = destinos(p).find(x => x.para === d.para);
@@ -1413,10 +1420,20 @@ const FORMS = {
         const e = []; if (!f.origem.trim()) e.push('Informe a origem do preço.'); if (!(Number(f.valor) > 0)) e.push('Informe o valor.'); if (!f.data) e.push('Informe a data.');
         if (e.length) return erroForm(el, e);
         const it = processo(el.dataset.p).itens.find(i => i.id === el.dataset.it);
-        it.cotacoes.push({ id: uid(), fonte: f.fonte, origem: f.origem.trim(), data: f.data, valor: Number(f.valor) });
-        auditar('Cotação incluída', it.descricao, `${FONTES[f.fonte].rot} · ${reais(f.valor)}`); fecharModal(); atualizar();
-        const r = pesquisa(it), i = it.cotacoes.length - 1;
-        toast(r.validas.includes(i) ? 'Cotação válida incluída.' : 'Cotação incluída, mas descartada: ' + r.descartadas[i], r.validas.includes(i) ? 'ok' : 'erro');
+        const edicao = el.dataset.i !== undefined && it.cotacoes[Number(el.dataset.i)];
+        const dados = { fonte: f.fonte, origem: f.origem.trim(), data: f.data, valor: Number(f.valor) };
+        let i;
+        if (edicao) {
+            i = Number(el.dataset.i); const antes = it.cotacoes[i];
+            it.cotacoes[i] = { ...antes, ...dados };
+            auditar('Cotação alterada', it.descricao, `${FONTES[antes.fonte].rot} · ${reais(antes.valor)} → ${FONTES[f.fonte].rot} · ${reais(f.valor)}`);
+        } else {
+            it.cotacoes.push({ id: uid(), ...dados }); i = it.cotacoes.length - 1;
+            auditar('Cotação incluída', it.descricao, `${FONTES[f.fonte].rot} · ${reais(f.valor)}`);
+        }
+        fecharModal(); atualizar();
+        const r = pesquisa(it), verbo = edicao ? 'alterada' : 'incluída';
+        toast(r.validas.includes(i) ? `Cotação ${verbo}: válida.` : `Cotação ${verbo}, mas descartada: ` + r.descartadas[i], r.validas.includes(i) ? 'ok' : 'erro');
     },
     transitar: (f, el) => {
         const p = processo(el.dataset.p), para = el.dataset.para, dest = destinos(p).find(x => x.para === para);

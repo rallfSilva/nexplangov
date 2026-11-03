@@ -148,6 +148,7 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::patch('/processos/{processo}/itens/{item}/metodo', [ItemProcessoController::class, 'metodo'])->name('processos.itens.metodo');
             Route::patch('/processos/{processo}/itens/{item}/resultado', [ItemProcessoController::class, 'resultado'])->name('processos.itens.resultado');
             Route::post('/processos/{processo}/itens/{item}/cotacoes', [ItemProcessoController::class, 'adicionarCotacao'])->name('processos.cotacoes.store');
+            Route::put('/processos/{processo}/cotacoes/{cotacao}', [ItemProcessoController::class, 'editarCotacao'])->name('processos.cotacoes.update');
             Route::patch('/processos/{processo}/cotacoes/{cotacao}', [ItemProcessoController::class, 'desconsiderarCotacao'])->name('processos.cotacoes.desconsiderar');
             Route::delete('/processos/{processo}/cotacoes/{cotacao}', [ItemProcessoController::class, 'excluirCotacao'])->name('processos.cotacoes.destroy');
         });

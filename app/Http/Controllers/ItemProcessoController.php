@@ -73,20 +73,27 @@ class ItemProcessoController extends Controller
     {
         $this->doProcesso($processo, $item);
         $this->exigirFasePreparatoria($processo);
-        $request->merge(['valor_unitario' => decimal_br($request->input('valor_unitario'))]);
-
-        $dados = $request->validate([
-            'fonte' => ['required', Rule::enum(FontePreco::class)],
-            'referencia' => ['required', 'string', 'max:255'],
-            'documento_fonte' => ['nullable', 'required_if:fonte,fornecedor', new Cnpj],
-            'valor_unitario' => ['required', 'numeric', 'gt:0'],
-            'data_cotacao' => ['required', 'date', 'before_or_equal:today'],
-        ], ['documento_fonte.required_if' => 'Na cotação direta, informe o CNPJ do fornecedor.']);
+        $dados = $this->validarCotacao($request);
 
         $item->cotacoes()->create($dados + ['orgao_id' => $processo->orgao_id]);
         $this->recalcular($item);
 
         return redirect()->route('processos.show', [$processo, 'aba' => 'itens'])->with('sucesso', 'Cotação registrada e preço de referência recalculado.');
+    }
+
+    /**
+     * Corrige uma cotação digitada com erro sem precisar excluir e lançar de novo. Passa pelas mesmas
+     * validações da inclusão e o preço de referência é recalculado (art. 23, § 1º). A alteração fica na auditoria.
+     */
+    public function editarCotacao(Request $request, Processo $processo, Cotacao $cotacao): RedirectResponse
+    {
+        $this->doProcesso($processo, $cotacao->item);
+        $this->exigirFasePreparatoria($processo);
+
+        $cotacao->update($this->validarCotacao($request));
+        $this->recalcular($cotacao->item);
+
+        return redirect()->route('processos.show', [$processo, 'aba' => 'itens'])->with('sucesso', 'Cotação alterada e preço de referência recalculado.');
     }
 
     public function desconsiderarCotacao(Request $request, Processo $processo, Cotacao $cotacao): RedirectResponse
@@ -152,6 +159,24 @@ class ItemProcessoController extends Controller
         ])->save();
 
         $item->processo->recalcularValor();
+    }
+
+    /**
+     * Fontes do art. 23, § 1º; a cotação direta com fornecedor (inciso IV) exige o CNPJ.
+     *
+     * @return array<string, mixed>
+     */
+    private function validarCotacao(Request $request): array
+    {
+        $request->merge(['valor_unitario' => decimal_br($request->input('valor_unitario'))]);
+
+        return $request->validate([
+            'fonte' => ['required', Rule::enum(FontePreco::class)],
+            'referencia' => ['required', 'string', 'max:255'],
+            'documento_fonte' => ['nullable', 'required_if:fonte,fornecedor', new Cnpj],
+            'valor_unitario' => ['required', 'numeric', 'gt:0'],
+            'data_cotacao' => ['required', 'date', 'before_or_equal:today'],
+        ], ['documento_fonte.required_if' => 'Na cotação direta, informe o CNPJ do fornecedor.']);
     }
 
     private function doProcesso(Processo $processo, ?ItemProcesso $item): void

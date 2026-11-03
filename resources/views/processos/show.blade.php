@@ -147,7 +147,7 @@
     @if ($aba === 'itens')
         @foreach ($processo->itens as $item)
             @php($r = $precos[$item->id])
-            <section class="card">
+            <section class="card" id="item-{{ $item->id }}">
                 <div class="row">
                     <div style="min-width:0"><h2>Item {{ $item->numero }} · {{ $item->descricao }}</h2><p class="hint">{{ numero_br($item->quantidade, 0) }} {{ $item->unidade_medida }} · {{ $item->material_servico === 'M' ? 'Material' : 'Serviço' }}@if ($item->codigo_catalogo) · {{ $item->codigo_catalogo }}@endif · {{ \App\Models\ItemProcesso::BENEFICIOS[$item->tipo_beneficio] }}</p></div>
                     <div style="text-align:right"><div class="valor" style="font-size:22px;font-weight:800">{{ reais($item->valor_total_estimado) }}</div><div class="small muted">unitário {{ reais($item->valor_unitario_estimado, 4) }} · {{ \App\Licitacao\Regras\PesquisaPrecos::METODOS[$item->metodo_preco] }}</div></div>
@@ -158,7 +158,8 @@
                         <thead><tr><th>Fonte</th><th>Referência</th><th>Data</th><th class="num">Valor unitário</th><th>Situação</th><th class="acoes"><span class="sr-only">Ações</span></th></tr></thead>
                         <tbody>
                             @forelse ($item->cotacoes as $i => $c)
-                                <tr>
+                                @php($editando = $podeInstruir && ((int) request('cotacao') === $c->id || old('form_cotacao') === "editar-{$c->id}"))
+                                <tr id="cotacao-{{ $c->id }}">
                                     <td class="small">{{ $c->fonteEnum()->rotulo() }}</td>
                                     <td>{{ $c->referencia }}@if ($c->documento_fonte)<div class="muted small">{{ $c->documento_fonte }}</div>@endif</td>
                                     <td>{{ $c->data_cotacao->format('d/m/Y') }}</td>
@@ -169,10 +170,14 @@
                                             @unless ($c->desconsiderada)
                                                 <form method="POST" action="{{ route('processos.cotacoes.desconsiderar', [$processo, $c]) }}" style="display:inline" onsubmit="const m = prompt('Motivo para desconsiderar esta cotação:'); if (!m) return false; this.motivo_desconsideracao.value = m;">@csrf @method('PATCH')<input type="hidden" name="motivo_desconsideracao"><button class="btn btn-g btn-sm" type="submit">Desconsiderar</button></form>
                                             @endunless
+                                            <a class="btn btn-s btn-sm" href="{{ route('processos.show', [$processo, 'aba' => 'itens', 'cotacao' => $c->id]) }}#cotacao-{{ $c->id }}" title="Editar cotação"><x-icone nome="editar" tamanho="16" /><span class="sr-only">Editar cotação de {{ $c->referencia }}</span></a>
                                             <form method="POST" action="{{ route('processos.cotacoes.destroy', [$processo, $c]) }}" style="display:inline" onsubmit="return confirm('Excluir esta cotação?')">@csrf @method('DELETE')<button class="btn btn-d btn-sm" type="submit"><x-icone nome="lixeira" tamanho="16" /><span class="sr-only">Excluir</span></button></form>
                                         @endif
                                     </td>
                                 </tr>
+                                @if ($editando)
+                                    <tr class="linha-edicao"><td colspan="6"><b>Editar cotação</b> <span class="small muted">· o preço de referência é recalculado ao salvar</span>@include('processos._form-cotacao', ['cotacao' => $c])</td></tr>
+                                @endif
                             @empty
                                 <tr><td colspan="6" class="muted">Nenhuma cotação ainda.</td></tr>
                             @endforelse
@@ -183,17 +188,9 @@
 
                 @if ($podeInstruir)
                     @if ($item->codigo_catalogo)<a class="btn btn-s btn-sm" style="margin-top:12px" href="{{ route('processos.comprasgov', [$processo, $item]) }}"><x-icone nome="busca" tamanho="16" />Buscar preços no Compras.gov.br</a>@endif
-                    <details style="margin-top:12px">
+                    <details style="margin-top:12px" @if (old('form_cotacao') === "nova-{$item->id}") open @endif>
                         <summary class="btn btn-s btn-sm" style="list-style:none">+ Registrar cotação</summary>
-                        <form method="POST" action="{{ route('processos.cotacoes.store', [$processo, $item]) }}" class="form-grid" style="margin-top:14px" novalidate>
-                            @csrf
-                            <div class="campo"><label for="f-{{ $item->id }}-fonte">Fonte (art. 23, § 1º)</label><select id="f-{{ $item->id }}-fonte" name="fonte" class="input">@foreach (\App\Licitacao\Enums\FontePreco::opcoes() as $v => $rot)<option value="{{ $v }}">{{ $rot }}</option>@endforeach</select></div>
-                            <div class="campo"><label for="f-{{ $item->id }}-ref">Referência</label><input id="f-{{ $item->id }}-ref" name="referencia" class="input" required placeholder="Fornecedor, órgão ou sítio"></div>
-                            <div class="campo"><label for="f-{{ $item->id }}-doc">CNPJ (cotação direta)</label><input id="f-{{ $item->id }}-doc" name="documento_fonte" class="input" placeholder="00.000.000/0000-00"></div>
-                            <div class="campo"><label for="f-{{ $item->id }}-val">Valor unitário (R$)</label><input id="f-{{ $item->id }}-val" name="valor_unitario" class="input" inputmode="decimal" required></div>
-                            <div class="campo"><label for="f-{{ $item->id }}-data">Data</label><input id="f-{{ $item->id }}-data" name="data_cotacao" type="date" class="input" value="{{ today()->format('Y-m-d') }}" required></div>
-                            <div class="campo" style="justify-content:flex-end"><button class="btn btn-p" type="submit">Registrar</button></div>
-                        </form>
+                        @include('processos._form-cotacao')
                     </details>
                     <form method="POST" action="{{ route('processos.itens.metodo', [$processo, $item]) }}" class="btns" style="margin-top:10px">
                         @csrf @method('PATCH')
