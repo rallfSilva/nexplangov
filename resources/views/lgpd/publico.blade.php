@@ -4,7 +4,7 @@
     <x-flash />
     <form method="POST" action="{{ route('lgpd.publico.registrar') }}" style="display:flex;flex-direction:column;gap:14px" novalidate>
         @csrf
-        <input type="text" name="site" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+        <div style="position:absolute;left:-9999px" aria-hidden="true"><label>Não preencha<input type="text" name="site" tabindex="-1" autocomplete="off"></label></div>
         <x-campo nome="orgao_id" rotulo="Órgão" obrigatorio><select id="campo-orgao_id" name="orgao_id" class="input"><option value="">Escolha</option>@foreach ($orgaos as $o)<option value="{{ $o->id }}" @selected((int) old('orgao_id') === $o->id)>{{ $o->nome }}</option>@endforeach</select></x-campo>
         <x-campo nome="nome" rotulo="Seu nome" obrigatorio autocomplete="name" />
         <x-campo nome="email" rotulo="Seu e-mail" tipo="email" obrigatorio autocomplete="email" />

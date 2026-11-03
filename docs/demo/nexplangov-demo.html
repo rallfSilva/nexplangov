@@ -91,6 +91,7 @@ h1, h2, h3 { margin: 0; }
     .b-warn { background: #FFEBD9; color: #9A3412; }
     .b-mute { background: #EEF2F5; color: var(--color-texto2); }
     .b-err { background: #FDE2E2; color: #9F1D1D; }
+    textarea.ia-sugerido { background: #F2F9FE; border-color: #6CB1DA; }
 
     .list { display: flex; flex-direction: column; margin-top: 10px; }
     .li { display: flex; gap: 14px; align-items: center; padding: 12px 0; border-bottom: 1px solid #EEF3F7; font-size: 14px; }
@@ -162,8 +163,8 @@ h1, h2, h3 { margin: 0; }
     .btn:active { transform: translateY(1px) scale(.99); }
     .btn-p { background: linear-gradient(135deg, var(--color-azul), var(--color-marinho)); box-shadow: 0 1px 0 rgba(255,255,255,.18) inset, 0 8px 18px -10px rgba(30,84,112,.65); }
     .btn-p:hover { background: linear-gradient(135deg, #3B80AE, var(--color-marinho)); box-shadow: 0 1px 0 rgba(255,255,255,.18) inset, 0 12px 24px -12px rgba(30,84,112,.8); transform: translateY(-1px); }
-    .btn-t { background: var(--color-turquesa); color: var(--color-marinho); }
-    .btn-t:hover { background: #5BB3C4; color: var(--color-marinho); transform: translateY(-1px); }
+    .btn-t { background: var(--color-turquesa); color: #0F2F40; }
+    .btn-t:hover { background: #5BB3C4; color: #0F2F40; transform: translateY(-1px); }
     .btn-g { background: transparent; color: var(--color-azul); }
     .btn-g:hover { background: #F0F7FC; color: var(--color-marinho); }
     .btn[disabled], .btn[aria-disabled="true"] { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
@@ -525,7 +526,7 @@ const DIREITOS = { confirmacao: 'Confirmação de que há tratamento', acesso: '
 let S;
 function salvar() { try { localStorage.setItem(CHAVE, JSON.stringify(S)); } catch (e) { /* navegação privada: segue só em memória */ } }
 function carregar() {
-    try { const t = localStorage.getItem(CHAVE); if (t) { S = JSON.parse(t); if (S && S.versao === 1) return; } } catch (e) { /* ignora */ }
+    try { const t = localStorage.getItem(CHAVE); if (t) { S = JSON.parse(t); if (S && S.versao === 2) return; } } catch (e) { /* ignora */ }
     S = semente(); salvar();
 }
 const usuario = () => S.usuarios.find(u => u.id === S.sessao) || null;
@@ -752,7 +753,7 @@ function processarFila() {
 /* ---------------- dados fictícios iniciais ---------------- */
 function semente() {
     const H = hoje(), ano = Number(H.slice(0, 4));
-    S = { versao: 1, sessao: null, auditoria: [], tentativasLgpd: [] };
+    S = { versao: 2, sessao: null, auditoria: [], tentativasLgpd: [] };
     S.orgao = { nome: 'Prefeitura Municipal de Vale Verde (fictícia)', sigla: 'PMVV', cnpj: '99.000.111/0001-65', dobro: false, ambiente: 'homologacao' };
     S.limites = {
         2025: { eng: 125451.15, outros: 62725.59, base: 'Decreto nº 12.343/2024', conferido: true },
@@ -862,6 +863,8 @@ function semente() {
             { nome: 'Publicação de contratações no PNCP', finalidade: 'Publicidade e transparência (Lei 14.133, art. 174)', base: 'LGPD art. 7º, II; art. 23', dados: 'Razão social, CNPJ, valores; CPF só quando a lei exige', titulares: 'Fornecedores', compartilhamento: 'PNCP (público)', retencao: 'Permanente (dado público)', seguranca: 'Envio autenticado, registro de cada envio' },
         ],
     };
+
+    sementeExtra(S, H, ano);
 
     const marcos = [
         [-200, 'u2', 'PCA aprovado', `PCA ${ano}`, '6 itens'],
@@ -990,7 +993,8 @@ function telaPainel() {
       <section class="card"><h2>Contratos vencendo</h2><p class="hint">Alertas em 120, 90, 60 e 30 dias ${lei('art. 105')}</p><div class="list">${vencendo.length ? vencendo.map(c => `<a class="li li-link" href="#/contratos/${c.id}">${ico('relogio')}<div><b>Contrato ${esc(c.numero)}</b><div class="meta">${esc(c.objeto)}</div></div><span class="r">${badge(diasParaVencer(c) + ' dias', diasParaVencer(c) <= 60 ? 'b-warn' : 'b-info')}</span></a>`).join('') : vazio('Nenhum contrato vencendo')}</div></section>
       <section class="card"><h2>Dispensa por valor em ${ano}</h2><p class="hint">Somado por natureza de despesa no exercício ${lei('art. 75, § 1º')}</p><div class="list">${consumo || vazio('Sem dispensas no ano')}</div></section>
       <section class="card"><h2>LGPD</h2><p class="hint">Pedidos de titulares e prazo de resposta ${lei('LGPD art. 19, II')}</p><div class="list">${lgpdAbertas.length ? lgpdAbertas.map(s => `<a class="li li-link" href="#/lgpd">${ico('privacidade')}<div><b>${esc(s.protocolo)}</b><div class="meta">${esc(DIREITOS[s.tipo])} · prazo ${dataBR(s.prazo)}</div></div><span class="r">${badge(diasEntre(hoje(), s.prazo) + ' dias', diasEntre(hoje(), s.prazo) <= 5 ? 'b-warn' : 'b-info')}</span></a>`).join('') : vazio('Nenhum pedido em aberto')}</div></section>
-    </div>`;
+    </div>
+    <section class="card"><h2>Prazos que pedem atenção</h2><p class="hint">Contratos (120 a 7 dias), atas (60 a 7 dias), entregas e recebimentos. No sistema, chegam também por e-mail todo dia às 7h.</p><div class="list">${alertas().slice(0, 6).map(a => `<a class="li li-link" href="${a.href}">${ico('relogio')}<div><b>${esc(a.t)}</b><div class="meta">${esc(a.m)}</div></div><span class="r">${badge(a.nivel === 'b-err' ? 'urgente' : a.nivel === 'b-warn' ? 'atenção' : 'aviso', a.nivel)}</span></a>`).join('') || vazio('Nenhum prazo crítico')}</div></section>`;
 }
 function proximosPassos() {
     const L = [];
@@ -1242,6 +1246,7 @@ function render() {
         processos: [() => r[1] ? telaProcesso(r[1], r[2]) : telaProcessos(), 'processos.ver'], dispensa: [() => telaDispensa(), 'processos.ver'],
         contratos: [() => r[1] ? telaContrato(r[1]) : telaContratos(), 'contratos.ver'], fornecedores: [() => telaFornecedores(), 'fornecedores.ver'],
         pncp: [() => telaPncp(), 'pncp.enviar|auditoria.ver'], lgpd: [() => telaLgpd(r[1]), 'lgpd.gerenciar|auditoria.ver'], auditoria: [() => telaAuditoria(), 'auditoria.ver'],
+        ...TELAS_EXTRA,
     };
     const t = telas[r[0]] || telas.painel;
     const html = podeAlgum(t[1]) ? t[0]() : `<section class="card">${vazio('Acesso não permitido', 'Seu perfil não tem acesso a esta área. Troque de perfil no topo para testar.')}</section>`;
@@ -1336,7 +1341,7 @@ function abrirDoc(pid, tipo) {
       ${aviso ? `<div class="full flash flash-aviso">${ico('cadeado')}<span>${esc(aviso)}</span></div>` : ''}
       ${concl ? `<div class="full flash flash-ok">${ico('cadeado')}<span>Peça concluída e travada. Hash do conteúdo: <code class="hash">${doc.hash.slice(0, 24)}…</code>. Para corrigir, crie uma nova versão.</span></div>` : ''}
       ${campos}
-      <div class="full form-acoes"><button type="button" class="btn btn-s" data-acao="fechar-modal">Fechar</button>${concl && pode_ ? `<button type="button" class="btn btn-s" data-acao="doc-nova-versao" data-p="${pid}" data-tipo="${tipo}">Criar nova versão</button>` : ''}${!concl && pode_ ? `<button type="submit" class="btn btn-s" name="acao" value="rascunho">Salvar rascunho</button><button type="submit" class="btn btn-p" name="acao" value="concluir">${ico('cadeado', 16)}Concluir peça</button>` : ''}</div></form>`, true);
+      <div class="full form-acoes"><button type="button" class="btn btn-s" data-acao="fechar-modal">Fechar</button>${concl && pode_ ? `<button type="button" class="btn btn-s" data-acao="doc-nova-versao" data-p="${pid}" data-tipo="${tipo}">Criar nova versão</button>` : ''}${!concl && pode_ && pode('ia.usar') && !IA_BLOQUEADAS.includes(tipo) ? `<button type="button" class="btn btn-g" data-acao="ia-sugerir" data-p="${pid}" data-tipo="${tipo}" title="Preenche os campos vazios com um rascunho para você revisar">✦ Sugerir com IA (simulado)</button>` : ''}${!concl && pode_ ? `<button type="submit" class="btn btn-s" name="acao" value="rascunho">Salvar rascunho</button><button type="submit" class="btn btn-p" name="acao" value="concluir">${ico('cadeado', 16)}Concluir peça</button>` : ''}</div></form>`, true);
 }
 function abrirContratoDoProcesso(p) {
     if (!pode('contratos.gerenciar')) return naoPode();
@@ -1497,6 +1502,328 @@ const FORMS = {
         el.closest('section').innerHTML = `<div class="sucesso-pub">${ico('ok', 28)}<h2>Pedido recebido</h2><p>Seu protocolo é <b class="protocolo">${protocolo}</b>.</p><p class="muted">Responderemos em até 15 dias, até ${dataBR(somaDias(15))}, no e-mail informado.</p><a class="btn btn-p" href="#/painel">Voltar</a></div>`;
     },
 };
+
+/* ================= módulos das etapas D a H ================= */
+/* Atas de registro de preços, requisições, ordens de fornecimento e recebimento (art. 140), alertas,
+   catálogo, assistente de IA, governança, capacitação e integrações. Tudo com dados fictícios. */
+const PERMS_EXTRA = {
+    'administrador-orgao': ['atas.ver', 'catalogo.ver', 'capacitacao.ver', 'capacitacao.gerenciar', 'governanca.ver', 'exportacoes.gerar', 'requisicoes.criar'],
+    'autoridade': ['atas.ver', 'catalogo.ver', 'capacitacao.ver', 'governanca.ver'],
+    'agente-contratacao': ['atas.ver', 'catalogo.ver', 'ia.usar', 'capacitacao.ver', 'requisicoes.criar'],
+    'planejamento': ['atas.ver', 'catalogo.ver', 'ia.usar', 'capacitacao.ver', 'governanca.ver', 'exportacoes.gerar', 'requisicoes.criar'],
+    'juridico': ['catalogo.ver', 'ia.usar', 'capacitacao.ver'],
+    'gestor-contrato': ['atas.ver', 'catalogo.ver', 'ia.usar', 'capacitacao.ver', 'requisicoes.criar', 'ordens.gerenciar'],
+    'requisitante': ['atas.ver', 'catalogo.ver', 'requisicoes.criar'],
+    'auditor': ['atas.ver', 'catalogo.ver', 'capacitacao.ver', 'governanca.ver', 'exportacoes.gerar'],
+};
+Object.entries(PERMS_EXTRA).forEach(([p, ps]) => PERFIS[p].perms.push(...ps));
+NAV[1][1].push(['catalogo', 'Catálogo de itens', 'busca', 'catalogo.ver']);
+NAV[2][1].splice(3, 0, ['atas', 'Atas de registro de preços', 'planilha', 'atas.ver'], ['ordens', 'Requisições e ordens', 'enviar', 'atas.ver']);
+NAV.push(['Gestão', [['governanca', 'Governança', 'painel', 'governanca.ver'], ['capacitacao', 'Capacitação', 'cargos', 'capacitacao.ver'], ['integracoes', 'Integrações', 'api', 'exportacoes.gerar']]]);
+
+const MARCOS_CONTRATO = [120, 90, 60, 30, 15, 7], MARCOS_ATA = [60, 30, 15, 7];
+const TEMAS_CAPACITACAO = { licitacoes: 'Licitações e contratos (Lei 14.133)', pregao: 'Pregão e agente de contratação', planejamento: 'Planejamento, ETP e pesquisa de preços', fiscalizacao: 'Gestão e fiscalização de contratos', integridade: 'Integridade e controle', lgpd: 'Proteção de dados (LGPD)' };
+const VALIDADE_CAPACITACAO = 24; // meses
+const CATALOGO = [
+    ['M', '461543', 'Papel A4 75 g/m², resma com 500 folhas', 'RESMA'], ['M', '150627', 'Kit de material escolar, ensino fundamental', 'KIT'],
+    ['M', '445566', 'Luvas de procedimento não cirúrgico, caixa com 100', 'CX'], ['M', '472013', 'Notebook 14", 16 GB de RAM, SSD 512 GB', 'UN'],
+    ['M', '398877', 'Toner para impressora laser, rendimento 3.000 páginas', 'UN'], ['M', '231145', 'Álcool etílico 70%, frasco de 1 litro', 'FR'],
+    ['M', '310022', 'Cadeira giratória com braços, ergonômica', 'UN'], ['M', '278812', 'Arroz tipo 1, pacote de 5 kg', 'PCT'],
+    ['S', '25119', 'Serviço de limpeza e conservação predial', 'MÊS'], ['S', '27502', 'Licença de software em nuvem (SaaS)', 'MÊS'],
+    ['S', '1520', 'Manutenção predial preventiva e corretiva', 'SERV'], ['S', '3239', 'Manutenção de ar-condicionado', 'MÊS'],
+    ['S', '16837', 'Dedetização e controle de pragas', 'SERV'], ['S', '24333', 'Transporte escolar', 'KM'],
+];
+
+function sementeExtra(S, H, ano) {
+    S.usuarios.push({ id: 'u10', nome: 'Carlos Mendes', perfil: 'gestor-contrato', setor: 'Almoxarifado (comissão de recebimento)' });
+    const cons = (q, ref, d) => ({ qtd: q, ref, em: somaDias(-d, H) });
+    S.atas = [
+        { id: 'a1', numero: `003/${ano}`, processo: `PE 018/${ano}`, fornecedorId: 'f1', objeto: 'Material de expediente para as secretarias', inicio: somaDias(-150, H), fim: somaDias(25, H),
+            itens: [
+                { id: 'ai1', descricao: 'Papel A4 75 g/m², resma com 500 folhas', unidade: 'resma', registrada: 4000, valor: 26.4, consumos: [cons(1200, 'OF 0001/' + ano, 120), cons(900, 'OF 0002/' + ano, 60)] },
+                { id: 'ai2', descricao: 'Caneta esferográfica azul, caixa com 50', unidade: 'caixa', registrada: 300, valor: 38.9, consumos: [cons(120, 'OF 0002/' + ano, 60)] },
+                { id: 'ai3', descricao: 'Pasta suspensa, caixa com 50', unidade: 'caixa', registrada: 200, valor: 61.5, consumos: [] },
+            ] },
+        { id: 'a2', numero: `007/${ano}`, processo: `PE 024/${ano}`, fornecedorId: 'f2', objeto: 'Kits de material escolar', inicio: somaDias(-40, H), fim: somaDias(325, H),
+            itens: [{ id: 'ai4', descricao: 'Kit de material escolar, ensino fundamental', unidade: 'kit', registrada: 3200, valor: 48.2, consumos: [cons(1600, 'OF 0003/' + ano, 20)] }] },
+    ];
+    S.requisicoes = [
+        { id: 'r1', numero: `0004/${ano}`, ataId: 'a1', itemId: 'ai1', qtd: 400, unidade: 'SEMED', requisitante: 'u8', justificativa: 'Reposição do estoque das 12 escolas para o fim do semestre letivo.', data: somaDias(-2, H), situacao: 'solicitada' },
+        { id: 'r2', numero: `0003/${ano}`, ataId: 'a2', itemId: 'ai4', qtd: 1600, unidade: 'SEMED', requisitante: 'u8', justificativa: 'Primeira entrega dos kits para os alunos matriculados.', data: somaDias(-22, H), situacao: 'atendida', decididaPor: 'u6' },
+    ];
+    S.ordens = [
+        { id: 'o1', numero: `OF 0003/${ano}`, requisicaoId: 'r2', ataId: 'a2', itemId: 'ai4', qtd: 1600, valorUnit: 48.2, prazo: somaDias(-3, H), emitidaPor: 'u6', emitida: somaDias(-20, H), situacao: 'parcial',
+            recebimentos: [{ tipo: 'provisorio', qtd: 1600, doc: 'NF 2231', data: somaDias(-4, H), por: 'u7' }] },
+    ];
+    S.capacitacoes = [
+        { id: 'k1', userId: 'u3', curso: 'Agente de contratação e pregoeiro na Lei 14.133', tema: 'pregao', carga: 40, conclusao: somaMeses(-8, H), instituicao: 'Escola de governo (fictícia)' },
+        { id: 'k2', userId: 'u4', curso: 'ETP, termo de referência e pesquisa de preços', tema: 'planejamento', carga: 30, conclusao: somaMeses(-14, H), instituicao: 'Escola de contas (fictícia)' },
+        { id: 'k3', userId: 'u6', curso: 'Gestão e fiscalização de contratos', tema: 'fiscalizacao', carga: 24, conclusao: somaMeses(-27, H), instituicao: 'Escola de governo (fictícia)' },
+        { id: 'k4', userId: 'u7', curso: 'Fiscalização de contratos de serviços contínuos', tema: 'fiscalizacao', carga: 20, conclusao: somaMeses(-3, H), instituicao: 'Escola de contas (fictícia)' },
+    ];
+    S.usosIa = [];
+    S.processos.forEach(p => { if (p.pncp && !p.sei) p.sei = `00${Math.abs(p.numero.split('/')[0] * 7919 % 100000)}.000${p.numero.slice(-4)}/` + p.ano + '-11'; });
+}
+
+/* --------- regras --------- */
+const ata = id => S.atas.find(a => a.id === id);
+const itemAta = (a, id) => a.itens.find(i => i.id === id);
+const consumido = it => it.consumos.reduce((s, c) => s + c.qtd, 0);
+const saldo = it => it.registrada - consumido(it);
+const ataVigente = a => a.inicio <= hoje() && a.fim >= hoje();
+const recebido = (o, tipo) => o.recebimentos.filter(r => r.tipo === tipo).reduce((s, r) => s + r.qtd, 0);
+const SIT_REQ = { solicitada: ['Aguardando decisão', 'b-info'], aprovada: ['Aprovada', 'b-ok'], recusada: ['Recusada', 'b-err'], atendida: ['Ordem emitida', 'b-ok'], cancelada: ['Cancelada', 'b-mute'] };
+const SIT_OF = { emitida: ['Emitida', 'b-info'], parcial: ['Recebida em parte', 'b-warn'], entregue: ['Entregue', 'b-ok'], cancelada: ['Cancelada', 'b-mute'] };
+const capacitacaoVigente = k => somaMeses(VALIDADE_CAPACITACAO, k.conclusao) >= hoje();
+
+function alertas() {
+    const L = [], H = hoje();
+    S.contratos.forEach(c => { const d = diasParaVencer(c); const m = MARCOS_CONTRATO.find(x => d <= x); if (d < 0) L.push({ nivel: 'b-err', t: `Contrato ${c.numero} venceu há ${-d} dias`, m: c.objeto, href: `#/contratos/${c.id}` }); else if (m) L.push({ nivel: d <= 30 ? 'b-warn' : 'b-info', t: `Contrato ${c.numero} vence em ${d} dias`, m: `Marco de ${m} dias · decida a prorrogação ou a nova contratação (art. 107)`, href: `#/contratos/${c.id}` }); });
+    S.atas.forEach(a => { const d = diasEntre(H, a.fim); const m = MARCOS_ATA.find(x => d <= x); if (d >= 0 && m) L.push({ nivel: d <= 30 ? 'b-warn' : 'b-info', t: `Ata ${a.numero} vence em ${d} dias`, m: 'Vigência de 1 ano, prorrogável por igual período se vantajosa (art. 84)', href: '#/atas' }); });
+    S.ordens.forEach(o => { if (!['entregue', 'cancelada'].includes(o.situacao) && o.prazo < H && recebido(o, 'provisorio') < o.qtd) L.push({ nivel: 'b-err', t: `${o.numero}: entrega atrasada`, m: `Prazo era ${dataBR(o.prazo)}`, href: '#/ordens' }); if (o.situacao === 'parcial' && recebido(o, 'provisorio') > recebido(o, 'definitivo')) L.push({ nivel: 'b-info', t: `${o.numero}: falta o recebimento definitivo`, m: 'Por servidor ou comissão diferente de quem recebeu provisoriamente (art. 140)', href: '#/ordens' }); });
+    S.requisicoes.filter(r => r.situacao === 'solicitada').forEach(r => L.push({ nivel: 'b-info', t: `Requisição ${r.numero} aguardando decisão`, m: `${r.qtd} ${itemAta(ata(r.ataId), r.itemId).unidade} · ${r.unidade}`, href: '#/ordens' }));
+    return L;
+}
+
+/* --------- telas --------- */
+function telaAtas() {
+    return cab('Atas de registro de preços', `Saldo de cada item registrado e consumo por ordem de fornecimento ${lei('arts. 82 a 86')}`) +
+    S.atas.map(a => { const f = S.fornecedores.find(x => x.id === a.fornecedorId); const d = diasEntre(hoje(), a.fim); return `<section class="card card-flush"><div class="row" style="padding:18px 20px 6px"><div><h2 style="margin:0">Ata ${esc(a.numero)} · ${esc(a.objeto)}</h2><p class="hint" style="margin:4px 0 0">${esc(f.nome)} · ${esc(a.processo)} · vigência ${dataBR(a.inicio)} a ${dataBR(a.fim)} ${lei('art. 84')}</p></div>${ataVigente(a) ? badge(d <= 60 ? `vence em ${d} dias` : 'Vigente', d <= 30 ? 'b-warn' : 'b-ok') : badge('Encerrada', 'b-mute')}</div>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Item</th><th class="num">Registrada</th><th class="num">Consumida</th><th class="num">Saldo</th><th class="num">Valor unitário</th><th>Uso do saldo</th><th class="acoes"></th></tr></thead><tbody>
+      ${a.itens.map(it => { const p = consumido(it) / it.registrada * 100; return `<tr><td><b>${esc(it.descricao)}</b><div class="small muted">${it.consumos.length ? it.consumos.map(c => esc(c.ref)).join(', ') : 'Sem consumo'}</div></td><td class="num">${it.registrada.toLocaleString('pt-BR')} ${esc(it.unidade)}</td><td class="num">${consumido(it).toLocaleString('pt-BR')}</td><td class="num"><b>${saldo(it).toLocaleString('pt-BR')}</b></td><td class="num valor">${reais(it.valor)}</td><td style="min-width:120px">${barra(p, 'Saldo consumido de ' + it.descricao)}</td><td class="acoes">${pode('requisicoes.criar') && ataVigente(a) && saldo(it) > 0 ? `<button class="btn btn-s btn-sm" data-acao="requisitar" data-a="${a.id}" data-it="${it.id}">Requisitar</button>` : ''}</td></tr>`; }).join('')}
+      </tbody></table></div></section>`; }).join('');
+}
+
+function telaOrdens() {
+    const reqs = S.requisicoes.slice().sort((a, b) => b.data.localeCompare(a.data));
+    return cab('Requisições e ordens de fornecimento', `Do pedido da unidade ao recebimento definitivo ${lei('arts. 117 e 140')}`) +
+    `<div class="aviso-lei">Quem requisita não aprova o próprio pedido, quem emite a ordem não faz o recebimento definitivo, e o definitivo é feito por pessoa diferente de quem recebeu provisoriamente ${lei('art. 7º, § 1º, e art. 140')}. Troque de perfil no topo para testar cada papel: Renata requisita, Paulo aprova e emite, Sofia recebe provisoriamente e Carlos recebe em definitivo.</div>
+    <section class="card card-flush"><h2 style="padding:18px 20px 0">Requisições</h2><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Número</th><th>Item da ata</th><th class="num">Quantidade</th><th>Unidade</th><th>Situação</th><th class="acoes"></th></tr></thead><tbody>
+    ${reqs.length ? reqs.map(r => { const a = ata(r.ataId), it = itemAta(a, r.itemId); return `<tr><td><b>${esc(r.numero)}</b><div class="small muted">${dataBR(r.data)} · ${esc(nomeUsuario(r.requisitante))}</div></td><td>${esc(it.descricao)}<div class="small muted">Ata ${esc(a.numero)} · ${esc(r.justificativa)}</div></td><td class="num">${r.qtd.toLocaleString('pt-BR')} ${esc(it.unidade)}</td><td>${esc(r.unidade)}</td><td>${badge(...SIT_REQ[r.situacao])}${r.motivo ? `<div class="small muted">${esc(r.motivo)}</div>` : ''}</td><td class="acoes">${r.situacao === 'solicitada' && pode('ordens.gerenciar') ? `<button class="btn btn-t btn-sm" data-acao="req-aprovar" data-r="${r.id}">Aprovar</button> <button class="btn btn-g btn-sm" data-acao="req-recusar" data-r="${r.id}">Recusar</button>` : r.situacao === 'aprovada' && pode('ordens.gerenciar') ? `<button class="btn btn-p btn-sm" data-acao="of-emitir" data-r="${r.id}">Emitir ordem</button>` : ''}</td></tr>`; }).join('') : `<tr><td colspan="6">${vazio('Nenhuma requisição')}</td></tr>`}
+    </tbody></table></div></section>
+    <section class="card card-flush"><h2 style="padding:18px 20px 0">Ordens de fornecimento</h2><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Ordem</th><th>Item</th><th class="num">Valor</th><th>Prazo</th><th>Recebido</th><th>Situação</th><th class="acoes"></th></tr></thead><tbody>
+    ${S.ordens.length ? S.ordens.map(o => { const a = ata(o.ataId), it = itemAta(a, o.itemId); const atrasada = o.prazo < hoje() && recebido(o, 'provisorio') < o.qtd && !['entregue', 'cancelada'].includes(o.situacao); return `<tr><td><b>${esc(o.numero)}</b><div class="small muted">Emitida por ${esc(nomeUsuario(o.emitidaPor))} em ${dataBR(o.emitida)}</div></td><td>${esc(it.descricao)}<div class="small muted">${o.qtd.toLocaleString('pt-BR')} ${esc(it.unidade)} · ata ${esc(a.numero)}</div></td><td class="num valor">${reais(o.qtd * o.valorUnit)}</td><td>${dataBR(o.prazo)}${atrasada ? ' ' + badge('atrasada', 'b-err') : ''}</td><td class="small">Provisório: <b>${recebido(o, 'provisorio')}</b><br>Definitivo: <b>${recebido(o, 'definitivo')}</b>${o.recebimentos.map(r => `<div class="muted">${r.tipo === 'provisorio' ? 'Prov.' : 'Def.'} ${r.qtd} · ${esc(r.doc)} · ${esc(nomeUsuario(r.por))}</div>`).join('')}</td><td>${badge(...SIT_OF[o.situacao])}</td><td class="acoes">${!['entregue', 'cancelada'].includes(o.situacao) && pode('ordens.gerenciar') ? `<button class="btn btn-s btn-sm" data-acao="of-receber" data-o="${o.id}">Registrar recebimento</button>` : ''}${o.situacao === 'emitida' && pode('ordens.gerenciar') ? ` <button class="btn btn-g btn-sm" data-acao="of-cancelar" data-o="${o.id}">Cancelar</button>` : ''}</td></tr>`; }).join('') : `<tr><td colspan="7">${vazio('Nenhuma ordem emitida')}</td></tr>`}
+    </tbody></table></div></section>`;
+}
+
+function telaCatalogo() {
+    const q = (S.buscaCat || '').trim().toLowerCase(), tipo = S.tipoCat || '';
+    const r = CATALOGO.filter(([t, c, d]) => (!tipo || t === tipo) && (!q || d.toLowerCase().includes(q) || c.includes(q)));
+    return cab('Catálogo de materiais e serviços', `Códigos padronizados para o PCA e os itens do processo ${lei('art. 19, II')}`) +
+    `<section class="card"><form data-form="catalogo-busca" class="form-grid" role="search">${campo('q', 'Buscar por descrição ou código', inp('q', S.buscaCat || '', 'placeholder="papel, limpeza, 461543…"'))}${campo('tipo', 'Tipo', sel('tipo', { '': 'Materiais e serviços', M: 'Materiais (CATMAT)', S: 'Serviços (CATSER)' }, tipo))}<div class="full form-acoes"><button class="btn btn-p" type="submit">${ico('busca', 16)}Buscar</button></div></form>
+    <p class="hint">Amostra fictícia da demonstração. No sistema instalado, a base oficial completa é importada com <code>php artisan nexplangov:catalogo-importar</code>, e o código digitado no PCA e no processo é conferido nela.</p></section>
+    <section class="card card-flush"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Tipo</th><th>Código</th><th>Descrição</th><th>Unidade</th></tr></thead><tbody>
+    ${r.length ? r.map(([t, c, d, u]) => `<tr><td>${t === 'M' ? badge('Material', 'b-info') : badge('Serviço', 'b-ok')}</td><td><span class="sigla">${c}</span></td><td>${esc(d)}</td><td>${esc(u)}</td></tr>`).join('') : `<tr><td colspan="4">${vazio('Nada encontrado', 'Tente outra palavra.')}</td></tr>`}
+    </tbody></table></div></section>`;
+}
+
+function indicadores() {
+    const ano = Number(hoje().slice(0, 4));
+    const pca = S.pca.find(p => p.ano === ano) || S.pca[0];
+    const totalPca = pca.itens.reduce((s, i) => s + i.valor, 0);
+    const comProcesso = pca.itens.filter(i => S.demandas.some(d => d.itemPca === i.id && d.processoId) || S.processos.some(p => p.natureza === i.natureza && p.ano === ano && p.objeto.toLowerCase().includes(i.descricao.split(' ')[0].toLowerCase())));
+    const execPca = comProcesso.reduce((s, i) => s + i.valor, 0);
+    const doAno = S.processos.filter(p => p.ano === ano);
+    const diretas = doAno.filter(p => ehDireta(p.modalidade));
+    const vDir = diretas.reduce((s, p) => s + valorProcesso(p), 0), vTot = doAno.reduce((s, p) => s + valorProcesso(p), 0);
+    const contratados = S.contratos.map(c => ({ c, p: processo(c.processoId) })).filter(x => x.p);
+    const est = contratados.reduce((s, x) => s + valorProcesso(x.p), 0), ctr = contratados.reduce((s, x) => s + x.c.valorInicial, 0);
+    const prep = S.processos.map(p => { const a = p.eventos.find(e => e.para === 'planejamento'), b = p.eventos.find(e => e.para === 'publicado'); return a && b ? diasEntre(a.em, b.em) : null; }).filter(x => x !== null);
+    const alvo = S.usuarios.filter(u => ['agente-contratacao', 'planejamento', 'gestor-contrato'].includes(u.perfil));
+    const capac = alvo.filter(u => S.capacitacoes.some(k => k.userId === u.id && capacitacaoVigente(k)));
+    return { ano, pca, totalPca, execPca, diretas, vDir, vTot, doAno, est, ctr, prep, alvo, capac };
+}
+
+function telaGovernanca() {
+    const I = indicadores();
+    const pct = (a, b) => b ? Math.round(a / b * 1000) / 10 : 0;
+    const k = (rot, val, foot, cls = 'c-navy', icn = 'painel') => `<div class="card kpi"><span class="lbl"><span class="chip ${cls}">${ico(icn, 16)}</span>${rot}</span><span class="val">${val}</span><span class="foot">${foot}</span></div>`;
+    return cab('Governança das contratações', `Indicadores para a alta administração e o controle interno ${lei('art. 11, parágrafo único')}`) +
+    `<div class="kpis">
+      ${k('Execução do PCA ' + I.pca.ano, pct(I.execPca, I.totalPca).toLocaleString('pt-BR') + '%', `${reais(I.execPca)} de ${reais(I.totalPca)} com processo aberto`, 'c-navy', 'calendario')}
+      ${k('Contratações diretas', pct(I.vDir, I.vTot).toLocaleString('pt-BR') + '%', `${I.diretas.length} de ${I.doAno.length} processos do ano, em valor`, pct(I.vDir, I.vTot) > 30 ? 'c-warn' : 'c-teal', 'cifrao')}
+      ${k('Economia na contratação', I.est ? pct(I.est - I.ctr, I.est).toLocaleString('pt-BR') + '%' : '—', `Estimado ${reais(I.est)} · contratado ${reais(I.ctr)}`, 'c-teal', 'ok')}
+      ${k('Fase preparatória', I.prep.length ? Math.round(I.prep.reduce((s, x) => s + x, 0) / I.prep.length) + ' dias' : '—', 'Média do início do processo à publicação', 'c-navy', 'relogio')}
+      ${k('Equipe capacitada', pct(I.capac.length, I.alvo.length).toLocaleString('pt-BR') + '%', `${I.capac.length} de ${I.alvo.length} pessoas com capacitação vigente`, pct(I.capac.length, I.alvo.length) < 100 ? 'c-warn' : 'c-teal', 'cargos')}
+    </div>
+    <div class="g2">
+      <section class="card"><h2>Prazos que pedem atenção</h2><p class="hint">Os mesmos alertas enviados por e-mail todo dia às 7h</p><div class="list">${alertas().map(a => `<a class="li li-link" href="${a.href}">${ico('relogio')}<div><b>${esc(a.t)}</b><div class="meta">${esc(a.m)}</div></div><span class="r">${badge(a.nivel === 'b-err' ? 'urgente' : a.nivel === 'b-warn' ? 'atenção' : 'aviso', a.nivel)}</span></a>`).join('') || vazio('Nenhum prazo crítico')}</div></section>
+      <section class="card"><h2>Como ler</h2><div class="list">
+        <div class="li">${ico('cifrao')}<div><b>Contratações diretas</b><div class="meta">Percentual alto pede olhar sobre o planejamento: a dispensa e a inexigibilidade são exceções ${lei('arts. 72 a 75')}</div></div></div>
+        <div class="li">${ico('calendario')}<div><b>Execução do PCA</b><div class="meta">Item sem processo perto do trimestre previsto indica atraso no planejamento ${lei('art. 12, VII')}</div></div></div>
+        <div class="li">${ico('cargos')}<div><b>Capacitação</b><div class="meta">Agentes públicos com formação compatível ou certificação ${lei('art. 7º, II, e art. 173')}</div></div></div>
+      </div></section>
+    </div>`;
+}
+
+function telaCapacitacao() {
+    const gerencia = pode('capacitacao.gerenciar');
+    const lista = S.capacitacoes.filter(k => gerencia || pode('governanca.ver') || k.userId === S.sessao).slice().sort((a, b) => b.conclusao.localeCompare(a.conclusao));
+    return cab('Capacitação', `Formação dos agentes que atuam nas contratações ${lei('art. 7º, II, e art. 173')}`, `<button class="btn btn-p" data-acao="capacitacao-nova">${ico('mais', 16)}Registrar capacitação</button>`) +
+    `<p class="sub">Cada certificado vale ${VALIDADE_CAPACITACAO} meses para o indicador de governança. ${gerencia ? 'Seu perfil registra para qualquer pessoa do órgão.' : 'Você registra as suas capacitações.'}</p>
+    <section class="card card-flush"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Pessoa</th><th>Curso</th><th>Tema</th><th class="num">Carga</th><th>Conclusão</th><th>Situação</th></tr></thead><tbody>
+    ${lista.length ? lista.map(k => `<tr><td><b>${esc(nomeUsuario(k.userId))}</b><div class="small muted">${esc(PERFIS[S.usuarios.find(u => u.id === k.userId).perfil].rot)}</div></td><td>${esc(k.curso)}<div class="small muted">${esc(k.instituicao)}</div></td><td>${esc(TEMAS_CAPACITACAO[k.tema])}</td><td class="num">${k.carga} h</td><td>${dataBR(k.conclusao)}</td><td>${capacitacaoVigente(k) ? badge('Vigente', 'b-ok') : badge('Vencida', 'b-warn')}</td></tr>`).join('') : `<tr><td colspan="6">${vazio('Nenhuma capacitação registrada')}</td></tr>`}
+    </tbody></table></div></section>`;
+}
+
+function telaIntegracoes() {
+    const proc = Object.fromEntries(S.processos.map(p => [p.id, `${p.numero} · ${p.objeto.slice(0, 60)}`]));
+    return cab('Integrações', 'Tribunal de contas, processo eletrônico (SEI) e pesquisa de preços') +
+    `<div class="g2">
+      <section class="card"><h2>Remessa ao tribunal de contas</h2><p class="hint">Processos, itens, contratos e termos do período, em CSV com manifesto de integridade (SHA-256) ${lei('art. 169')}</p>
+        <form data-form="tce" class="form-grid">${campo('inicio', 'De', inp('inicio', somaMeses(-12), 'type="date" required'))}${campo('fim', 'Até', inp('fim', hoje(), 'type="date" required'))}<div class="full form-acoes"><button class="btn btn-p" type="submit">${ico('download', 16)}Gerar remessa</button></div></form>
+        <p class="hint">Layout genérico do NexPlanGov. O layout oficial de cada tribunal estadual é configurado na implantação.</p></section>
+      <section class="card"><h2>Dossiê do processo para o SEI</h2><p class="hint">Capa, todas as peças e o manifesto, prontos para juntar ao processo eletrônico</p>
+        <form data-form="dossie" class="form-grid">${campo('processo', 'Processo', sel('processo', proc, 'p2'), '', 'full')}${campo('sei', 'Número do processo no SEI', inp('sei', '', 'placeholder="00000.000000/2026-00"'), 'Opcional. Fica gravado no processo.', 'full')}<div class="full form-acoes"><button class="btn btn-p" type="submit">${ico('download', 16)}Baixar dossiê</button></div></form></section>
+      <section class="card"><h2>Pesquisa de preços no Compras.gov.br</h2><p class="hint">No sistema instalado, a aba Itens do processo consulta os preços praticados pela administração pública no último ano, pelo código do catálogo, e importa só os valores que a API devolveu ${lei('art. 23, § 1º, II')}</p><div class="aviso-lei">Na demonstração, sem internet de propósito, essa consulta não é feita.</div></section>
+      <section class="card"><h2>PNCP</h2><p class="hint">Publicação de PCA, editais, atas e contratos, com fila e reenvio automático ${lei('art. 174')}</p><a class="btn btn-s" href="#/pncp">${ico('pncp', 16)}Ver a fila do PNCP</a></section>
+    </div>`;
+}
+
+/* --------- assistente de IA (simulado na demonstração) --------- */
+const IA_BLOQUEADAS = ['parecer_juridico', 'autorizacao'];
+function sugestaoIa(p, tipo, campo, rot) {
+    const base = `${p.objeto.replace(/\.$/, '')}`;
+    const t = {
+        necessidade: `A unidade precisa de ${base.toLowerCase()} para manter o serviço público sem interrupção. [Complete com dados do setor: quantos atendidos, situação atual, riscos de não contratar.]`,
+        i_necessidade: `Descrição da necessidade: ${base}. O problema a resolver é [descreva], considerando o interesse público envolvido.`,
+        iv_quantidades: 'Quantidades estimadas com base no consumo dos últimos 12 meses e na previsão de demanda. [Anexe a memória de cálculo.]',
+        vi_estimativa_valor: 'Estimativa pela mediana das cotações válidas da pesquisa de preços, com fontes do art. 23, § 1º. [Confira a planilha de preços.]',
+        viii_parcelamento: 'Avalie se a divisão em itens ou lotes amplia a competição sem perda de economia de escala (art. 40, V, b). [Justifique a escolha.]',
+        xiii_viabilidade: 'Diante do exposto, a contratação se mostra [viável/inviável] e adequada ao atendimento da necessidade. [Confirme após revisar o estudo.]',
+    };
+    return t[campo] || `${rot}: [rascunho sugerido para "${base}". Revise e complete com os dados do processo.]`;
+}
+
+/* --------- ações --------- */
+Object.assign(ACOES, {
+    requisitar: d => {
+        if (!pode('requisicoes.criar')) return naoPode();
+        const a = ata(d.a), it = itemAta(a, d.it);
+        abrirModal(`Requisitar · ${esc(it.descricao)}`, `<form data-form="requisicao" data-a="${a.id}" data-it="${it.id}" class="form-grid"><div class="full aviso-lei">Saldo da ata ${esc(a.numero)}: <b>${saldo(it).toLocaleString('pt-BR')} ${esc(it.unidade)}</b> a ${reais(it.valor)}.</div>${campo('qtd', 'Quantidade', inp('qtd', '', `type="number" min="1" max="${saldo(it)}" required`))}${campo('unidade', 'Unidade requisitante', sel('unidade', { SEMED: 'SEMED · Educação', SEMAD: 'SEMAD · Administração', SEMUS: 'SEMUS · Saúde' }, 'SEMED'))}${campo('justificativa', 'Justificativa da necessidade', txt('justificativa', '', 'required minlength="10"'), '', 'full')}<div class="full">${acoesForm('Enviar requisição')}</div></form>`);
+    },
+    'req-aprovar': d => decidirRequisicao(d.r, true),
+    'req-recusar': d => { const r = S.requisicoes.find(x => x.id === d.r); if (r.requisitante === S.sessao) return toast('Quem requisita não decide a própria requisição (art. 7º, § 1º).', 'erro'); abrirModal('Recusar requisição', `<form data-form="req-recusa" data-r="${r.id}" class="form-grid">${campo('motivo', 'Motivo da recusa', txt('motivo', '', 'required minlength="10"'), '', 'full')}<div class="full">${acoesForm('Recusar')}</div></form>`); },
+    'of-emitir': d => { const r = S.requisicoes.find(x => x.id === d.r); abrirModal('Emitir ordem de fornecimento', `<form data-form="of" data-r="${r.id}" class="form-grid"><div class="full aviso-lei">A ordem consome o saldo da ata. Fornecedor impedido não recebe ordem ${lei('art. 156')}</div>${campo('prazo', 'Prazo de entrega', inp('prazo', somaDias(10), `type="date" min="${hoje()}" required`))}<div class="full">${acoesForm('Emitir ordem')}</div></form>`); },
+    'of-receber': d => { const o = S.ordens.find(x => x.id === d.o); abrirModal(`Recebimento · ${esc(o.numero)}`, `<form data-form="receber" data-o="${o.id}" class="form-grid"><div class="full aviso-lei">Provisório: verifica a conformidade da entrega. Definitivo: atesta que o objeto atende ao contrato, por pessoa diferente ${lei('art. 140, I e II')}. Faltam ${o.qtd - recebido(o, 'provisorio')} no provisório e ${recebido(o, 'provisorio') - recebido(o, 'definitivo')} no definitivo.</div>${campo('tipo', 'Tipo', sel('tipo', { provisorio: 'Provisório', definitivo: 'Definitivo' }, recebido(o, 'provisorio') >= o.qtd ? 'definitivo' : 'provisorio'))}${campo('qtd', 'Quantidade', inp('qtd', '', 'type="number" min="1" required'))}${campo('doc', 'Nota fiscal ou termo', inp('doc', '', 'required'))}${campo('data', 'Data', inp('data', hoje(), `type="date" max="${hoje()}" required`))}<div class="full">${acoesForm('Registrar')}</div></form>`); },
+    'of-cancelar': d => { const o = S.ordens.find(x => x.id === d.o); abrirModal(`Cancelar ${esc(o.numero)}`, `<form data-form="of-cancela" data-o="${o.id}" class="form-grid"><p class="full">O saldo volta para a ata.</p>${campo('motivo', 'Motivo', txt('motivo', '', 'required minlength="10"'), '', 'full')}<div class="full">${acoesForm('Cancelar ordem')}</div></form>`); },
+    'capacitacao-nova': () => {
+        const pessoas = pode('capacitacao.gerenciar') ? Object.fromEntries(S.usuarios.filter(u => u.perfil !== 'administrador-geral').map(u => [u.id, u.nome])) : { [S.sessao]: usuario().nome };
+        abrirModal('Registrar capacitação', `<form data-form="capacitacao" class="form-grid">${campo('userId', 'Pessoa', sel('userId', pessoas, S.sessao))}${campo('tema', 'Tema', sel('tema', TEMAS_CAPACITACAO))}${campo('curso', 'Curso', inp('curso', '', 'required'), '', 'full')}${campo('instituicao', 'Instituição', inp('instituicao', '', 'required'))}${campo('carga', 'Carga horária (h)', inp('carga', '', 'type="number" min="1" max="2000" required'))}${campo('conclusao', 'Conclusão', inp('conclusao', hoje(), `type="date" max="${hoje()}" required`))}<div class="full">${acoesForm('Registrar')}</div></form>`);
+    },
+    'ia-sugerir': (d, b) => {
+        if (!pode('ia.usar')) return naoPode();
+        if (IA_BLOQUEADAS.includes(d.tipo)) return toast('O assistente não escreve parecer jurídico nem autorização: são atos de quem assina.', 'erro');
+        const hojeUso = S.usosIa.filter(u => u.por === S.sessao && u.em.slice(0, 10) === hoje()).length;
+        if (hojeUso >= 40) return toast('Limite diário do assistente atingido (40 usos por pessoa).', 'erro');
+        const p = processo(d.p), form = b.closest('form'); let n = 0;
+        form.querySelectorAll('textarea').forEach(t => { if (!t.value.trim()) { const rot = form.querySelector(`label[for="${t.id}"]`)?.textContent.replace('obrigatório', '').trim() || t.name; t.value = sugestaoIa(p, d.tipo, t.name, rot); t.classList.add('ia-sugerido'); n++; } });
+        S.usosIa.push({ por: S.sessao, em: new Date().toISOString(), tipo: d.tipo, campos: n });
+        auditar('Assistente de IA usado (sugestão)', `${DOCS[d.tipo].rot} do processo ${p.numero}`, `${n} campo(s), dados pessoais removidos antes do envio`); salvar();
+        toast(n ? `${n} campo(s) preenchido(s) com sugestão. Revise antes de salvar: a responsabilidade é de quem assina.` : 'Todos os campos já têm texto. O assistente só preenche campos vazios.');
+    },
+});
+function decidirRequisicao(id, aprovar, motivo) {
+    const r = S.requisicoes.find(x => x.id === id);
+    if (!pode('ordens.gerenciar')) return naoPode();
+    if (r.requisitante === S.sessao) return toast('Quem requisita não decide a própria requisição (art. 7º, § 1º).', 'erro');
+    Object.assign(r, { situacao: aprovar ? 'aprovada' : 'recusada', decididaPor: S.sessao, motivo: motivo || '' });
+    auditar(aprovar ? 'Requisição aprovada' : 'Requisição recusada', `Requisição ${r.numero}`, motivo || ''); fecharModal(); atualizar();
+    toast(aprovar ? 'Requisição aprovada. Agora emita a ordem de fornecimento.' : 'Requisição recusada.');
+}
+
+/* --------- formulários --------- */
+Object.assign(FORMS, {
+    'catalogo-busca': f => { S.buscaCat = f.q; S.tipoCat = f.tipo; atualizar(); },
+    requisicao: (f, el) => {
+        const a = ata(el.dataset.a), it = itemAta(a, el.dataset.it), q = Number(f.qtd), e = [];
+        if (!ataVigente(a)) e.push('A ata não está vigente.');
+        if (!(q > 0)) e.push('A quantidade precisa ser maior que zero.');
+        if (q > saldo(it)) e.push(`Saldo insuficiente: restam ${saldo(it)} ${it.unidade}.`);
+        if (f.justificativa.trim().length < 10) e.push('Justifique a necessidade (mínimo 10 caracteres).');
+        if (e.length) return erroForm(el, e);
+        const ano = hoje().slice(0, 4), numero = String(S.requisicoes.length + S.ordens.length + 3).padStart(4, '0') + '/' + ano;
+        S.requisicoes.unshift({ id: uid(), numero, ataId: a.id, itemId: it.id, qtd: q, unidade: f.unidade, requisitante: S.sessao, justificativa: f.justificativa.trim(), data: hoje(), situacao: 'solicitada' });
+        auditar('Requisição registrada', `Requisição ${numero}`, `${q} ${it.unidade} da ata ${a.numero}`); fecharModal(); ir('ordens'); toast('Requisição enviada para decisão do gestor.');
+    },
+    'req-recusa': (f, el) => { if (f.motivo.trim().length < 10) return erroForm(el, ['Informe o motivo (mínimo 10 caracteres).']); decidirRequisicao(el.dataset.r, false, f.motivo.trim()); },
+    of: (f, el) => {
+        const r = S.requisicoes.find(x => x.id === el.dataset.r), a = ata(r.ataId), it = itemAta(a, r.itemId), forn = S.fornecedores.find(x => x.id === a.fornecedorId), e = [];
+        if (r.situacao !== 'aprovada') e.push('Só se emite ordem de requisição aprovada.');
+        if (f.prazo < hoje()) e.push('O prazo de entrega não pode estar no passado.');
+        if (impedido(forn)) e.push(`${forn.nome} está impedido de contratar (art. 156).`);
+        if (r.qtd > saldo(it)) e.push('Saldo da ata insuficiente.');
+        if (e.length) return erroForm(el, e);
+        const ano = hoje().slice(0, 4), numero = `OF ${String(S.ordens.length + 4).padStart(4, '0')}/${ano}`;
+        it.consumos.push({ qtd: r.qtd, ref: numero, em: hoje() });
+        S.ordens.unshift({ id: uid(), numero, requisicaoId: r.id, ataId: a.id, itemId: it.id, qtd: r.qtd, valorUnit: it.valor, prazo: f.prazo, emitidaPor: S.sessao, emitida: hoje(), situacao: 'emitida', recebimentos: [] });
+        r.situacao = 'atendida';
+        auditar('Ordem de fornecimento emitida', numero, `${r.qtd} ${it.unidade}, ${reais(r.qtd * it.valor)}`); fecharModal(); atualizar(); toast(`${numero} emitida. O saldo da ata foi consumido.`);
+    },
+    receber: (f, el) => {
+        const o = S.ordens.find(x => x.id === el.dataset.o), q = Number(f.qtd), e = [];
+        if (!(q > 0)) e.push('A quantidade precisa ser maior que zero.');
+        if (f.doc.trim().length < 2) e.push('Informe a nota fiscal ou o termo.');
+        if (f.data > hoje()) e.push('A data não pode ser futura.');
+        if (f.tipo === 'provisorio' && q > o.qtd - recebido(o, 'provisorio')) e.push('A quantidade passa do que falta receber da ordem.');
+        if (f.tipo === 'definitivo') {
+            if (q > recebido(o, 'provisorio') - recebido(o, 'definitivo')) e.push('O definitivo não pode passar do que já foi recebido provisoriamente.');
+            if (S.sessao === o.emitidaPor) e.push('Quem emitiu a ordem não faz o recebimento definitivo (segregação de funções).');
+            if (o.recebimentos.some(r => r.tipo === 'provisorio' && r.por === S.sessao)) e.push('O definitivo é feito por pessoa diferente de quem recebeu provisoriamente (art. 140).');
+        }
+        if (e.length) return erroForm(el, e);
+        o.recebimentos.push({ tipo: f.tipo, qtd: q, doc: f.doc.trim(), data: f.data, por: S.sessao });
+        o.situacao = recebido(o, 'definitivo') >= o.qtd ? 'entregue' : 'parcial';
+        auditar(`Recebimento ${f.tipo === 'provisorio' ? 'provisório' : 'definitivo'} registrado`, o.numero, `${q} · ${f.doc.trim()}`); fecharModal(); atualizar();
+        toast(o.situacao === 'entregue' ? 'Ordem entregue e recebida em definitivo.' : 'Recebimento registrado.');
+    },
+    'of-cancela': (f, el) => {
+        const o = S.ordens.find(x => x.id === el.dataset.o);
+        if (o.situacao !== 'emitida') return erroForm(el, ['Só se cancela ordem sem nenhum recebimento.']);
+        if (f.motivo.trim().length < 10) return erroForm(el, ['Informe o motivo (mínimo 10 caracteres).']);
+        const it = itemAta(ata(o.ataId), o.itemId); it.consumos.push({ qtd: -o.qtd, ref: 'Estorno da ' + o.numero, em: hoje() });
+        o.situacao = 'cancelada'; o.motivo = f.motivo.trim(); const r = S.requisicoes.find(x => x.id === o.requisicaoId); if (r) r.situacao = 'cancelada';
+        auditar('Ordem de fornecimento cancelada', o.numero, f.motivo.trim()); fecharModal(); atualizar(); toast('Ordem cancelada e saldo devolvido à ata.');
+    },
+    capacitacao: (f, el) => {
+        const e = [];
+        if (f.userId !== S.sessao && !pode('capacitacao.gerenciar')) e.push('Você só registra as suas capacitações.');
+        if (f.curso.trim().length < 5) e.push('Informe o nome do curso.');
+        if (!(Number(f.carga) > 0)) e.push('Informe a carga horária.');
+        if (f.conclusao > hoje()) e.push('A conclusão não pode ser futura.');
+        if (e.length) return erroForm(el, e);
+        S.capacitacoes.unshift({ id: uid(), userId: f.userId, curso: f.curso.trim(), tema: f.tema, carga: Number(f.carga), conclusao: f.conclusao, instituicao: f.instituicao.trim() });
+        auditar('Capacitação registrada', nomeUsuario(f.userId), f.curso.trim()); fecharModal(); atualizar(); toast('Capacitação registrada.');
+    },
+    tce: (f, el) => {
+        if (f.inicio > f.fim) return erroForm(el, ['A data inicial passa da final.']);
+        const neutro = v => { const s = String(v ?? ''); return /^[=+\-@]/.test(s) ? "'" + s : s; };
+        const csv = linhas => '﻿' + linhas.map(l => l.map(v => `"${neutro(v).replace(/"/g, '""')}"`).join(';')).join('\r\n');
+        const procs = S.processos.filter(p => p.criado <= f.fim && (p.eventos.at(-1)?.em || p.criado) >= f.inicio);
+        const ctrs = S.contratos.filter(c => c.inicio <= f.fim && fimVigencia(c) >= f.inicio);
+        const arqs = {
+            'processos.csv': csv([['numero', 'objeto', 'modalidade', 'amparo_legal', 'situacao', 'valor_estimado', 'numero_pncp'], ...procs.map(p => [p.numero, p.objeto, MODALIDADES[p.modalidade], (AMPAROS[p.amparo] || {}).rot, p.situacao, valorProcesso(p).toFixed(2), p.pncp || ''])]),
+            'contratos.csv': csv([['numero', 'fornecedor_cnpj', 'objeto', 'valor_inicial', 'valor_atual', 'inicio', 'fim', 'numero_pncp'], ...ctrs.map(c => [c.numero, (S.fornecedores.find(x => x.id === c.fornecedorId) || {}).documento, c.objeto, c.valorInicial.toFixed(2), valorTotal(c).toFixed(2), c.inicio, fimVigencia(c), c.pncp || ''])]),
+        };
+        const manifesto = { orgao: S.orgao.nome, cnpj: S.orgao.cnpj, periodo: [f.inicio, f.fim], gerado_em: new Date().toISOString(), arquivos: Object.fromEntries(Object.entries(arqs).map(([n, c]) => [n, { sha256: sha256(c), linhas: c.split('\r\n').length - 1 }])) };
+        Object.entries(arqs).forEach(([n, c]) => baixar(`remessa-tce-${n}`, c, 'text/csv'));
+        baixar('remessa-tce-manifesto.json', JSON.stringify(manifesto, null, 2), 'application/json');
+        auditar('Remessa ao tribunal de contas gerada', `${dataBR(f.inicio)} a ${dataBR(f.fim)}`, `${procs.length} processos, ${ctrs.length} contratos`); salvar();
+        toast(`Remessa gerada: ${procs.length} processos e ${ctrs.length} contratos, com manifesto SHA-256.`);
+    },
+    dossie: f => {
+        const p = processo(f.processo); if (f.sei.trim()) p.sei = f.sei.trim();
+        const pecas = Object.entries(p.docs).map(([t, d]) => `<section><h2>${esc(DOCS[t].rot)}</h2><p><small>Versão ${d.versao} · ${d.situacao} · ${dataBR(d.em)} · ${esc(nomeUsuario(d.por))}${d.hash ? ' · SHA-256 ' + d.hash : ''}</small></p>${Object.entries(d.campos).map(([k, v]) => `<h3>${esc((DOCS[t].campos[k] || [k])[0])}</h3><p>${esc(v)}</p>`).join('')}</section>`).join('');
+        const html = `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Dossiê ${esc(p.numero)}</title><body style="font-family:sans-serif;max-width:800px;margin:auto"><h1>${esc(S.orgao.nome)}</h1><p><b>Processo ${esc(p.numero)}</b> · ${esc(MODALIDADES[p.modalidade])}${p.sei ? ' · SEI ' + esc(p.sei) : ''}</p><p>${esc(p.objeto)}</p><p>Gerado em ${new Date().toLocaleString('pt-BR')} pelo NexPlanGov (demonstração, dados fictícios).</p>${pecas || '<p>Sem peças.</p>'}</body></html>`;
+        baixar(`dossie-${p.numero.replace('/', '-')}.html`, html, 'text/html');
+        auditar('Dossiê do processo gerado', `Processo ${p.numero}`, p.sei ? 'SEI ' + p.sei : ''); salvar(); toast('Dossiê baixado.');
+    },
+});
+function baixar(nome, conteudo, tipo) {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([conteudo], { type: tipo + ';charset=utf-8' })); a.download = nome;
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+const TELAS_EXTRA = { atas: [() => telaAtas(), 'atas.ver'], ordens: [() => telaOrdens(), 'atas.ver'], catalogo: [() => telaCatalogo(), 'catalogo.ver'], governanca: [() => telaGovernanca(), 'governanca.ver'], capacitacao: [() => telaCapacitacao(), 'capacitacao.ver'], integracoes: [() => telaIntegracoes(), 'exportacoes.gerar'] };
 
 /* ---------------- eventos ---------------- */
 document.addEventListener('click', e => {

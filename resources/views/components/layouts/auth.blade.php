@@ -24,11 +24,11 @@
         </div>
         <small style="color:#A9D2EE">Dados protegidos conforme a LGPD (Lei nº 13.709/2018). Desenvolvido por <a href="https://nexmind.net.br/" target="_blank" rel="noopener noreferrer" style="color:#D1ECFF">NexMind</a>.</small>
     </section>
-    <section class="auth-form">
+    <main class="auth-form" id="conteudo">
         <div class="auth-box">
             {{ $slot }}
         </div>
-    </section>
+    </main>
 </div>
 </body>
 </html>

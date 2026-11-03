@@ -33,7 +33,7 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            'serve' => false, // peças e anexos só saem pelos controllers, com permissão e auditoria
             'throw' => false,
             'report' => false,
         ],

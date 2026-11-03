@@ -27,9 +27,9 @@
             <section class="card"><h2>Manifestar necessidade</h2>
                 <form method="POST" action="{{ route('irp.manifestar', $irp) }}" class="form-grid">@csrf
                     <x-campo nome="participante" rotulo="Participante (unidade ou órgão)" :valor="auth()->user()->orgao?->sigla" obrigatorio />
-                    <div class="campo"><label>Unidade</label><select name="unidade_id" class="input"><option value="">—</option>@foreach ($unidades as $u)<option value="{{ $u->id }}">{{ $u->sigla }}</option>@endforeach</select></div>
+                    <div class="campo"><label for="{{ $_rot = 'c'.\Illuminate\Support\Str::random(8) }}">Unidade</label><select id="{{ $_rot }}" name="unidade_id" class="input"><option value="">—</option>@foreach ($unidades as $u)<option value="{{ $u->id }}">{{ $u->sigla }}</option>@endforeach</select></div>
                     <x-campo nome="descricao" rotulo="Descrição do item" obrigatorio /><x-campo nome="unidade_medida" rotulo="Unidade de medida" obrigatorio /><x-campo nome="quantidade" rotulo="Quantidade" obrigatorio />
-                    <div class="campo full"><label>Justificativa</label><textarea name="justificativa" class="input" rows="2"></textarea></div>
+                    <div class="campo full"><label for="{{ $_rot = 'c'.\Illuminate\Support\Str::random(8) }}">Justificativa</label><textarea id="{{ $_rot }}" name="justificativa" class="input" rows="2"></textarea></div>
                     <div class="form-acoes full"><button class="btn btn-p" type="submit">Enviar manifestação</button></div></form>
             </section>
         @endif
