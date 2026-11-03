@@ -68,6 +68,16 @@ class Processo extends Model
         return $this->belongsTo(Demanda::class);
     }
 
+    public function propostas(): HasMany
+    {
+        return $this->hasMany(Proposta::class);
+    }
+
+    public function impugnacoes(): HasMany
+    {
+        return $this->hasMany(Impugnacao::class)->orderByDesc('recebida_em');
+    }
+
     public function itens(): HasMany
     {
         return $this->hasMany(ItemProcesso::class)->orderBy('numero');

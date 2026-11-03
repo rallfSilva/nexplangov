@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['orgao_id', 'processo_id', 'item_pca_id', 'numero', 'material_servico', 'codigo_catalogo', 'descricao', 'unidade_medida', 'quantidade', 'metodo_preco', 'tipo_beneficio', 'situacao', 'fornecedor_vencedor_id', 'valor_unitario_homologado'])]
+#[Fillable(['orgao_id', 'processo_id', 'item_pca_id', 'numero', 'material_servico', 'codigo_catalogo', 'descricao', 'unidade_medida', 'quantidade', 'metodo_preco', 'tipo_beneficio', 'situacao', 'fornecedor_vencedor_id', 'valor_unitario_homologado', 'proposta_id', 'adjudicado_em', 'adjudicado_por'])]
 class ItemProcesso extends Model
 {
     use Auditable, BelongsToOrgao;
@@ -23,7 +23,7 @@ class ItemProcesso extends Model
 
     protected function casts(): array
     {
-        return ['quantidade' => 'decimal:4', 'valor_unitario_estimado' => 'decimal:4', 'valor_total_estimado' => 'decimal:2', 'valor_unitario_homologado' => 'decimal:4', 'tipo_beneficio' => 'integer'];
+        return ['quantidade' => 'decimal:4', 'valor_unitario_estimado' => 'decimal:4', 'valor_total_estimado' => 'decimal:2', 'valor_unitario_homologado' => 'decimal:4', 'tipo_beneficio' => 'integer', 'adjudicado_em' => 'datetime'];
     }
 
     public function processo(): BelongsTo
@@ -34,6 +34,11 @@ class ItemProcesso extends Model
     public function cotacoes(): HasMany
     {
         return $this->hasMany(Cotacao::class)->orderBy('data_cotacao');
+    }
+
+    public function propostas(): HasMany
+    {
+        return $this->hasMany(Proposta::class, 'item_id');
     }
 
     public function vencedor(): BelongsTo

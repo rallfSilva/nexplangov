@@ -8,8 +8,11 @@ use App\Http\Controllers\DispensaController;
 use App\Http\Controllers\DocumentoProcessoController;
 use App\Http\Controllers\FluxoController;
 use App\Http\Controllers\FornecedorController;
+use App\Http\Controllers\ImpugnacaoController;
+use App\Http\Controllers\IrpController;
 use App\Http\Controllers\ItemProcessoController;
 use App\Http\Controllers\LgpdController;
+use App\Http\Controllers\LicitacaoController;
 use App\Http\Controllers\ModeloController;
 use App\Http\Controllers\OrgaoController;
 use App\Http\Controllers\PainelController;
@@ -32,6 +35,10 @@ Route::post('/lgpd/solicitar', [LgpdController::class, 'registrarPublico'])->mid
 // Validação pública de assinatura eletrônica (código ou QR Code da folha de assinaturas).
 Route::post('/validar', [ValidacaoAssinaturaController::class, 'buscar'])->middleware('throttle:20,1')->name('assinaturas.buscar');
 Route::get('/validar/{codigo?}', [ValidacaoAssinaturaController::class, 'mostrar'])->middleware('throttle:30,1')->where('codigo', '[A-Za-z0-9-]+')->name('assinaturas.validar');
+
+// Página pública do edital: respostas divulgadas e pedido de impugnação ou esclarecimento (art. 164).
+Route::get('/editais/{processo}', [ImpugnacaoController::class, 'edital'])->middleware('throttle:60,1')->name('edital.publico');
+Route::post('/editais/{processo}/pedidos', [ImpugnacaoController::class, 'pedidoPublico'])->middleware('throttle:5,10')->name('edital.pedido');
 
 Route::middleware(['auth', 'ativo'])->group(function () {
     // Fica fora da exigência de 2FA: é aqui que o administrador ativa a verificação.
@@ -118,6 +125,33 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::get('/fluxos/{fluxo}', [FluxoController::class, 'edit'])->name('fluxos.edit');
             Route::put('/fluxos/{fluxo}', [FluxoController::class, 'update'])->name('fluxos.update');
             Route::delete('/fluxos/{fluxo}', [FluxoController::class, 'destroy'])->name('fluxos.destroy');
+        });
+        // NexLicita: sessão de julgamento, impugnações e IRP
+        Route::get('/processos/{processo}/licitacao', [LicitacaoController::class, 'show'])->middleware('can:processos.ver')->name('licitacao.show');
+        Route::get('/processos/{processo}/impugnacoes', [ImpugnacaoController::class, 'index'])->middleware('can:processos.ver')->name('impugnacoes.index');
+        Route::middleware('can:licitacao.conduzir')->group(function () {
+            Route::post('/processos/{processo}/impugnacoes', [ImpugnacaoController::class, 'store'])->name('impugnacoes.store');
+            Route::post('/processos/{processo}/impugnacoes/{impugnacao}/responder', [ImpugnacaoController::class, 'responder'])->name('impugnacoes.responder');
+            Route::post('/processos/{processo}/itens/{item}/propostas', [LicitacaoController::class, 'proposta'])->name('licitacao.proposta');
+            Route::post('/processos/{processo}/propostas/{proposta}/lances', [LicitacaoController::class, 'lance'])->name('licitacao.lance');
+            Route::post('/processos/{processo}/propostas/{proposta}/desclassificar', [LicitacaoController::class, 'desclassificar'])->name('licitacao.desclassificar');
+            Route::post('/processos/{processo}/propostas/{proposta}/habilitar', [LicitacaoController::class, 'habilitar'])->name('licitacao.habilitar');
+            Route::post('/processos/{processo}/propostas/{proposta}/inabilitar', [LicitacaoController::class, 'inabilitar'])->name('licitacao.inabilitar');
+            Route::post('/processos/{processo}/propostas/{proposta}/desempate', [LicitacaoController::class, 'desempate'])->name('licitacao.desempate');
+            Route::post('/processos/{processo}/itens/{item}/adjudicar', [LicitacaoController::class, 'adjudicar'])->name('licitacao.adjudicar');
+            Route::post('/processos/{processo}/itens/{item}/revogar-adjudicacao', [LicitacaoController::class, 'revogarAdjudicacao'])->name('licitacao.revogar');
+        });
+
+        Route::middleware('can:irp.ver')->group(function () {
+            Route::get('/irp', [IrpController::class, 'index'])->name('irp.index');
+            Route::get('/irp/{irp}', [IrpController::class, 'show'])->name('irp.show');
+        });
+        Route::post('/irp/{irp}/manifestacoes', [IrpController::class, 'manifestar'])->middleware('can:irp.manifestar')->name('irp.manifestar');
+        Route::middleware('can:irp.gerenciar')->group(function () {
+            Route::post('/irp', [IrpController::class, 'store'])->name('irp.store');
+            Route::post('/irp/{irp}/manifestacoes/{manifestacao}/decidir', [IrpController::class, 'decidir'])->name('irp.decidir');
+            Route::post('/irp/{irp}/encerrar', [IrpController::class, 'encerrar'])->name('irp.encerrar');
+            Route::post('/irp/{irp}/consolidar', [IrpController::class, 'consolidar'])->name('irp.consolidar');
         });
         Route::get('/limite-dispensa', DispensaController::class)->middleware('can:processos.ver')->name('dispensa.simulador');
 

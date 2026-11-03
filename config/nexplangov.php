@@ -23,6 +23,13 @@ return [
     // Alertas de vencimento de contrato (dias antes do fim da vigência).
     'alertas_vigencia' => [120, 90, 60, 30],
 
+    // Prazo mínimo (dias úteis) para os participantes se manifestarem em uma IRP (art. 86). O prazo vem do
+    // regulamento de cada ente: confirme o do seu e ajuste no .env.
+    'irp_prazo_minimo_dias_uteis' => (int) env('NEXPLANGOV_IRP_PRAZO_MINIMO', 8),
+
+    // Feriados estaduais e municipais (Y-m-d, separados por vírgula), somados aos nacionais na contagem de dias úteis.
+    'feriados_extras' => array_filter(array_map('trim', explode(',', (string) env('NEXPLANGOV_FERIADOS_EXTRAS', '')))),
+
     // Prazo de resposta ao titular de dados (LGPD, art. 19, II): 15 dias.
     'lgpd_prazo_dias' => 15,
 ];
