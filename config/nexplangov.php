@@ -43,6 +43,20 @@ return [
     // Capacitação: meses em que um curso conta como atualização do agente (art. 7º, II, e art. 173).
     'capacitacao_validade_meses' => (int) env('NEXPLANGOV_CAPACITACAO_MESES', 24),
 
+    // Compras.gov.br, API de dados abertos (pesquisa de preço). Caminhos configuráveis: confirme na documentação vigente.
+    'compras_gov' => [
+        'url' => env('COMPRASGOV_URL', 'https://dadosabertos.compras.gov.br'),
+        'caminho_material' => env('COMPRASGOV_CAMINHO_MATERIAL', '/modulo-pesquisa-preco/1_consultarMaterial'),
+        'caminho_servico' => env('COMPRASGOV_CAMINHO_SERVICO', '/modulo-pesquisa-preco/3_consultarServico'),
+        'timeout' => (int) env('COMPRASGOV_TIMEOUT', 20),
+        'max_paginas' => 3,
+    ],
+
+    // SEI: endereço para abrir um processo pelo número (o número entra no lugar de {numero}).
+    'sei' => [
+        'url_consulta' => env('SEI_URL_CONSULTA'),
+    ],
+
     // Prazo de resposta ao titular de dados (LGPD, art. 19, II): 15 dias.
     'lgpd_prazo_dias' => 15,
 ];

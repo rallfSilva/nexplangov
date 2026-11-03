@@ -61,6 +61,9 @@
             @endcanany
 
             <span class="cap">Administração</span>
+            @can('exportacoes.gerar')
+                <a href="{{ route('integracoes.index') }}" class="{{ $nav('integracoes.*') }}"><x-icone nome="api" />Integrações</a>
+            @endcan
             @can('governanca.ver')
                 <a href="{{ route('governanca') }}" class="{{ $nav('governanca') }}"><x-icone nome="balanca" />Governança</a>
             @endcan

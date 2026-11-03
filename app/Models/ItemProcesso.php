@@ -61,4 +61,9 @@ class ItemProcesso extends Model
     {
         return $this->belongsTo(ItemPca::class, 'item_pca_id');
     }
+
+    public function fornecedorVencedor(): BelongsTo
+    {
+        return $this->belongsTo(Fornecedor::class, 'fornecedor_vencedor_id');
+    }
 }
