@@ -55,4 +55,22 @@ class RegistroDePrecosTest extends TestCase
     {
         $this->assertFalse((new RegistroDePrecos)->avaliarAdesao(1000, 0, 0, 0)['permitido']);
     }
+
+    public function test_orgao_federal_nao_adere_a_ata_estadual_distrital_ou_municipal(): void
+    {
+        $r = new RegistroDePrecos;
+        foreach (['municipal', 'estadual', 'distrital'] as $g) {
+            $this->assertStringContainsString('art. 86, § 8º', $r->vedacaoPorEsfera($g, 'federal')[0]);
+        }
+        $this->assertSame([], $r->vedacaoPorEsfera('federal', 'federal'));
+        $this->assertSame([], $r->vedacaoPorEsfera('municipal', 'municipal'));
+        $this->assertSame([], $r->vedacaoPorEsfera('municipal', 'estadual'));
+    }
+
+    public function test_prazo_para_contratar_nao_passa_da_vigencia_da_ata(): void
+    {
+        $r = new RegistroDePrecos;
+        $this->assertSame('2027-02-01', $r->prazoContratacao(D::parse('2026-11-03'), D::parse('2027-06-30'), 90)->toDateString());
+        $this->assertSame('2026-12-31', $r->prazoContratacao(D::parse('2026-11-03'), D::parse('2026-12-31'), 90)->toDateString());
+    }
 }

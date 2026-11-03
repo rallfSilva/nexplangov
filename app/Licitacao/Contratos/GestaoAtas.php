@@ -10,7 +10,6 @@ use App\Models\AtaConsumo;
 use App\Models\AtaItem;
 use App\Models\Processo;
 use App\Models\User;
-use App\Support\Documento;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -82,6 +81,8 @@ final class GestaoAtas
         if ($adesao) {
             if ($adesao->ata_item_id !== $ai->id || $adesao->situacao !== 'autorizada') {
                 $motivos[] = 'A adesão não está autorizada para este item.';
+            } elseif ($adesao->prazoEncerrado()) {
+                $motivos[] = 'O prazo para o aderente contratar terminou em '.$adesao->prazo_contratacao->format('d/m/Y').' (regulamento do art. 86).';
             } else {
                 $saldoAdesao = (float) $adesao->quantidade - (float) AtaConsumo::where('adesao_id', $adesao->id)->sum('quantidade');
                 if ($quantidade > $saldoAdesao + 0.00001) {
@@ -109,53 +110,6 @@ final class GestaoAtas
         return AtaConsumo::create(['orgao_id' => $c->orgao_id, 'ata_item_id' => $c->ata_item_id, 'adesao_id' => $c->adesao_id, 'unidade_id' => $c->unidade_id, 'quantidade' => -(float) $c->quantidade, 'referencia' => $referencia, 'user_id' => $u->id]);
     }
 
-    public function solicitarAdesao(AtaItem $ai, string $nome, string $cnpj, float $quantidade, string $justificativa, string $vantagem, User $u): AtaAdesao
-    {
-        $motivos = [];
-
-        if (! $ai->ata->vigente()) {
-            $motivos[] = 'A ata não está vigente.';
-        }
-        if (mb_strlen(trim($justificativa)) < 10 || mb_strlen(trim($vantagem)) < 10) {
-            $motivos[] = 'Justifique a vantagem da adesão e a compatibilidade dos preços com o mercado (art. 86, § 2º).';
-        }
-        $r = $this->regras->avaliarAdesao((float) $ai->quantidade_registrada, $ai->autorizadoEmAdesoes(), $this->autorizadoDoAderente($ai, $cnpj), $quantidade);
-        $motivos = array_merge($motivos, $r['mensagens']);
-
-        if ($motivos) {
-            throw new RegraViolada($motivos);
-        }
-
-        return AtaAdesao::create([
-            'orgao_id' => $ai->orgao_id, 'ata_item_id' => $ai->id, 'aderente_nome' => $nome, 'aderente_cnpj' => Documento::formatarCnpj(Documento::digitos($cnpj)),
-            'quantidade' => $quantidade, 'justificativa' => trim($justificativa), 'vantagem' => trim($vantagem), 'solicitada_por' => $u->id,
-        ]);
-    }
-
-    /** Autorização ou negativa do órgão gerenciador; os limites são conferidos de novo na autorização. */
-    public function decidirAdesao(AtaAdesao $a, bool $autorizar, ?string $motivo, User $u): void
-    {
-        if ($a->situacao !== 'solicitada') {
-            throw new RegraViolada(['Esta adesão já foi decidida.']);
-        }
-        if (! $autorizar && mb_strlen(trim((string) $motivo)) < 10) {
-            throw new RegraViolada(['Informe o motivo da negativa (mínimo 10 caracteres).']);
-        }
-
-        if ($autorizar) {
-            $ai = $a->ataItem;
-            if (! $ai->ata->vigente()) {
-                throw new RegraViolada(['A ata não está vigente.']);
-            }
-            $r = $this->regras->avaliarAdesao((float) $ai->quantidade_registrada, $ai->autorizadoEmAdesoes(), $this->autorizadoDoAderente($ai, $a->aderente_cnpj), (float) $a->quantidade);
-            if (! $r['permitido']) {
-                throw new RegraViolada($r['mensagens']);
-            }
-        }
-
-        $a->update(['situacao' => $autorizar ? 'autorizada' : 'negada', 'motivo_decisao' => $motivo ? trim($motivo) : null, 'decidida_por' => $u->id, 'decidida_em' => now()]);
-    }
-
     public function prorrogar(Ata $ata, string $novoFim, ?string $vantagem): void
     {
         if ($ata->situacao !== 'vigente' || $ata->vigencia_fim->lt(today())) {
@@ -177,12 +131,5 @@ final class GestaoAtas
             throw new RegraViolada(['Informe o motivo do cancelamento (mínimo 10 caracteres).']);
         }
         $ata->update(['situacao' => 'cancelada', 'motivo_cancelamento' => trim($motivo)]);
-    }
-
-    private function autorizadoDoAderente(AtaItem $ai, string $cnpj): float
-    {
-        $digitos = Documento::digitos($cnpj);
-
-        return (float) $ai->adesoes()->where('situacao', 'autorizada')->get()->filter(fn (AtaAdesao $x) => Documento::digitos($x->aderente_cnpj) === $digitos)->sum('quantidade');
     }
 }
