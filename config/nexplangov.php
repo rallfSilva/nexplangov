@@ -21,7 +21,7 @@ return [
     ],
 
     // Alertas de vencimento de contrato (dias antes do fim da vigência).
-    'alertas_vigencia' => [120, 90, 60, 30],
+    'alertas_vigencia' => [120, 90, 60, 30, 15, 7],
 
     // Prazo mínimo (dias úteis) para os participantes se manifestarem em uma IRP (art. 86). O prazo vem do
     // regulamento de cada ente: confirme o do seu e ajuste no .env.

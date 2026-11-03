@@ -41,6 +41,12 @@
             @can('contratos.ver')
                 <a href="{{ route('atas.index') }}" class="{{ $nav('atas.*') }}"><x-icone nome="contrato" />Atas de registro de preços</a>
             @endcan
+            @can('requisicoes.ver')
+                <a href="{{ route('requisicoes.index') }}" class="{{ $nav('requisicoes.*') }}"><x-icone nome="demanda" />Requisições de fornecimento</a>
+            @endcan
+            @can('contratos.ver')
+                <a href="{{ route('ordens.index') }}" class="{{ $nav('ordens.*') }}"><x-icone nome="processo" />Ordens de fornecimento</a>
+            @endcan
             @can('irp.ver')
                 <a href="{{ route('irp.index') }}" class="{{ $nav('irp.*') }}"><x-icone nome="liga" />Intenção de registro de preços</a>
             @endcan

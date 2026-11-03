@@ -16,11 +16,13 @@ use App\Http\Controllers\ItemProcessoController;
 use App\Http\Controllers\LgpdController;
 use App\Http\Controllers\LicitacaoController;
 use App\Http\Controllers\ModeloController;
+use App\Http\Controllers\OrdemController;
 use App\Http\Controllers\OrgaoController;
 use App\Http\Controllers\PainelController;
 use App\Http\Controllers\PcaController;
 use App\Http\Controllers\PncpController;
 use App\Http\Controllers\ProcessoController;
+use App\Http\Controllers\RequisicaoController;
 use App\Http\Controllers\SegurancaController;
 use App\Http\Controllers\UnidadeController;
 use App\Http\Controllers\UsuarioController;
@@ -171,6 +173,19 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::post('/contratos/{contrato}/rescisoes', [CicloContratoController::class, 'iniciarRescisao'])->name('rescisoes.store');
             Route::post('/contratos/{contrato}/rescisoes/{rescisao}/defesa', [CicloContratoController::class, 'defesa'])->name('rescisoes.defesa');
             Route::post('/contratos/{contrato}/rescisoes/{rescisao}/cancelar', [CicloContratoController::class, 'cancelarRescisao'])->name('rescisoes.cancelar');
+        });
+        // Requisições, ordens de fornecimento e recebimento (art. 140)
+        Route::middleware('can:requisicoes.ver')->get('/requisicoes', [RequisicaoController::class, 'index'])->name('requisicoes.index');
+        Route::middleware('can:requisicoes.criar')->post('/requisicoes', [RequisicaoController::class, 'store'])->name('requisicoes.store');
+        Route::middleware('can:contratos.ver')->group(function () {
+            Route::get('/ordens', [OrdemController::class, 'index'])->name('ordens.index');
+            Route::get('/ordens/{ordem}', [OrdemController::class, 'show'])->name('ordens.show');
+        });
+        Route::middleware('can:contratos.gerenciar')->group(function () {
+            Route::post('/requisicoes/{requisicao}/decidir', [RequisicaoController::class, 'decidir'])->name('requisicoes.decidir');
+            Route::post('/requisicoes/{requisicao}/ordem', [OrdemController::class, 'emitir'])->name('ordens.emitir');
+            Route::post('/ordens/{ordem}/recebimentos', [OrdemController::class, 'receber'])->name('ordens.receber');
+            Route::post('/ordens/{ordem}/cancelar', [OrdemController::class, 'cancelar'])->name('ordens.cancelar');
         });
         Route::middleware('can:processos.autorizar')->group(function () {
             Route::post('/contratos/{contrato}/reequilibrios/{reequilibrio}/decidir', [CicloContratoController::class, 'decidirReequilibrio'])->name('reequilibrios.decidir');

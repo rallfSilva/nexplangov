@@ -72,3 +72,10 @@ Publicação do edital ou aviso de contratação direta enfileira a compra; homo
 - **Reequilíbrio** (art. 124, II, d): pedido fundamentado (caso fortuito, força maior, fato do príncipe, fato imprevisível ou previsível de consequências incalculáveis), decisão da autoridade que não é quem pediu. Deferido, cria termo aditivo que não conta no limite de 25% do art. 125, que vale para as alterações unilaterais.
 - **Extinção** (arts. 137 a 139): sempre motivada nos autos. Na rescisão unilateral, comunicação formal e prazo de defesa; a autoridade só conclui depois da defesa ou do fim do prazo. Culpa da Administração exige informar o ressarcimento (art. 138, § 2º). Concluída, gera o termo de rescisão para o PNCP. O termo genérico não aceita mais "rescisão".
 - Confirme com a assessoria jurídica a numeração dos parágrafos citados nas mensagens do sistema (art. 86, §§ 2º a 5º) antes do uso em produção.
+
+## Etapa D: requisições, ordens de fornecimento e alertas
+
+- **Requisição** (arts. 82 a 86): a unidade pede quantidade de um item de ata vigente, com justificativa. Não passa do saldo. Quem requisita não aprova a própria requisição (segregação de funções, art. 7º, § 1º).
+- **Ordem de fornecimento**: só sai de requisição aprovada; fornecedor impedido não recebe ordem (art. 156). Ao emitir, o saldo da ata é reservado por um consumo. Cancelar (só sem recebimento) devolve o saldo por um lançamento de estorno, sem apagar nada.
+- **Recebimento** (art. 140): provisório e definitivo. O definitivo não passa do provisório, e é feito por servidor diferente de quem emitiu a ordem e de quem recebeu provisoriamente. Lançamentos são imutáveis.
+- **Alertas** (`php artisan nexplangov:alertas`, agendado às 07h): vigência de contrato (marcos 120, 90, 60, 30, 15 e 7 dias, e vencido), vigência de ata (60, 30, 15, 7), prazo de peça da instrução (véspera e vencido), impugnação a responder (art. 164) e entrega atrasada. Cada pessoa recebe um resumo e um livro (`alertas_enviados`) evita repetir o mesmo marco. O e-mail não leva dado pessoal. Os mesmos avisos aparecem no painel.
