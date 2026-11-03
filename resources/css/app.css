@@ -181,8 +181,8 @@
     .btn:active { transform: translateY(1px) scale(.99); }
     .btn-p { background: linear-gradient(135deg, var(--color-azul), var(--color-marinho)); box-shadow: 0 1px 0 rgba(255,255,255,.18) inset, 0 8px 18px -10px rgba(30,84,112,.65); }
     .btn-p:hover { background: linear-gradient(135deg, #3B80AE, var(--color-marinho)); box-shadow: 0 1px 0 rgba(255,255,255,.18) inset, 0 12px 24px -12px rgba(30,84,112,.8); transform: translateY(-1px); }
-    .btn-t { background: var(--color-turquesa); color: var(--color-marinho); }
-    .btn-t:hover { background: #5BB3C4; color: var(--color-marinho); transform: translateY(-1px); }
+    .btn-t { background: var(--color-turquesa); color: #0F2F40; }
+    .btn-t:hover { background: #5BB3C4; color: #0F2F40; transform: translateY(-1px); }
     .btn-g { background: transparent; color: var(--color-azul); }
     .btn-g:hover { background: #F0F7FC; color: var(--color-marinho); }
     .btn[disabled], .btn[aria-disabled="true"] { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
