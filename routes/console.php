@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 // Resumo diário de prazos por e-mail (o servidor precisa rodar `php artisan schedule:run` a cada minuto).
 Schedule::command('nexplangov:alertas')->dailyAt('07:00')->timezone('America/Sao_Paulo')->withoutOverlapping();
+Schedule::command('nexplangov:treinamento encerrar-vencidas')->dailyAt('00:30')->timezone('America/Sao_Paulo')->withoutOverlapping();

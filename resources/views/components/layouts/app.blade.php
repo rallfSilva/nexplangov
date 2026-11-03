@@ -125,6 +125,13 @@
             </div>
         </header>
 
+        @if ($user->orgao?->treinamento)
+            <div class="faixa-treinamento" role="note">
+                <x-icone nome="cargos" tamanho="16" />
+                <span><b>Ambiente de treinamento.</b> Dados fictícios: nada é publicado no PNCP e nenhum alerta sai por e-mail.@if ($user->orgao->treinamento_expira_em) Acesso até {{ $user->orgao->treinamento_expira_em->format('d/m/Y') }}.@endif</span>
+            </div>
+        @endif
+
         <main id="conteudo" class="content entrar">
             <x-flash />
             {{ $slot }}

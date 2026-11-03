@@ -40,6 +40,13 @@ return [
         'limite_diario_por_usuario' => (int) env('NEXPLANGOV_IA_LIMITE_DIARIO', 40),
     ],
 
+    // Turmas de treinamento: órgão fictício que nunca publica no PNCP nem envia e-mail de alerta.
+    'treinamento' => [
+        'dias' => (int) env('NEXPLANGOV_TREINAMENTO_DIAS', 30),
+        'ia' => (bool) env('NEXPLANGOV_TREINAMENTO_IA', false), // libera a NexMind IA nas turmas (cada uso tem custo)
+        'dominio_email' => env('NEXPLANGOV_TREINAMENTO_DOMINIO', 'treinamento.nexplangov.local'),
+    ],
+
     // Capacitação: meses em que um curso conta como atualização do agente (art. 7º, II, e art. 173).
     'capacitacao_validade_meses' => (int) env('NEXPLANGOV_CAPACITACAO_MESES', 24),
 

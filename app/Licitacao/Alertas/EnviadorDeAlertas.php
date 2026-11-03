@@ -23,7 +23,8 @@ final class EnviadorDeAlertas
         }
 
         $enviados = 0;
-        foreach (User::whereIn('id', array_keys($porUsuario))->where('ativo', true)->get() as $u) {
+        foreach (User::whereIn('id', array_keys($porUsuario))->where('ativo', true)
+            ->where(fn ($q) => $q->whereNull('orgao_id')->orWhereHas('orgao', fn ($o) => $o->where('treinamento', false)))->get() as $u) {
             $ja = AlertaEnviado::where('user_id', $u->id)->pluck('chave')->all();
             $novos = array_values(array_filter($porUsuario[$u->id], fn ($a) => ! in_array($a['chave'], $ja, true)));
             if (! $novos) {
