@@ -45,6 +45,17 @@
         </div>
     </div>
 
+    @if (! empty($prazos))
+        <section class="card">
+            <div class="row"><div><h2>Prazos que pedem atenção</h2><p class="hint">Também chegam por e-mail, uma vez por marco.</p></div></div>
+            <div class="list">
+                @foreach ($prazos as $a)
+                    <div class="li"><span class="chip {{ $a['urgente'] ? 'c-warn' : 'c-navy' }}"><x-icone nome="relogio" /></span><div style="min-width:0"><a href="{{ $a['url'] }}" class="sigla">{{ $a['titulo'] }}</a><div class="meta">{{ $a['texto'] }}</div></div></div>
+                @endforeach
+            </div>
+        </section>
+    @endif
+
     <div class="g2">
         <section class="card">
             <div class="row"><div><h2>Contratos vencendo</h2><p class="hint">Vigência nos próximos 120 dias.</p></div><a href="{{ route('contratos.index', ['filtro' => 'vencendo']) }}" class="btn btn-s btn-sm">Ver todos</a></div>

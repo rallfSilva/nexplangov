@@ -39,7 +39,9 @@ class PerfisSeeder extends Seeder
         'modelos.gerenciar' => 'Gerenciar a biblioteca de modelos de documentos',
         'fluxos.gerenciar' => 'Configurar fluxos de documentos e prazos',
         'contratos.ver' => 'Ver contratos e atas',
-        'contratos.gerenciar' => 'Cadastrar contratos, aditivos e apostilamentos',
+        'contratos.gerenciar' => 'Cadastrar contratos, aditivos e apostilamentos; aprovar requisições, emitir ordens e receber (art. 140)',
+        'requisicoes.ver' => 'Ver requisições de fornecimento sobre atas',
+        'requisicoes.criar' => 'Requisitar fornecimento do saldo de uma ata',
         'fornecedores.ver' => 'Ver fornecedores',
         'fornecedores.gerenciar' => 'Cadastrar fornecedores e sanções',
         'pncp.enviar' => 'Enviar e retificar publicações no PNCP',
@@ -49,13 +51,13 @@ class PerfisSeeder extends Seeder
     /** @var array<string, list<string>> */
     public const PERFIS = [
         'administrador-geral' => ['*'],
-        'administrador-orgao' => ['unidades.ver', 'unidades.gerenciar', 'usuarios.ver', 'usuarios.gerenciar', 'auditoria.ver', 'painel.ver', 'pca.ver', 'demandas.ver', 'processos.ver', 'contratos.ver', 'fornecedores.ver', 'lgpd.gerenciar', 'modelos.gerenciar', 'fluxos.gerenciar', 'irp.ver', 'irp.manifestar', 'irp.gerenciar'],
+        'administrador-orgao' => ['unidades.ver', 'unidades.gerenciar', 'usuarios.ver', 'usuarios.gerenciar', 'auditoria.ver', 'painel.ver', 'pca.ver', 'demandas.ver', 'processos.ver', 'contratos.ver', 'fornecedores.ver', 'lgpd.gerenciar', 'modelos.gerenciar', 'fluxos.gerenciar', 'irp.ver', 'irp.manifestar', 'irp.gerenciar', 'requisicoes.ver', 'requisicoes.criar'],
         'autoridade' => ['unidades.ver', 'painel.ver', 'pca.ver', 'pca.aprovar', 'demandas.ver', 'processos.ver', 'processos.autorizar', 'contratos.ver', 'fornecedores.ver', 'irp.ver'],
-        'agente-contratacao' => ['unidades.ver', 'painel.ver', 'pca.ver', 'demandas.ver', 'processos.ver', 'processos.gerenciar', 'contratos.ver', 'fornecedores.ver', 'fornecedores.gerenciar', 'pncp.enviar', 'licitacao.conduzir', 'irp.ver', 'irp.manifestar', 'irp.gerenciar'],
-        'planejamento' => ['unidades.ver', 'usuarios.ver', 'painel.ver', 'pca.ver', 'pca.gerenciar', 'demandas.ver', 'demandas.criar', 'processos.ver', 'processos.gerenciar', 'contratos.ver', 'fornecedores.ver', 'fornecedores.gerenciar', 'pncp.enviar', 'modelos.gerenciar', 'fluxos.gerenciar', 'irp.ver', 'irp.manifestar', 'irp.gerenciar'],
+        'agente-contratacao' => ['unidades.ver', 'painel.ver', 'pca.ver', 'demandas.ver', 'processos.ver', 'processos.gerenciar', 'contratos.ver', 'fornecedores.ver', 'fornecedores.gerenciar', 'pncp.enviar', 'licitacao.conduzir', 'irp.ver', 'irp.manifestar', 'irp.gerenciar', 'requisicoes.ver', 'requisicoes.criar'],
+        'planejamento' => ['unidades.ver', 'usuarios.ver', 'painel.ver', 'pca.ver', 'pca.gerenciar', 'demandas.ver', 'demandas.criar', 'processos.ver', 'processos.gerenciar', 'contratos.ver', 'fornecedores.ver', 'fornecedores.gerenciar', 'pncp.enviar', 'modelos.gerenciar', 'fluxos.gerenciar', 'irp.ver', 'irp.manifestar', 'irp.gerenciar', 'requisicoes.ver', 'requisicoes.criar'],
         'juridico' => ['painel.ver', 'pca.ver', 'demandas.ver', 'processos.ver', 'processos.parecer', 'contratos.ver', 'fornecedores.ver', 'modelos.gerenciar', 'irp.ver'],
-        'gestor-contrato' => ['painel.ver', 'processos.ver', 'contratos.ver', 'contratos.gerenciar', 'fornecedores.ver', 'pncp.enviar', 'irp.ver', 'irp.manifestar'],
-        'requisitante' => ['painel.ver', 'pca.ver', 'demandas.ver', 'demandas.criar', 'irp.ver', 'irp.manifestar'],
+        'gestor-contrato' => ['painel.ver', 'processos.ver', 'contratos.ver', 'contratos.gerenciar', 'fornecedores.ver', 'pncp.enviar', 'irp.ver', 'irp.manifestar', 'requisicoes.ver', 'requisicoes.criar'],
+        'requisitante' => ['painel.ver', 'pca.ver', 'demandas.ver', 'demandas.criar', 'irp.ver', 'irp.manifestar', 'requisicoes.ver', 'requisicoes.criar'],
         'auditor' => ['unidades.ver', 'usuarios.ver', 'auditoria.ver', 'painel.ver', 'pca.ver', 'demandas.ver', 'processos.ver', 'contratos.ver', 'fornecedores.ver', 'irp.ver'],
     ];
 

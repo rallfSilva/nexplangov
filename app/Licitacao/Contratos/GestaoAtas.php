@@ -99,6 +99,16 @@ final class GestaoAtas
         return AtaConsumo::create(['orgao_id' => $ai->orgao_id, 'ata_item_id' => $ai->id, 'adesao_id' => $adesao?->id, 'unidade_id' => $unidadeId, 'quantidade' => $quantidade, 'referencia' => trim($referencia), 'user_id' => $u->id]);
     }
 
+    /** Estorno de um consumo (ordem cancelada): novo registro negativo, sem apagar o original. */
+    public function estornar(AtaConsumo $c, string $referencia, User $u): AtaConsumo
+    {
+        if ((float) $c->quantidade <= 0) {
+            throw new RegraViolada(['Só se estorna um consumo.']);
+        }
+
+        return AtaConsumo::create(['orgao_id' => $c->orgao_id, 'ata_item_id' => $c->ata_item_id, 'adesao_id' => $c->adesao_id, 'unidade_id' => $c->unidade_id, 'quantidade' => -(float) $c->quantidade, 'referencia' => $referencia, 'user_id' => $u->id]);
+    }
+
     public function solicitarAdesao(AtaItem $ai, string $nome, string $cnpj, float $quantidade, string $justificativa, string $vantagem, User $u): AtaAdesao
     {
         $motivos = [];
