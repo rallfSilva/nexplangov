@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['orgao_id', 'contrato_id', 'tipo', 'numero', 'assinatura', 'valor_acrescimo', 'valor_supressao', 'valor_reajuste', 'nova_vigencia_fim', 'justificativa'])]
+#[Fillable(['orgao_id', 'contrato_id', 'tipo', 'numero', 'assinatura', 'valor_acrescimo', 'valor_supressao', 'valor_reajuste', 'nova_vigencia_fim', 'justificativa', 'reequilibrio'])]
 class TermoContrato extends Model
 {
     use Auditable, BelongsToOrgao;
@@ -18,7 +18,7 @@ class TermoContrato extends Model
 
     protected function casts(): array
     {
-        return ['assinatura' => 'date', 'nova_vigencia_fim' => 'date', 'valor_acrescimo' => 'decimal:2', 'valor_supressao' => 'decimal:2', 'valor_reajuste' => 'decimal:2'];
+        return ['assinatura' => 'date', 'nova_vigencia_fim' => 'date', 'valor_acrescimo' => 'decimal:2', 'valor_supressao' => 'decimal:2', 'valor_reajuste' => 'decimal:2', 'reequilibrio' => 'boolean'];
     }
 
     public function contrato(): BelongsTo

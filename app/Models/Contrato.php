@@ -56,6 +56,16 @@ class Contrato extends Model
         return $this->hasMany(TermoContrato::class)->orderBy('assinatura');
     }
 
+    public function reequilibrios(): HasMany
+    {
+        return $this->hasMany(Reequilibrio::class)->orderByDesc('solicitado_em');
+    }
+
+    public function rescisoes(): HasMany
+    {
+        return $this->hasMany(Rescisao::class)->orderByDesc('id');
+    }
+
     public function enviosPncp(): MorphMany
     {
         return $this->morphMany(EnvioPncp::class, 'publicavel')->latest('id');
@@ -67,9 +77,10 @@ class Contrato extends Model
         return round((float) $this->valor_inicial + (float) $this->termos()->where('tipo', TipoTermo::Apostilamento->value)->sum('valor_reajuste'), 2);
     }
 
+    /** Acréscimos que contam para o limite do art. 125. Reequilíbrio (art. 124, II, d) é consensual e não entra. */
     public function totalAcrescimos(): float
     {
-        return (float) $this->termos()->sum('valor_acrescimo');
+        return (float) $this->termos()->where('reequilibrio', false)->sum('valor_acrescimo');
     }
 
     public function totalSupressoes(): float

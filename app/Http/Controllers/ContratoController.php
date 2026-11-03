@@ -150,6 +150,10 @@ class ContratoController extends Controller
                 $v->errors()->add('tipo', 'O contrato não está vigente.');
             }
 
+            if ($request->input('tipo') === TipoTermo::Rescisao->value) {
+                $v->errors()->add('tipo', 'A extinção do contrato tem procedimento próprio, com motivação, contraditório e ampla defesa (arts. 137 a 139). Use "Extinção do contrato".');
+            }
+
             if ($request->input('tipo') === TipoTermo::AditivoValor->value) {
                 $r = $alteracao->avaliar($contrato->valorInicialAtualizado(), $contrato->totalAcrescimos(), $contrato->totalSupressoes(), (float) $request->input('valor_acrescimo'), (float) $request->input('valor_supressao'), $contrato->reforma_equipamento);
                 foreach ($r['mensagens'] as $m) {
@@ -173,9 +177,6 @@ class ContratoController extends Controller
             $contrato->valor_global = round((float) $contrato->valor_global + $delta, 2);
             if ($termo->nova_vigencia_fim) {
                 $contrato->vigencia_fim = $termo->nova_vigencia_fim;
-            }
-            if ($termo->tipo === TipoTermo::Rescisao->value) {
-                $contrato->situacao = 'rescindido';
             }
             $contrato->save();
         });
