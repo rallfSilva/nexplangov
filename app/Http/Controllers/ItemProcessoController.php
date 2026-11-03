@@ -138,7 +138,7 @@ class ItemProcessoController extends Controller
         return back()->with('sucesso', "Resultado do item {$item->numero} registrado.");
     }
 
-    private function recalcular(ItemProcesso $item): void
+    public function recalcular(ItemProcesso $item): void
     {
         $item->load('cotacoes');
         $r = (new PesquisaPrecos)->calcular(

@@ -76,6 +76,14 @@
                     @if ($processo->abertura_propostas_em)<div><dt>Propostas</dt><dd>{{ $processo->abertura_propostas_em->format('d/m/Y H:i') }} a {{ $processo->encerramento_propostas_em?->format('d/m/Y H:i') }}</dd></div>@endif
                     @if ($processo->demanda)<div><dt>Demanda</dt><dd>{{ $processo->demanda->numero }}/{{ $processo->demanda->ano }}</dd></div>@endif
                 </dl>
+                <div class="btns" style="margin-top:14px;align-items:flex-end">
+                    @can('processos.gerenciar')
+                        <form method="POST" action="{{ route('processos.sei', $processo) }}" class="btns">@csrf @method('PATCH')
+                            <label class="small" for="numero_sei">Número SEI</label><input id="numero_sei" name="numero_sei" class="input" style="width:200px" value="{{ $processo->numero_sei }}" placeholder="0000000.000000/2026-00"><button class="btn btn-s btn-sm" type="submit">Salvar</button></form>
+                    @elseif ($processo->numero_sei)<span class="small">SEI {{ $processo->numero_sei }}</span>@endcan
+                    @if ($processo->numero_sei && config('nexplangov.sei.url_consulta'))<a class="btn btn-g btn-sm" target="_blank" rel="noopener" href="{{ str_replace('{numero}', urlencode($processo->numero_sei), config('nexplangov.sei.url_consulta')) }}">Abrir no SEI</a>@endif
+                    <a class="btn btn-s btn-sm" href="{{ route('processos.dossie', $processo) }}"><x-icone nome="download" tamanho="16" />Dossiê para o SEI</a>
+                </div>
             </section>
             @if ($dispensa)
                 <section class="card">
@@ -174,6 +182,7 @@
                 @if ($r['coeficiente_variacao'] !== null)<p class="small muted" style="margin-top:8px">Coeficiente de variação das cotações válidas: {{ numero_br($r['coeficiente_variacao']) }}%{{ $r['coeficiente_variacao'] > 25 ? ' (pesquisa dispersa: reveja as fontes)' : '' }}.</p>@endif
 
                 @if ($podeInstruir)
+                    @if ($item->codigo_catalogo)<a class="btn btn-s btn-sm" style="margin-top:12px" href="{{ route('processos.comprasgov', [$processo, $item]) }}"><x-icone nome="busca" tamanho="16" />Buscar preços no Compras.gov.br</a>@endif
                     <details style="margin-top:12px">
                         <summary class="btn btn-s btn-sm" style="list-style:none">+ Registrar cotação</summary>
                         <form method="POST" action="{{ route('processos.cotacoes.store', [$processo, $item]) }}" class="form-grid" style="margin-top:14px" novalidate>

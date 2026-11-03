@@ -15,6 +15,7 @@ use App\Http\Controllers\FornecedorController;
 use App\Http\Controllers\GovernancaController;
 use App\Http\Controllers\IaController;
 use App\Http\Controllers\ImpugnacaoController;
+use App\Http\Controllers\IntegracaoController;
 use App\Http\Controllers\IrpController;
 use App\Http\Controllers\ItemProcessoController;
 use App\Http\Controllers\LgpdController;
@@ -26,6 +27,7 @@ use App\Http\Controllers\OrgaoController;
 use App\Http\Controllers\PainelController;
 use App\Http\Controllers\PcaController;
 use App\Http\Controllers\PncpController;
+use App\Http\Controllers\PrecosComprasGovController;
 use App\Http\Controllers\ProcessoController;
 use App\Http\Controllers\RequisicaoController;
 use App\Http\Controllers\SegurancaController;
@@ -80,6 +82,12 @@ Route::middleware(['auth', 'ativo'])->group(function () {
         Route::get('/capacitacao', [CapacitacaoController::class, 'index'])->middleware('can:capacitacao.ver')->name('capacitacao.index');
         Route::post('/capacitacao', [CapacitacaoController::class, 'store'])->middleware('can:capacitacao.ver')->name('capacitacao.store');
         Route::get('/governanca', GovernancaController::class)->middleware('can:governanca.ver')->name('governanca');
+        Route::middleware('can:exportacoes.gerar')->group(function () {
+            Route::get('/integracoes', [IntegracaoController::class, 'index'])->name('integracoes.index');
+            Route::post('/integracoes/tce', [IntegracaoController::class, 'tce'])->middleware('throttle:6,1')->name('integracoes.tce');
+        });
+        Route::get('/processos/{processo}/dossie', [IntegracaoController::class, 'dossie'])->middleware(['can:processos.ver', 'throttle:10,1'])->name('processos.dossie');
+        Route::patch('/processos/{processo}/sei', [IntegracaoController::class, 'numeroSei'])->middleware('can:processos.gerenciar')->name('processos.sei');
         Route::get('/master', MasterController::class)->middleware('can:master.ver')->name('master');
 
         // PCA (art. 12, VII)
@@ -111,6 +119,8 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::put('/processos/{processo}', [ProcessoController::class, 'update'])->name('processos.update');
             Route::post('/processos/{processo}/itens', [ItemProcessoController::class, 'store'])->name('processos.itens.store');
             Route::delete('/processos/{processo}/itens/{item}', [ItemProcessoController::class, 'destroy'])->name('processos.itens.destroy');
+            Route::get('/processos/{processo}/itens/{item}/compras-gov', [PrecosComprasGovController::class, 'mostrar'])->middleware('throttle:20,1')->name('processos.comprasgov');
+            Route::post('/processos/{processo}/itens/{item}/compras-gov', [PrecosComprasGovController::class, 'importar'])->name('processos.comprasgov.importar');
             Route::patch('/processos/{processo}/itens/{item}/metodo', [ItemProcessoController::class, 'metodo'])->name('processos.itens.metodo');
             Route::patch('/processos/{processo}/itens/{item}/resultado', [ItemProcessoController::class, 'resultado'])->name('processos.itens.resultado');
             Route::post('/processos/{processo}/itens/{item}/cotacoes', [ItemProcessoController::class, 'adicionarCotacao'])->name('processos.cotacoes.store');
