@@ -51,6 +51,7 @@ class PerfisSeeder extends Seeder
         'requisicoes.criar' => 'Requisitar fornecimento do saldo de uma ata',
         'fornecedores.ver' => 'Ver fornecedores',
         'fornecedores.gerenciar' => 'Cadastrar fornecedores e sanções',
+        'sancoes.conduzir' => 'Instaurar e conduzir processo de sanção (arts. 155 a 163)',
         'pncp.enviar' => 'Enviar e retificar publicações no PNCP',
         'lgpd.gerenciar' => 'Atender titulares e manter o registro de tratamento (LGPD)',
     ];
@@ -60,10 +61,10 @@ class PerfisSeeder extends Seeder
         'administrador-geral' => ['*'],
         'administrador-orgao' => ['unidades.ver', 'unidades.gerenciar', 'usuarios.ver', 'usuarios.gerenciar', 'auditoria.ver', 'painel.ver', 'pca.ver', 'demandas.ver', 'processos.ver', 'contratos.ver', 'fornecedores.ver', 'lgpd.gerenciar', 'modelos.gerenciar', 'fluxos.gerenciar', 'irp.ver', 'irp.manifestar', 'irp.gerenciar', 'requisicoes.ver', 'requisicoes.criar', 'catalogo.ver', 'capacitacao.ver', 'capacitacao.gerenciar', 'governanca.ver', 'exportacoes.gerar'],
         'autoridade' => ['unidades.ver', 'painel.ver', 'pca.ver', 'pca.aprovar', 'demandas.ver', 'processos.ver', 'processos.autorizar', 'contratos.ver', 'fornecedores.ver', 'irp.ver', 'catalogo.ver', 'capacitacao.ver', 'governanca.ver'],
-        'agente-contratacao' => ['unidades.ver', 'painel.ver', 'pca.ver', 'demandas.ver', 'processos.ver', 'processos.gerenciar', 'contratos.ver', 'fornecedores.ver', 'fornecedores.gerenciar', 'pncp.enviar', 'licitacao.conduzir', 'irp.ver', 'irp.manifestar', 'irp.gerenciar', 'requisicoes.ver', 'requisicoes.criar', 'catalogo.ver', 'ia.usar', 'capacitacao.ver'],
+        'agente-contratacao' => ['unidades.ver', 'painel.ver', 'pca.ver', 'demandas.ver', 'processos.ver', 'processos.gerenciar', 'contratos.ver', 'fornecedores.ver', 'sancoes.conduzir', 'fornecedores.gerenciar', 'pncp.enviar', 'licitacao.conduzir', 'irp.ver', 'irp.manifestar', 'irp.gerenciar', 'requisicoes.ver', 'requisicoes.criar', 'catalogo.ver', 'ia.usar', 'capacitacao.ver'],
         'planejamento' => ['unidades.ver', 'usuarios.ver', 'painel.ver', 'pca.ver', 'pca.gerenciar', 'demandas.ver', 'demandas.criar', 'processos.ver', 'processos.gerenciar', 'contratos.ver', 'fornecedores.ver', 'fornecedores.gerenciar', 'pncp.enviar', 'modelos.gerenciar', 'fluxos.gerenciar', 'irp.ver', 'irp.manifestar', 'irp.gerenciar', 'requisicoes.ver', 'requisicoes.criar', 'catalogo.ver', 'ia.usar', 'capacitacao.ver', 'governanca.ver', 'exportacoes.gerar'],
         'juridico' => ['painel.ver', 'pca.ver', 'demandas.ver', 'processos.ver', 'processos.parecer', 'contratos.ver', 'fornecedores.ver', 'modelos.gerenciar', 'irp.ver', 'catalogo.ver', 'ia.usar', 'capacitacao.ver'],
-        'gestor-contrato' => ['painel.ver', 'processos.ver', 'contratos.ver', 'contratos.gerenciar', 'fornecedores.ver', 'pncp.enviar', 'irp.ver', 'irp.manifestar', 'requisicoes.ver', 'requisicoes.criar', 'catalogo.ver', 'ia.usar', 'capacitacao.ver'],
+        'gestor-contrato' => ['painel.ver', 'processos.ver', 'contratos.ver', 'contratos.gerenciar', 'fornecedores.ver', 'sancoes.conduzir', 'pncp.enviar', 'irp.ver', 'irp.manifestar', 'requisicoes.ver', 'requisicoes.criar', 'catalogo.ver', 'ia.usar', 'capacitacao.ver'],
         'requisitante' => ['painel.ver', 'pca.ver', 'demandas.ver', 'demandas.criar', 'irp.ver', 'irp.manifestar', 'requisicoes.ver', 'requisicoes.criar', 'catalogo.ver'],
         'auditor' => ['unidades.ver', 'usuarios.ver', 'auditoria.ver', 'painel.ver', 'pca.ver', 'demandas.ver', 'processos.ver', 'contratos.ver', 'fornecedores.ver', 'irp.ver', 'catalogo.ver', 'capacitacao.ver', 'governanca.ver', 'exportacoes.gerar'],
     ];

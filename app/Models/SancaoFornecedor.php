@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /** Sanções do art. 156 da Lei 14.133. */
-#[Fillable(['orgao_id', 'fornecedor_id', 'tipo', 'inicio', 'fim', 'processo', 'fundamento'])]
+#[Fillable(['orgao_id', 'fornecedor_id', 'tipo', 'inicio', 'fim', 'processo', 'fundamento', 'processo_sancionador_id', 'multa_valor', 'abrangencia'])]
 class SancaoFornecedor extends Model
 {
     use Auditable, BelongsToOrgao;
@@ -25,7 +25,12 @@ class SancaoFornecedor extends Model
 
     protected function casts(): array
     {
-        return ['inicio' => 'date', 'fim' => 'date'];
+        return ['inicio' => 'date', 'fim' => 'date', 'multa_valor' => 'decimal:2'];
+    }
+
+    public function processoSancionador(): BelongsTo
+    {
+        return $this->belongsTo(ProcessoSancionador::class);
     }
 
     public function fornecedor(): BelongsTo
