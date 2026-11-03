@@ -27,6 +27,13 @@ return [
     // regulamento de cada ente: confirme o do seu e ajuste no .env.
     'irp_prazo_minimo_dias_uteis' => (int) env('NEXPLANGOV_IRP_PRAZO_MINIMO', 8),
 
+    // Prazo (dias corridos) para o órgão aderente contratar depois da autorização da carona, sempre dentro da
+    // vigência da ata. A Lei 14.133 deixa ao regulamento; o federal (Decreto nº 11.462/2023) adota 90 dias.
+    'carona_prazo_contratacao_dias' => (int) env('NEXPLANGOV_CARONA_PRAZO', 90),
+
+    // Validade (dias) do link enviado ao fornecedor para aceitar ou recusar o fornecimento ao aderente.
+    'carona_link_aceite_dias' => 15,
+
     // Feriados estaduais e municipais (Y-m-d, separados por vírgula), somados aos nacionais na contagem de dias úteis.
     'feriados_extras' => array_filter(array_map('trim', explode(',', (string) env('NEXPLANGOV_FERIADOS_EXTRAS', '')))),
 

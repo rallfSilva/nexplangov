@@ -88,6 +88,32 @@ final class RegistroDePrecos
         return ['permitido' => $m === [], 'limite_por_aderente' => $limiteAderente, 'limite_total' => $limiteTotal, 'mensagens' => $m];
     }
 
+    /**
+     * Órgão federal não pode aderir a ata de gerenciador estadual, distrital ou municipal (art. 86, § 8º).
+     * O § 3º, com a redação da Lei nº 14.770/2023, admite adesão a ata de gerenciador de qualquer esfera.
+     *
+     * @return list<string>
+     */
+    public function vedacaoPorEsfera(string $esferaGerenciador, string $esferaAderente): array
+    {
+        if ($esferaAderente === 'federal' && $esferaGerenciador !== 'federal') {
+            return ['Órgão ou entidade da Administração Pública federal não pode aderir a ata gerenciada por órgão estadual, distrital ou municipal (art. 86, § 8º).'];
+        }
+
+        return [];
+    }
+
+    /**
+     * Prazo para o aderente contratar depois da autorização: o fixado no regulamento, nunca além da vigência da ata.
+     */
+    public function prazoContratacao(CarbonInterface $autorizacao, CarbonInterface $fimVigencia, int $dias): CarbonImmutable
+    {
+        $prazo = CarbonImmutable::parse($autorizacao->toDateString())->addDays($dias);
+        $fim = CarbonImmutable::parse($fimVigencia->toDateString());
+
+        return $prazo->gt($fim) ? $fim : $prazo;
+    }
+
     private function n(float $v): string
     {
         return number_format($v, 4, ',', '.');

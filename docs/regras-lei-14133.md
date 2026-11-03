@@ -101,3 +101,12 @@ Publicação do edital ou aviso de contratação direta enfileira a compra; homo
 - **Intenção de recurso** (art. 165, § 1º, I): registrada durante a sessão, por licitante com proposta; depois do encerramento há preclusão.
 - **Prazos em dias úteis** (`PrazosRecurso`): razões em 3 dias úteis do encerramento (art. 165, I); contrarrazões em 3 dias úteis do fim do prazo das razões (art. 165, § 4º); reconsideração em 3 dias úteis (art. 165, § 2º); decisão da autoridade superior em 10 dias úteis (art. 165, § 2º).
 - **Efeito suspensivo** (art. 168): recurso pendente impede a adjudicação do item e a homologação do processo. A decisão superior exige a permissão `processos.autorizar` e não pode ser tomada por quem negou a reconsideração.
+
+## Carona: adesão de órgão não participante (art. 86, §§ 2º a 8º)
+
+- **Pedido público, sem conta** (`/carona`): o órgão de fora acha a ata vigente, escolhe o item e envia o pedido com o **ofício em PDF** (hash SHA-256). Recebe um **protocolo** (`ADS-AAAA-NNNNNN`) e acompanha em `/carona/consulta` com o protocolo e o CNPJ. O gerenciador também pode registrar um pedido recebido por ofício.
+- **Aceite do fornecedor** (§ 2º, III): o gerenciador envia ao fornecedor um link assinado (válido por 15 dias) e ele aceita ou recusa sem conta. Ou o servidor registra a resposta escrita do fornecedor, com o documento anexado. Sem aceite, não há autorização.
+- **Vedação federal** (§ 8º): órgão federal não adere a ata estadual, distrital ou municipal. Pelo § 3º, com a redação da Lei nº 14.770/2023, ata municipal admite carona.
+- **Limites** (§§ 4º e 5º): até 50% do registrado por aderente e o dobro no total, conferidos no pedido e de novo na autorização.
+- **Prazo para contratar**: 90 dias corridos da autorização, como no regulamento federal, nunca além da vigência da ata. Ajuste em `NEXPLANGOV_CARONA_PRAZO` conforme o regulamento do ente. Depois do prazo, o consumo do aderente é recusado.
+- **Ofício de autorização em PDF** com **QR Code** e código de verificação. A página pública `/carona/verificar/{código}` confirma a autenticidade e mostra o hash do PDF.

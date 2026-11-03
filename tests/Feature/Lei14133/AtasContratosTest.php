@@ -11,6 +11,7 @@ use App\Models\Processo;
 use App\Models\Reequilibrio;
 use App\Models\Rescisao;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use LogicException;
 use Tests\TestCase;
@@ -23,6 +24,7 @@ class AtasContratosTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Storage::fake('local');
         $this->montarCenario();
     }
 
@@ -136,10 +138,16 @@ class AtasContratosTest extends TestCase
         return preg_replace('/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/', '$1.$2.$3/$4-$5', $b);
     }
 
+    /** Aceite do fornecedor (art. 86, § 2º, III), pré-requisito da autorização. */
+    private function aceitar(AtaAdesao $ad): void
+    {
+        $ad->forceFill(['fornecedor_aceite' => 'aceito', 'fornecedor_aceite_em' => now(), 'fornecedor_aceite_representante' => 'Representante fictício', 'fornecedor_aceite_via' => 'registro'])->save();
+    }
+
     private function adesao(Ata $ata, string $qtd, ?string $cnpj = null): TestResponse
     {
         return $this->actingAs($this->u['gestor-contrato'])->post("/atas/{$ata->id}/itens/".$ata->itens()->first()->id.'/adesoes', [
-            'aderente_nome' => 'Prefeitura de Monte Claro (fictícia)', 'aderente_cnpj' => $cnpj ?? $this->cnpj(555), 'quantidade' => $qtd,
+            'aderente_nome' => 'Prefeitura de Monte Claro (fictícia)', 'aderente_cnpj' => $cnpj ?? $this->cnpj(555), 'aderente_esfera' => 'municipal', 'quantidade' => $qtd,
             'justificativa' => 'Necessidade imediata de material de expediente.', 'vantagem' => 'Preço 12% abaixo da média pesquisada no mercado.',
         ]);
     }
@@ -153,6 +161,7 @@ class AtasContratosTest extends TestCase
         $this->adesao($ata, '501')->assertSessionHas('motivos');
         $this->adesao($ata, '500')->assertSessionHas('sucesso');
         $ad = AtaAdesao::first();
+        $this->aceitar($ad);
         $this->actingAs($g)->post("/atas/{$ata->id}/adesoes/{$ad->id}/decidir", ['acao' => 'autorizar'])->assertSessionHas('sucesso');
 
         // O mesmo aderente já usou os 50%.
@@ -161,6 +170,7 @@ class AtasContratosTest extends TestCase
         // Outros aderentes completam o dobro: 3 x 500 = 1500 e depois 1 x 500 = 2000.
         foreach ([666, 777, 888] as $n) {
             $this->adesao($ata, '500', $this->cnpj($n))->assertSessionHas('sucesso');
+            $this->aceitar(AtaAdesao::latest('id')->first());
             $this->actingAs($g)->post("/atas/{$ata->id}/adesoes/".AtaAdesao::latest('id')->first()->id.'/decidir', ['acao' => 'autorizar'])->assertSessionHas('sucesso');
         }
         $this->assertEquals(2000.0, $ata->itens()->first()->autorizadoEmAdesoes());
@@ -179,6 +189,7 @@ class AtasContratosTest extends TestCase
         // Sem autorização, não consome.
         $this->actingAs($g)->post("/atas/{$ata->id}/itens/{$ai->id}/consumos", ['quantidade' => '10', 'referencia' => 'Carona 1', 'adesao_id' => $ad->id])->assertSessionHas('motivos');
 
+        $this->aceitar($ad);
         $this->actingAs($g)->post("/atas/{$ata->id}/adesoes/{$ad->id}/decidir", ['acao' => 'autorizar']);
         $this->actingAs($g)->post("/atas/{$ata->id}/itens/{$ai->id}/consumos", ['quantidade' => '101', 'referencia' => 'Carona 1', 'adesao_id' => $ad->id])->assertSessionHas('motivos');
         $this->actingAs($g)->post("/atas/{$ata->id}/itens/{$ai->id}/consumos", ['quantidade' => '100', 'referencia' => 'Carona 1', 'adesao_id' => $ad->id])->assertSessionHas('sucesso');
@@ -197,7 +208,7 @@ class AtasContratosTest extends TestCase
         $this->actingAs($this->u['gestor-contrato'])->post("/atas/{$ata->id}/adesoes/{$ad->id}/decidir", ['acao' => 'negar'])->assertSessionHas('motivos');
         $this->actingAs($this->u['gestor-contrato'])->post("/atas/{$ata->id}/adesoes/{$ad->id}/decidir", ['acao' => 'negar', 'motivo' => 'Preço já não é vantajoso.'])->assertSessionHas('sucesso');
 
-        $this->actingAs($this->u['gestor-contrato'])->post("/atas/{$ata->id}/itens/".$ata->itens()->first()->id.'/adesoes', ['aderente_nome' => 'X', 'aderente_cnpj' => $this->cnpj(555), 'quantidade' => '1', 'justificativa' => 'curta', 'vantagem' => 'curta'])->assertSessionHas('motivos');
+        $this->actingAs($this->u['gestor-contrato'])->post("/atas/{$ata->id}/itens/".$ata->itens()->first()->id.'/adesoes', ['aderente_nome' => 'X', 'aderente_cnpj' => $this->cnpj(555), 'aderente_esfera' => 'municipal', 'quantidade' => '1', 'justificativa' => 'curta', 'vantagem' => 'curta'])->assertSessionHas('motivos');
     }
 
     public function test_prorrogacao_uma_vez_com_vantagem_e_ate_dois_anos(): void

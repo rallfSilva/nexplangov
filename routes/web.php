@@ -3,6 +3,7 @@
 use App\Http\Controllers\AtaController;
 use App\Http\Controllers\AuditoriaController;
 use App\Http\Controllers\CapacitacaoController;
+use App\Http\Controllers\CaronaController;
 use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\CicloContratoController;
 use App\Http\Controllers\ConfiguracaoController;
@@ -52,6 +53,18 @@ Route::get('/validar/{codigo?}', [ValidacaoAssinaturaController::class, 'mostrar
 Route::get('/editais/{processo}', [ImpugnacaoController::class, 'edital'])->middleware('throttle:60,1')->name('edital.publico');
 Route::get('/editais/{processo}/ata-sessao', [ImpugnacaoController::class, 'ataPublica'])->middleware('throttle:30,1')->name('edital.ata');
 Route::post('/editais/{processo}/pedidos', [ImpugnacaoController::class, 'pedidoPublico'])->middleware('throttle:5,10')->name('edital.pedido');
+
+// Carona (art. 86, § 2º): atas vigentes, pedido de adesão de órgão de fora com protocolo, aceite do fornecedor
+// por link assinado e verificação pública da autorização pelo QR Code.
+Route::get('/carona', [CaronaController::class, 'index'])->middleware('throttle:60,1')->name('carona.index');
+Route::get('/carona/atas/{ata}', [CaronaController::class, 'ata'])->middleware('throttle:60,1')->name('carona.ata');
+Route::post('/carona/atas/{ata}/pedidos', [CaronaController::class, 'pedir'])->middleware('throttle:5,10')->name('carona.pedir');
+Route::get('/carona/consulta', [CaronaController::class, 'consulta'])->middleware('throttle:30,1')->name('carona.consulta');
+Route::post('/carona/consulta', [CaronaController::class, 'consultar'])->middleware('throttle:10,1')->name('carona.consultar');
+Route::get('/carona/aceite/{adesao}', [CaronaController::class, 'aceite'])->middleware(['signed', 'throttle:30,1'])->name('carona.aceite');
+Route::post('/carona/aceite/{adesao}', [CaronaController::class, 'responderAceite'])->middleware(['signed', 'throttle:5,10'])->name('carona.aceite.responder');
+Route::get('/carona/verificar/{codigo}', [CaronaController::class, 'verificar'])->middleware('throttle:30,1')->where('codigo', '[A-Za-z0-9-]+')->name('carona.verificar');
+Route::get('/carona/verificar/{codigo}/pdf', [CaronaController::class, 'autorizacao'])->middleware('throttle:30,1')->where('codigo', '[A-Za-z0-9-]+')->name('carona.autorizacao');
 
 Route::middleware(['auth', 'ativo'])->group(function () {
     // Fica fora da exigência de 2FA: é aqui que o administrador ativa a verificação.
@@ -205,11 +218,13 @@ Route::middleware(['auth', 'ativo'])->group(function () {
         Route::middleware('can:contratos.ver')->group(function () {
             Route::get('/atas', [AtaController::class, 'index'])->name('atas.index');
             Route::get('/atas/{ata}', [AtaController::class, 'show'])->name('atas.show');
+            Route::get('/atas/{ata}/adesoes/{adesao}/arquivos/{tipo}', [AtaController::class, 'arquivoAdesao'])->whereIn('tipo', ['oficio', 'aceite', 'autorizacao'])->name('atas.adesao.arquivo');
         });
         Route::middleware('can:contratos.gerenciar')->group(function () {
             Route::post('/atas', [AtaController::class, 'gerar'])->name('atas.gerar');
             Route::post('/atas/{ata}/itens/{item}/consumos', [AtaController::class, 'consumo'])->name('atas.consumo');
             Route::post('/atas/{ata}/itens/{item}/adesoes', [AtaController::class, 'solicitarAdesao'])->name('atas.adesao');
+            Route::post('/atas/{ata}/adesoes/{adesao}/aceite', [AtaController::class, 'aceiteAdesao'])->name('atas.adesao.aceite');
             Route::post('/atas/{ata}/adesoes/{adesao}/decidir', [AtaController::class, 'decidirAdesao'])->name('atas.adesao.decidir');
             Route::post('/atas/{ata}/prorrogar', [AtaController::class, 'prorrogar'])->name('atas.prorrogar');
             Route::post('/atas/{ata}/cancelar', [AtaController::class, 'cancelar'])->name('atas.cancelar');
