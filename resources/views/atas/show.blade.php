@@ -45,8 +45,8 @@
                 <details style="margin-top:10px"><summary class="btn btn-s btn-sm" style="list-style:none">+ Pedido de adesão (carona)</summary>
                     <form method="POST" action="{{ route('atas.adesao', [$ata, $ai]) }}" class="form-grid" style="margin-top:12px">@csrf
                         <x-campo nome="aderente_nome" rotulo="Órgão aderente" obrigatorio /><x-campo nome="aderente_cnpj" rotulo="CNPJ do aderente" obrigatorio /><x-campo nome="quantidade" rotulo="Quantidade" obrigatorio />
-                        <div class="campo full"><label>Justificativa da adesão</label><textarea name="justificativa" class="input" rows="2" required></textarea></div>
-                        <div class="campo full"><label>Vantagem e compatibilidade dos preços com o mercado (art. 86, § 2º)</label><textarea name="vantagem" class="input" rows="2" required></textarea></div>
+                        <div class="campo full"><label for="{{ $_rot = 'c'.\Illuminate\Support\Str::random(8) }}">Justificativa da adesão</label><textarea id="{{ $_rot }}" name="justificativa" class="input" rows="2" required></textarea></div>
+                        <div class="campo full"><label for="{{ $_rot = 'c'.\Illuminate\Support\Str::random(8) }}">Vantagem e compatibilidade dos preços com o mercado (art. 86, § 2º)</label><textarea id="{{ $_rot }}" name="vantagem" class="input" rows="2" required></textarea></div>
                         <div class="form-acoes full"><button class="btn btn-p" type="submit">Registrar pedido</button></div></form>
                 </details>
             @endif
@@ -58,7 +58,7 @@
             @if (! $ata->prorrogada && $ata->vigencia_fim->gte(today()))
                 <form method="POST" action="{{ route('atas.prorrogar', $ata) }}" class="form-grid">@csrf
                     <x-campo nome="vigencia_fim" rotulo="Novo fim da vigência (máx. 2 anos no total)" tipo="date" obrigatorio />
-                    <div class="campo full"><label>Comprovação de que o preço continua vantajoso (art. 84)</label><textarea name="vantagem" class="input" rows="2" required></textarea></div>
+                    <div class="campo full"><label for="{{ $_rot = 'c'.\Illuminate\Support\Str::random(8) }}">Comprovação de que o preço continua vantajoso (art. 84)</label><textarea id="{{ $_rot }}" name="vantagem" class="input" rows="2" required></textarea></div>
                     <div class="form-acoes full"><button class="btn btn-s" type="submit">Prorrogar</button></div></form>
             @endif
             <form method="POST" action="{{ route('atas.cancelar', $ata) }}" class="btns" style="margin-top:12px">@csrf<input name="motivo" class="input" style="width:320px" placeholder="Motivo do cancelamento" required minlength="10"><button class="btn btn-s" type="submit">Cancelar ata</button></form>

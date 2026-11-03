@@ -7,6 +7,7 @@ use App\Licitacao\Ia\ClienteIa;
 use App\Licitacao\Regras\DiasUteis;
 use App\Listeners\AuditarAutenticacao;
 use App\Models\User;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
@@ -24,6 +25,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Event::subscribe(AuditarAutenticacao::class);
+
+        Paginator::defaultView('components.paginacao');
 
         Password::defaults(fn () => Password::min(10)->letters()->mixedCase()->numbers());
 

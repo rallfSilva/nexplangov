@@ -17,8 +17,8 @@
             @if ($i->resposta)<div class="aviso-lei"><b>Resposta</b> ({{ $i->respondida_em->format('d/m/Y') }}):<br><span style="white-space:pre-line">{{ $i->resposta }}</span></div>@endif
             @if ($conduz && $i->situacao === 'recebida')
                 <form method="POST" action="{{ route('impugnacoes.responder', [$processo, $i]) }}" class="form-grid" style="margin-top:12px">@csrf
-                    <div class="campo"><label>Decisão</label><select name="resultado" class="input">@foreach (\App\Models\Impugnacao::RESULTADOS as $k => $r)<option value="{{ $k }}">{{ $r }}</option>@endforeach<option value="nao_conhecida">Não conhecida (intempestiva ou sem cabimento)</option></select></div>
-                    <div class="campo full"><label>Resposta (será divulgada no sítio oficial)</label><textarea name="resposta" class="input" rows="4" required></textarea></div>
+                    <div class="campo"><label for="{{ $_rot = 'c'.\Illuminate\Support\Str::random(8) }}">Decisão</label><select id="{{ $_rot }}" name="resultado" class="input">@foreach (\App\Models\Impugnacao::RESULTADOS as $k => $r)<option value="{{ $k }}">{{ $r }}</option>@endforeach<option value="nao_conhecida">Não conhecida (intempestiva ou sem cabimento)</option></select></div>
+                    <div class="campo full"><label for="{{ $_rot = 'c'.\Illuminate\Support\Str::random(8) }}">Resposta (será divulgada no sítio oficial)</label><textarea id="{{ $_rot }}" name="resposta" class="input" rows="4" required></textarea></div>
                     <div class="form-acoes full"><button class="btn btn-p" type="submit">Responder</button></div></form>
             @endif
         </section>
@@ -28,9 +28,9 @@
     @if ($conduz)
         <section class="card"><h2>Registrar pedido recebido por outro canal</h2>
             <form method="POST" action="{{ route('impugnacoes.store', $processo) }}" class="form-grid">@csrf
-                <div class="campo"><label>Tipo</label><select name="tipo" class="input">@foreach (\App\Models\Impugnacao::TIPOS as $k => $r)<option value="{{ $k }}">{{ $r }}</option>@endforeach</select></div>
+                <div class="campo"><label for="{{ $_rot = 'c'.\Illuminate\Support\Str::random(8) }}">Tipo</label><select id="{{ $_rot }}" name="tipo" class="input">@foreach (\App\Models\Impugnacao::TIPOS as $k => $r)<option value="{{ $k }}">{{ $r }}</option>@endforeach</select></div>
                 <x-campo nome="autor_nome" rotulo="Nome de quem pediu" obrigatorio /><x-campo nome="autor_email" rotulo="E-mail" tipo="email" />
-                <div class="campo full"><label>Texto do pedido</label><textarea name="texto" class="input" rows="4" required></textarea></div>
+                <div class="campo full"><label for="{{ $_rot = 'c'.\Illuminate\Support\Str::random(8) }}">Texto do pedido</label><textarea id="{{ $_rot }}" name="texto" class="input" rows="4" required></textarea></div>
                 <div class="form-acoes full"><button class="btn btn-s" type="submit">Registrar</button></div></form>
         </section>
     @endif

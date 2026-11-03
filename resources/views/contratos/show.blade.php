@@ -77,9 +77,9 @@
                 @if ($contrato->situacao === 'vigente')
                     <details style="margin-top:8px"><summary class="btn btn-s btn-sm" style="list-style:none">+ Pedir reequilíbrio</summary>
                         <form method="POST" action="{{ route('reequilibrios.store', $contrato) }}" class="form-grid" style="margin-top:12px">@csrf
-                            <div class="campo"><label>Fundamento</label><select name="fundamento" class="input">@foreach (\App\Models\Reequilibrio::FUNDAMENTOS as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach</select></div>
+                            <div class="campo"><label for="{{ $_rot = 'c'.\Illuminate\Support\Str::random(8) }}">Fundamento</label><select id="{{ $_rot }}" name="fundamento" class="input">@foreach (\App\Models\Reequilibrio::FUNDAMENTOS as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach</select></div>
                             <x-campo nome="valor_pedido" rotulo="Valor pedido (R$)" obrigatorio />
-                            <div class="campo full"><label>Fato e como desequilibrou o contrato</label><textarea name="motivo" class="input" rows="3" required></textarea></div>
+                            <div class="campo full"><label for="{{ $_rot = 'c'.\Illuminate\Support\Str::random(8) }}">Fato e como desequilibrou o contrato</label><textarea id="{{ $_rot }}" name="motivo" class="input" rows="3" required></textarea></div>
                             <div class="form-acoes full"><button class="btn btn-p" type="submit">Registrar pedido</button></div></form>
                     </details>
                 @endif
@@ -114,10 +114,10 @@
                 @if ($contrato->situacao === 'vigente')
                     <details style="margin-top:8px"><summary class="btn btn-s btn-sm" style="list-style:none">+ Iniciar extinção</summary>
                         <form method="POST" action="{{ route('rescisoes.store', $contrato) }}" class="form-grid" style="margin-top:12px">@csrf
-                            <div class="campo"><label>Modalidade (art. 138)</label><select name="modalidade" class="input">@foreach (\App\Models\Rescisao::MODALIDADES as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach</select></div>
-                            <div class="campo"><label>Motivo (art. 137)</label><select name="motivo" class="input">@foreach (\App\Models\Rescisao::MOTIVOS as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach</select></div>
+                            <div class="campo"><label for="{{ $_rot = 'c'.\Illuminate\Support\Str::random(8) }}">Modalidade (art. 138)</label><select id="{{ $_rot }}" name="modalidade" class="input">@foreach (\App\Models\Rescisao::MODALIDADES as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach</select></div>
+                            <div class="campo"><label for="{{ $_rot = 'c'.\Illuminate\Support\Str::random(8) }}">Motivo (art. 137)</label><select id="{{ $_rot }}" name="motivo" class="input">@foreach (\App\Models\Rescisao::MOTIVOS as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach</select></div>
                             <x-campo nome="notificado_em" rotulo="Comunicação ao contratado (unilateral)" tipo="date" /><x-campo nome="defesa_ate" rotulo="Prazo da defesa até (unilateral)" tipo="date" />
-                            <div class="campo full"><label>Fundamentação nos autos</label><textarea name="fundamentacao" class="input" rows="3" required></textarea></div>
+                            <div class="campo full"><label for="{{ $_rot = 'c'.\Illuminate\Support\Str::random(8) }}">Fundamentação nos autos</label><textarea id="{{ $_rot }}" name="fundamentacao" class="input" rows="3" required></textarea></div>
                             <div class="form-acoes full"><button class="btn btn-p" type="submit">Iniciar extinção</button></div></form>
                     </details>
                 @endif

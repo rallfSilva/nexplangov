@@ -164,6 +164,14 @@
     .qr { background: #fff; padding: 12px; border: 1px solid var(--color-linha); border-radius: 12px; display: inline-block; }
 
     .paginacao nav { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .pag-info { margin: 0; font-size: 13px; color: var(--color-texto2); }
+    .pag-lista { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin: 0; padding: 0; }
+    .pag-item { display: inline-flex; align-items: center; justify-content: center; min-width: 36px; height: 36px; padding: 0 10px; border: 1px solid var(--color-linha); border-radius: 10px; background: #fff; color: var(--color-tinta); font-size: 13.5px; font-weight: 600; text-decoration: none; }
+    a.pag-item:hover { border-color: #6CB1DA; background: #D1ECFF; }
+    a.pag-item:focus-visible { outline: 3px solid #6CB1DA; outline-offset: 2px; }
+    .pag-item.atual { background: #1E5470; border-color: #1E5470; color: #fff; }
+    .pag-item.desativado { color: #8A9BA8; background: #F7FAFC; }
+    .pag-item.reticencias { border-color: transparent; background: transparent; }
     .vazio { text-align: center; padding: 40px 24px; color: var(--color-texto2); }
     .vazio b { display: block; color: var(--color-tinta); font-size: 16px; margin-bottom: 6px; }
 
@@ -238,6 +246,9 @@
     .rodape { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 14px 32px; border-top: 1px solid var(--color-linha); background: #fff; font-size: 12.5px; color: var(--color-texto2); margin-top: auto; }
     .rodape a.nexmind { display: inline-flex; align-items: center; gap: 8px; color: var(--color-texto2); text-decoration: none; transition: opacity var(--dur-rapida); }
     .rodape a.nexmind:hover { opacity: .8; }
+    /* Link dentro de texto corrido se distingue por sublinhado, não só pela cor (WCAG 1.4.1). */
+    p a:not(.btn), small a:not(.btn) { text-decoration: underline; text-underline-offset: 2px; }
+    .rodape span a { color: var(--color-tinta); text-decoration: underline; text-underline-offset: 2px; }
     .rodape a.nexmind img { height: 30px; width: auto; display: block; }
     .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
     dl.dados { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px 24px; margin: 14px 0 0; }
