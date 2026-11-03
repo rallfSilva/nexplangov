@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AtaController;
 use App\Http\Controllers\AuditoriaController;
+use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\CicloContratoController;
 use App\Http\Controllers\ConfiguracaoController;
 use App\Http\Controllers\ContratoController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\IrpController;
 use App\Http\Controllers\ItemProcessoController;
 use App\Http\Controllers\LgpdController;
 use App\Http\Controllers\LicitacaoController;
+use App\Http\Controllers\MasterController;
 use App\Http\Controllers\ModeloController;
 use App\Http\Controllers\OrdemController;
 use App\Http\Controllers\OrgaoController;
@@ -66,6 +68,13 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::get('/configuracoes', [ConfiguracaoController::class, 'index'])->name('configuracoes.index');
             Route::post('/configuracoes/valores', [ConfiguracaoController::class, 'salvarValor'])->name('configuracoes.valores');
         });
+
+        // Catálogo CATMAT/CATSER e painel master
+        Route::middleware('can:catalogo.ver')->group(function () {
+            Route::get('/catalogo', [CatalogoController::class, 'index'])->name('catalogo.index');
+            Route::get('/catalogo/buscar', [CatalogoController::class, 'buscar'])->middleware('throttle:60,1')->name('catalogo.buscar');
+        });
+        Route::get('/master', MasterController::class)->middleware('can:master.ver')->name('master');
 
         // PCA (art. 12, VII)
         Route::get('/pca', [PcaController::class, 'index'])->middleware('can:pca.ver')->name('pca.index');
