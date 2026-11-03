@@ -6,6 +6,7 @@ use App\Licitacao\Enums\CategoriaProcesso;
 use App\Models\ItemPca;
 use App\Models\PlanoContratacao;
 use App\Models\Unidade;
+use App\Rules\CodigoDeCatalogo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -63,7 +64,7 @@ class PcaController extends Controller
         $dados = $request->validate([
             'material_servico' => ['required', Rule::in(['M', 'S'])],
             'categoria' => ['required', Rule::enum(CategoriaProcesso::class)],
-            'codigo_catalogo' => ['nullable', 'string', 'max:20', 'regex:/^[0-9]+$/'],
+            'codigo_catalogo' => ['nullable', 'string', 'max:20', 'regex:/^[0-9]+$/', new CodigoDeCatalogo($request->input('material_servico'))],
             'descricao' => ['required', 'string', 'max:2000'],
             'unidade_fornecimento' => ['required', 'string', 'max:30'],
             'quantidade' => ['required', 'numeric', 'gt:0'],

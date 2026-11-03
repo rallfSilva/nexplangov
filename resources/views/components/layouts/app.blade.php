@@ -35,6 +35,9 @@
                 <a href="{{ route('processos.index') }}" class="{{ $nav('processos.*', 'documentos.*') }}"><x-icone nome="processo" />Processos</a>
                 <a href="{{ route('dispensa.simulador') }}" class="{{ $nav('dispensa.*') }}"><x-icone nome="cifrao" />Limite de dispensa</a>
             @endcan
+            @can('catalogo.ver')
+                <a href="{{ route('catalogo.index') }}" class="{{ $nav('catalogo.*') }}"><x-icone nome="pasta" />Catálogo CATMAT/CATSER</a>
+            @endcan
             @can('fornecedores.ver')
                 <a href="{{ route('fornecedores.index') }}" class="{{ $nav('fornecedores.*') }}"><x-icone nome="fornecedor" />Fornecedores</a>
             @endcan
@@ -58,6 +61,9 @@
             @endcanany
 
             <span class="cap">Administração</span>
+            @can('master.ver')
+                <a href="{{ route('master') }}" class="{{ $nav('master') }}"><x-icone nome="predio" />Painel master</a>
+            @endcan
             @can('orgaos.gerenciar')
                 <a href="{{ route('orgaos.index') }}" class="{{ $nav('orgaos.*') }}"><x-icone nome="predio" />Órgãos</a>
                 <a href="{{ route('configuracoes.index') }}" class="{{ $nav('configuracoes.*') }}"><x-icone nome="engrenagem" />Valores da lei</a>

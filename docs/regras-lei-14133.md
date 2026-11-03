@@ -79,3 +79,9 @@ Publicação do edital ou aviso de contratação direta enfileira a compra; homo
 - **Ordem de fornecimento**: só sai de requisição aprovada; fornecedor impedido não recebe ordem (art. 156). Ao emitir, o saldo da ata é reservado por um consumo. Cancelar (só sem recebimento) devolve o saldo por um lançamento de estorno, sem apagar nada.
 - **Recebimento** (art. 140): provisório e definitivo. O definitivo não passa do provisório, e é feito por servidor diferente de quem emitiu a ordem e de quem recebeu provisoriamente. Lançamentos são imutáveis.
 - **Alertas** (`php artisan nexplangov:alertas`, agendado às 07h): vigência de contrato (marcos 120, 90, 60, 30, 15 e 7 dias, e vencido), vigência de ata (60, 30, 15, 7), prazo de peça da instrução (véspera e vencido), impugnação a responder (art. 164) e entrega atrasada. Cada pessoa recebe um resumo e um livro (`alertas_enviados`) evita repetir o mesmo marco. O e-mail não leva dado pessoal. Os mesmos avisos aparecem no painel.
+
+## Etapa E: catálogo CATMAT/CATSER e painel master
+
+- **Catálogo** (art. 19, I; art. 174, § 3º, V): tabela `catalogo_itens`, única para todos os órgãos. Carregada com `php artisan nexplangov:catalogo-importar arquivo.csv --tipo=M|S` (CSV `;` com `codigo;descricao;classe_codigo;classe_nome;unidade;situacao`), idempotente. O sistema não traz dados prontos: use os arquivos oficiais do Compras.gov.br.
+- **Conferência**: com o catálogo do tipo carregado, o PCA e os itens do processo recusam código inexistente, inativo ou de outro tipo. Sem catálogo carregado o código não é conferido (a tela avisa).
+- **Painel master** (`/master`, só administrador geral sem órgão): por órgão, usuários ativos e sem 2FA, processos em andamento, contratos vigentes, erros do PNCP e última atividade; confere a cadeia de hash da auditoria. Não mostra o conteúdo dos processos.
