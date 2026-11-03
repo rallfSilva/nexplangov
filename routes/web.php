@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\AtaController;
 use App\Http\Controllers\AuditoriaController;
+use App\Http\Controllers\CicloContratoController;
 use App\Http\Controllers\ConfiguracaoController;
 use App\Http\Controllers\ContratoController;
 use App\Http\Controllers\DemandaController;
@@ -153,6 +155,28 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::post('/irp/{irp}/encerrar', [IrpController::class, 'encerrar'])->name('irp.encerrar');
             Route::post('/irp/{irp}/consolidar', [IrpController::class, 'consolidar'])->name('irp.consolidar');
         });
+        // Atas de registro de preços, reequilíbrio e extinção de contrato
+        Route::middleware('can:contratos.ver')->group(function () {
+            Route::get('/atas', [AtaController::class, 'index'])->name('atas.index');
+            Route::get('/atas/{ata}', [AtaController::class, 'show'])->name('atas.show');
+        });
+        Route::middleware('can:contratos.gerenciar')->group(function () {
+            Route::post('/atas', [AtaController::class, 'gerar'])->name('atas.gerar');
+            Route::post('/atas/{ata}/itens/{item}/consumos', [AtaController::class, 'consumo'])->name('atas.consumo');
+            Route::post('/atas/{ata}/itens/{item}/adesoes', [AtaController::class, 'solicitarAdesao'])->name('atas.adesao');
+            Route::post('/atas/{ata}/adesoes/{adesao}/decidir', [AtaController::class, 'decidirAdesao'])->name('atas.adesao.decidir');
+            Route::post('/atas/{ata}/prorrogar', [AtaController::class, 'prorrogar'])->name('atas.prorrogar');
+            Route::post('/atas/{ata}/cancelar', [AtaController::class, 'cancelar'])->name('atas.cancelar');
+            Route::post('/contratos/{contrato}/reequilibrios', [CicloContratoController::class, 'solicitarReequilibrio'])->name('reequilibrios.store');
+            Route::post('/contratos/{contrato}/rescisoes', [CicloContratoController::class, 'iniciarRescisao'])->name('rescisoes.store');
+            Route::post('/contratos/{contrato}/rescisoes/{rescisao}/defesa', [CicloContratoController::class, 'defesa'])->name('rescisoes.defesa');
+            Route::post('/contratos/{contrato}/rescisoes/{rescisao}/cancelar', [CicloContratoController::class, 'cancelarRescisao'])->name('rescisoes.cancelar');
+        });
+        Route::middleware('can:processos.autorizar')->group(function () {
+            Route::post('/contratos/{contrato}/reequilibrios/{reequilibrio}/decidir', [CicloContratoController::class, 'decidirReequilibrio'])->name('reequilibrios.decidir');
+            Route::post('/contratos/{contrato}/rescisoes/{rescisao}/concluir', [CicloContratoController::class, 'concluirRescisao'])->name('rescisoes.concluir');
+        });
+
         Route::get('/limite-dispensa', DispensaController::class)->middleware('can:processos.ver')->name('dispensa.simulador');
 
         // Fornecedores

@@ -73,6 +73,11 @@ class Processo extends Model
         return $this->hasMany(Proposta::class);
     }
 
+    public function atas(): HasMany
+    {
+        return $this->hasMany(Ata::class);
+    }
+
     public function impugnacoes(): HasMany
     {
         return $this->hasMany(Impugnacao::class)->orderByDesc('recebida_em');

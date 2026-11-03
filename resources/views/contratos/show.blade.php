@@ -40,7 +40,7 @@
                     <p class="hint">O sistema bloqueia acréscimos acima do limite e prorrogações acima de 10 anos.</p>
                     <form method="POST" action="{{ route('contratos.termos.store', $contrato) }}" class="form-grid" style="margin-top:14px" novalidate>
                         @csrf
-                        <x-campo nome="tipo" rotulo="Tipo" obrigatorio classe="full"><select id="campo-tipo" name="tipo" class="input">@foreach (\App\Licitacao\Enums\TipoTermo::opcoes() as $v => $r)<option value="{{ $v }}" @selected(old('tipo') === $v)>{{ $r }}</option>@endforeach</select></x-campo>
+                        <x-campo nome="tipo" rotulo="Tipo" obrigatorio classe="full"><select id="campo-tipo" name="tipo" class="input">@foreach (collect(\App\Licitacao\Enums\TipoTermo::opcoes())->except('rescisao') as $v => $r)<option value="{{ $v }}" @selected(old('tipo') === $v)>{{ $r }}</option>@endforeach</select></x-campo>
                         <x-campo nome="numero" rotulo="Número" obrigatorio />
                         <x-campo nome="assinatura" rotulo="Assinatura" tipo="date" obrigatorio />
                         <x-campo nome="valor_acrescimo" rotulo="Acréscimo (R$)" inputmode="decimal" />
@@ -53,6 +53,76 @@
                 </section>
             @endif
         @endcan
+    </div>
+
+    @php($autoridade = auth()->user()->can('processos.autorizar'))
+    <div class="g2">
+        <section class="card">
+            <h2>Reequilíbrio econômico-financeiro <span class="lei">art. 124, II, d</span></h2>
+            <p class="hint">Vale para caso fortuito, força maior, fato do príncipe e fatos imprevisíveis, respeitada a repartição de riscos. Por acordo, não entra no limite de 25% do art. 125.</p>
+            @foreach ($contrato->reequilibrios as $r)
+                <div class="li" style="display:block;border-top:1px solid #EEF3F7;padding:10px 0">
+                    <b>{{ \App\Models\Reequilibrio::FUNDAMENTOS[$r->fundamento] }}</b> · pedido {{ reais($r->valor_pedido) }} em {{ $r->solicitado_em->format('d/m/Y') }}
+                    <span class="b {{ $r->situacao === 'deferido' ? 'b-ok' : ($r->situacao === 'indeferido' ? 'b-err' : 'b-info') }}">{{ ['solicitado' => 'Solicitado', 'deferido' => 'Deferido', 'indeferido' => 'Indeferido'][$r->situacao] }}</span>
+                    <div class="small muted">{{ $r->motivo }}</div>
+                    @if ($r->parecer)<div class="small">Decisão: {{ $r->parecer }}@if ($r->valor_concedido) (concedido {{ reais($r->valor_concedido) }})@endif</div>@endif
+                    @if ($autoridade && $r->situacao === 'solicitado')
+                        <form method="POST" action="{{ route('reequilibrios.decidir', [$contrato, $r]) }}" class="btns" style="margin-top:6px">@csrf
+                            <input name="valor_concedido" class="input" style="width:120px" inputmode="decimal" placeholder="Valor concedido"><input name="parecer" class="input" style="width:230px" placeholder="Parecer" required minlength="20">
+                            <button class="btn btn-s btn-sm" name="acao" value="deferir">Deferir</button><button class="btn btn-s btn-sm" name="acao" value="indeferir">Indeferir</button></form>
+                    @endif
+                </div>
+            @endforeach
+            @can('contratos.gerenciar')
+                @if ($contrato->situacao === 'vigente')
+                    <details style="margin-top:8px"><summary class="btn btn-s btn-sm" style="list-style:none">+ Pedir reequilíbrio</summary>
+                        <form method="POST" action="{{ route('reequilibrios.store', $contrato) }}" class="form-grid" style="margin-top:12px">@csrf
+                            <div class="campo"><label>Fundamento</label><select name="fundamento" class="input">@foreach (\App\Models\Reequilibrio::FUNDAMENTOS as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach</select></div>
+                            <x-campo nome="valor_pedido" rotulo="Valor pedido (R$)" obrigatorio />
+                            <div class="campo full"><label>Fato e como desequilibrou o contrato</label><textarea name="motivo" class="input" rows="3" required></textarea></div>
+                            <div class="form-acoes full"><button class="btn btn-p" type="submit">Registrar pedido</button></div></form>
+                    </details>
+                @endif
+            @endcan
+        </section>
+        <section class="card">
+            <h2>Extinção do contrato <span class="lei">arts. 137 a 139</span></h2>
+            <p class="hint">Sempre motivada nos autos, com contraditório e ampla defesa. A rescisão unilateral só conclui depois da defesa ou do fim do prazo.</p>
+            @foreach ($contrato->rescisoes as $r)
+                <div class="li" style="display:block;border-top:1px solid #EEF3F7;padding:10px 0">
+                    <b>{{ \App\Models\Rescisao::MODALIDADES[$r->modalidade] }}</b> <span class="b {{ $r->situacao === 'concluida' ? 'b-ok' : ($r->situacao === 'cancelada' ? 'b-mute' : 'b-warn') }}">{{ ['iniciada' => 'Em andamento', 'concluida' => 'Concluída', 'cancelada' => 'Cancelada'][$r->situacao] }}</span>
+                    <div class="small muted">{{ \App\Models\Rescisao::MOTIVOS[$r->motivo] }}</div><div class="small">{{ $r->fundamentacao }}</div>
+                    @if ($r->modalidade === 'unilateral')<div class="small muted">Comunicado em {{ $r->notificado_em?->format('d/m/Y') }}, defesa até {{ $r->defesa_ate?->format('d/m/Y') }}@if ($r->defesa_recebida_em) · defesa recebida em {{ $r->defesa_recebida_em->format('d/m/Y') }}@endif</div>@endif
+                    @if ($r->situacao === 'iniciada')
+                        @can('contratos.gerenciar')
+                            @if ($r->modalidade === 'unilateral' && ! $r->defesa_recebida_em)
+                                <form method="POST" action="{{ route('rescisoes.defesa', [$contrato, $r]) }}" class="btns" style="margin-top:6px">@csrf<input name="defesa" class="input" style="width:260px" placeholder="Resumo da defesa do contratado" required minlength="10"><button class="btn btn-s btn-sm" type="submit">Registrar defesa</button></form>
+                            @endif
+                            <form method="POST" action="{{ route('rescisoes.cancelar', [$contrato, $r]) }}" style="margin-top:6px">@csrf<button class="btn btn-s btn-sm" type="submit">Cancelar extinção</button></form>
+                        @endcan
+                        @if ($autoridade)
+                            <form method="POST" action="{{ route('rescisoes.concluir', [$contrato, $r]) }}" class="btns" style="margin-top:6px">@csrf
+                                <input type="date" name="data_efeito" class="input" style="width:150px" aria-label="Data de efeito" required>
+                                <label class="check"><input type="checkbox" name="culpa_administracao" value="1"> Culpa da Administração</label>
+                                <input name="valor_indenizacao" class="input" style="width:130px" inputmode="decimal" placeholder="Ressarcimento (R$)">
+                                <button class="btn btn-p btn-sm" type="submit">Concluir extinção</button></form>
+                        @endif
+                    @endif
+                </div>
+            @endforeach
+            @can('contratos.gerenciar')
+                @if ($contrato->situacao === 'vigente')
+                    <details style="margin-top:8px"><summary class="btn btn-s btn-sm" style="list-style:none">+ Iniciar extinção</summary>
+                        <form method="POST" action="{{ route('rescisoes.store', $contrato) }}" class="form-grid" style="margin-top:12px">@csrf
+                            <div class="campo"><label>Modalidade (art. 138)</label><select name="modalidade" class="input">@foreach (\App\Models\Rescisao::MODALIDADES as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach</select></div>
+                            <div class="campo"><label>Motivo (art. 137)</label><select name="motivo" class="input">@foreach (\App\Models\Rescisao::MOTIVOS as $k => $v)<option value="{{ $k }}">{{ $v }}</option>@endforeach</select></div>
+                            <x-campo nome="notificado_em" rotulo="Comunicação ao contratado (unilateral)" tipo="date" /><x-campo nome="defesa_ate" rotulo="Prazo da defesa até (unilateral)" tipo="date" />
+                            <div class="campo full"><label>Fundamentação nos autos</label><textarea name="fundamentacao" class="input" rows="3" required></textarea></div>
+                            <div class="form-acoes full"><button class="btn btn-p" type="submit">Iniciar extinção</button></div></form>
+                    </details>
+                @endif
+            @endcan
+        </section>
     </div>
 
     <section class="card card-flush">
