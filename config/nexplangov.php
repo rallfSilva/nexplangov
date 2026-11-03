@@ -30,6 +30,19 @@ return [
     // Feriados estaduais e municipais (Y-m-d, separados por vírgula), somados aos nacionais na contagem de dias úteis.
     'feriados_extras' => array_filter(array_map('trim', explode(',', (string) env('NEXPLANGOV_FERIADOS_EXTRAS', '')))),
 
+    // NexMind IA (assistente de redação e revisão). Desligada por padrão; a chave fica só no .env.
+    // O texto vai sem dado pessoal (CPF, e-mail, telefone e CEP são removidos antes do envio).
+    'ia' => [
+        'habilitada' => (bool) env('NEXPLANGOV_IA', false),
+        'chave' => env('ANTHROPIC_API_KEY'),
+        'modelo' => env('NEXPLANGOV_IA_MODELO', 'claude-opus-5-5'),
+        'esforco' => env('NEXPLANGOV_IA_ESFORCO', 'medium'),
+        'limite_diario_por_usuario' => (int) env('NEXPLANGOV_IA_LIMITE_DIARIO', 40),
+    ],
+
+    // Capacitação: meses em que um curso conta como atualização do agente (art. 7º, II, e art. 173).
+    'capacitacao_validade_meses' => (int) env('NEXPLANGOV_CAPACITACAO_MESES', 24),
+
     // Prazo de resposta ao titular de dados (LGPD, art. 19, II): 15 dias.
     'lgpd_prazo_dias' => 15,
 ];

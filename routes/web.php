@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AtaController;
 use App\Http\Controllers\AuditoriaController;
+use App\Http\Controllers\CapacitacaoController;
 use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\CicloContratoController;
 use App\Http\Controllers\ConfiguracaoController;
@@ -11,6 +12,8 @@ use App\Http\Controllers\DispensaController;
 use App\Http\Controllers\DocumentoProcessoController;
 use App\Http\Controllers\FluxoController;
 use App\Http\Controllers\FornecedorController;
+use App\Http\Controllers\GovernancaController;
+use App\Http\Controllers\IaController;
 use App\Http\Controllers\ImpugnacaoController;
 use App\Http\Controllers\IrpController;
 use App\Http\Controllers\ItemProcessoController;
@@ -74,6 +77,9 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::get('/catalogo', [CatalogoController::class, 'index'])->name('catalogo.index');
             Route::get('/catalogo/buscar', [CatalogoController::class, 'buscar'])->middleware('throttle:60,1')->name('catalogo.buscar');
         });
+        Route::get('/capacitacao', [CapacitacaoController::class, 'index'])->middleware('can:capacitacao.ver')->name('capacitacao.index');
+        Route::post('/capacitacao', [CapacitacaoController::class, 'store'])->middleware('can:capacitacao.ver')->name('capacitacao.store');
+        Route::get('/governanca', GovernancaController::class)->middleware('can:governanca.ver')->name('governanca');
         Route::get('/master', MasterController::class)->middleware('can:master.ver')->name('master');
 
         // PCA (art. 12, VII)
@@ -116,6 +122,7 @@ Route::middleware(['auth', 'ativo'])->group(function () {
         Route::get('/processos/{processo}/documentos/{tipo}', [DocumentoProcessoController::class, 'edit'])->middleware('can:processos.ver')->name('documentos.edit');
         Route::post('/processos/{processo}/documentos/{tipo}', [DocumentoProcessoController::class, 'salvar'])->middleware('can:processos.ver')->name('documentos.salvar');
         Route::post('/processos/{processo}/documentos/{tipo}/decidir', [DocumentoProcessoController::class, 'decidir'])->middleware('can:processos.ver')->name('documentos.decidir');
+        Route::post('/processos/{processo}/documentos/{tipo}/ia', IaController::class)->middleware(['can:ia.usar', 'throttle:12,1'])->name('documentos.ia');
         Route::post('/processos/{processo}/documentos/{tipo}/assinar', [DocumentoProcessoController::class, 'assinar'])->middleware(['can:processos.ver', 'throttle:10,1'])->name('documentos.assinar');
         Route::get('/processos/{processo}/documentos/{tipo}/folha', [DocumentoProcessoController::class, 'folha'])->middleware('can:processos.ver')->name('documentos.folha');
         Route::get('/processos/{processo}/arquivos/{documento}', [DocumentoProcessoController::class, 'arquivo'])->middleware('can:processos.ver')->name('documentos.arquivo');

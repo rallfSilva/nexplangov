@@ -56,4 +56,9 @@ class ItemProcesso extends Model
     {
         return "Item {$this->numero} do processo #{$this->processo_id}";
     }
+
+    public function itemPca(): BelongsTo
+    {
+        return $this->belongsTo(ItemPca::class, 'item_pca_id');
+    }
 }

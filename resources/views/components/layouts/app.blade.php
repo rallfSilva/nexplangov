@@ -36,7 +36,7 @@
                 <a href="{{ route('dispensa.simulador') }}" class="{{ $nav('dispensa.*') }}"><x-icone nome="cifrao" />Limite de dispensa</a>
             @endcan
             @can('catalogo.ver')
-                <a href="{{ route('catalogo.index') }}" class="{{ $nav('catalogo.*') }}"><x-icone nome="pasta" />Catálogo CATMAT/CATSER</a>
+                <a href="{{ route('catalogo.index') }}" class="{{ $nav('catalogo.*') }}"><x-icone nome="busca" />Catálogo CATMAT/CATSER</a>
             @endcan
             @can('fornecedores.ver')
                 <a href="{{ route('fornecedores.index') }}" class="{{ $nav('fornecedores.*') }}"><x-icone nome="fornecedor" />Fornecedores</a>
@@ -61,8 +61,14 @@
             @endcanany
 
             <span class="cap">Administração</span>
+            @can('governanca.ver')
+                <a href="{{ route('governanca') }}" class="{{ $nav('governanca') }}"><x-icone nome="balanca" />Governança</a>
+            @endcan
+            @can('capacitacao.ver')
+                <a href="{{ route('capacitacao.index') }}" class="{{ $nav('capacitacao.*') }}"><x-icone nome="cargos" />Capacitação</a>
+            @endcan
             @can('master.ver')
-                <a href="{{ route('master') }}" class="{{ $nav('master') }}"><x-icone nome="predio" />Painel master</a>
+                <a href="{{ route('master') }}" class="{{ $nav('master') }}"><x-icone nome="painel" />Painel master</a>
             @endcan
             @can('orgaos.gerenciar')
                 <a href="{{ route('orgaos.index') }}" class="{{ $nav('orgaos.*') }}"><x-icone nome="predio" />Órgãos</a>

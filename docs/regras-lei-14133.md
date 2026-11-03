@@ -85,3 +85,11 @@ Publicação do edital ou aviso de contratação direta enfileira a compra; homo
 - **Catálogo** (art. 19, I; art. 174, § 3º, V): tabela `catalogo_itens`, única para todos os órgãos. Carregada com `php artisan nexplangov:catalogo-importar arquivo.csv --tipo=M|S` (CSV `;` com `codigo;descricao;classe_codigo;classe_nome;unidade;situacao`), idempotente. O sistema não traz dados prontos: use os arquivos oficiais do Compras.gov.br.
 - **Conferência**: com o catálogo do tipo carregado, o PCA e os itens do processo recusam código inexistente, inativo ou de outro tipo. Sem catálogo carregado o código não é conferido (a tela avisa).
 - **Painel master** (`/master`, só administrador geral sem órgão): por órgão, usuários ativos e sem 2FA, processos em andamento, contratos vigentes, erros do PNCP e última atividade; confere a cadeia de hash da auditoria. Não mostra o conteúdo dos processos.
+
+## Etapa F: NexMind IA, capacitação e governança
+
+- **NexMind IA** (desligada por padrão: `NEXPLANGOV_IA=true` e `ANTHROPIC_API_KEY` no `.env`; modelo `claude-opus-5-5` pela SDK oficial `anthropic-ai/sdk`, com fallback do servidor se o modelo recusar). Na tela da peça, sugere texto por campo e revisa a peça citando artigos. O texto só entra na peça se o usuário clicar em "Usar este texto" e salvar.
+- **Limites**: não redige parecer jurídico nem autorização da autoridade (atos de quem tem a competência). Só quem pode elaborar a peça usa (`ia.usar`). Limite diário por usuário (`NEXPLANGOV_IA_LIMITE_DIARIO`, padrão 40).
+- **LGPD**: CPF, e-mail, telefone e CEP são trocados por marcadores antes do envio (art. 6º, III, necessidade). O registro `usos_ia` guarda quem usou, onde e o consumo, com o hash do pedido e sem o texto; é imutável.
+- **Capacitação** (art. 7º, II, e art. 173): cursos por agente, com tema, carga horária, escola de governo e certificado. Conta como atualizado por 24 meses (`NEXPLANGOV_CAPACITACAO_MESES`). Cada um registra o próprio; o administrador do órgão registra de todos.
+- **Painel de governança** (art. 11, parágrafo único): execução do PCA, peso das contratações diretas (quantidade e valor), economia entre estimado e homologado, tempo médio da fase preparatória, prazos em atraso (peças, impugnações, entregas) e percentual de agentes capacitados.

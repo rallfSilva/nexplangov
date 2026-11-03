@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Licitacao\Ia\ClienteClaude;
+use App\Licitacao\Ia\ClienteIa;
 use App\Licitacao\Regras\DiasUteis;
 use App\Listeners\AuditarAutenticacao;
 use App\Models\User;
@@ -15,6 +17,7 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(ClienteIa::class, ClienteClaude::class);
         $this->app->singleton(DiasUteis::class, fn () => new DiasUteis(config('nexplangov.feriados_extras', [])));
     }
 
