@@ -28,6 +28,7 @@ use App\Http\Controllers\OrgaoController;
 use App\Http\Controllers\PagamentoController;
 use App\Http\Controllers\PainelController;
 use App\Http\Controllers\PcaController;
+use App\Http\Controllers\PcaImportacaoController;
 use App\Http\Controllers\PncpController;
 use App\Http\Controllers\PrecosComprasGovController;
 use App\Http\Controllers\ProcessoController;
@@ -118,6 +119,11 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::put('/pca/{plano}/itens/{item}', [PcaController::class, 'salvarItem'])->name('pca.itens.update');
             Route::delete('/pca/{plano}/itens/{item}', [PcaController::class, 'excluirItem'])->name('pca.itens.destroy');
             Route::post('/pca/{plano}/enviar-aprovacao', [PcaController::class, 'enviarAprovacao'])->name('pca.enviar');
+            Route::get('/pca/{plano}/importacoes/modelo', [PcaImportacaoController::class, 'modelo'])->name('pca.importacoes.modelo');
+            Route::post('/pca/{plano}/importacoes', [PcaImportacaoController::class, 'store'])->middleware('throttle:20,1')->name('pca.importacoes.store');
+            Route::get('/pca/{plano}/importacoes/{importacao}', [PcaImportacaoController::class, 'show'])->name('pca.importacoes.show');
+            Route::post('/pca/{plano}/importacoes/{importacao}/confirmar', [PcaImportacaoController::class, 'confirmar'])->name('pca.importacoes.confirmar');
+            Route::post('/pca/{plano}/importacoes/{importacao}/cancelar', [PcaImportacaoController::class, 'cancelar'])->name('pca.importacoes.cancelar');
         });
         Route::post('/pca/{plano}/aprovar', [PcaController::class, 'aprovar'])->middleware('can:pca.aprovar')->name('pca.aprovar');
 

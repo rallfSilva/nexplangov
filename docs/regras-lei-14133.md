@@ -128,3 +128,11 @@ Publicação do edital ou aviso de contratação direta enfileira a compra; homo
 - **Ordem cronológica** (art. 141): uma fila por fonte e categoria. Só se paga o primeiro da fila. Para pagar outro, a autoridade (`processos.autorizar`) registra antes a hipótese do § 1º (I a V) e a justificativa. Depois do pagamento, o sistema cobra o registro da comunicação ao controle interno e ao tribunal de contas.
 - **Atraso**: créditos vencidos ficam marcados. Atraso acima de 2 meses mostra o alerta do art. 137, § 2º, IV (direito do contratado à extinção).
 - **Divulgação mensal** (art. 141, § 3º): a página pública `/transparencia/{órgão}/pagamentos?mes=AAAA-MM` mostra os pagos no mês, as filas em aberto e as justificativas de pagamento fora da ordem.
+
+## Importação de planilha do PCA (art. 12, VII)
+
+- **Formatos**: XLSX (primeira aba) ou CSV com `;` ou `,`, até 5 MB e 2.000 itens. O botão "Baixar modelo" traz as colunas na ordem, uma linha de ajuda e um exemplo.
+- **Cabeçalho flexível**: sem acento e sem diferença de maiúsculas, com sinônimos comuns ("qtd", "valor unitário", "secretaria", "código"). Categoria por código PNCP ou nome; prioridade Alta/Média/Baixa; data dd/mm/aaaa ou data do Excel; valores "1.234,56" ou numéricos.
+- **Pré-visualização obrigatória**: cada linha passa pelas mesmas regras de um item digitado (`RegrasItemPca`, inclusive a conferência no catálogo CATMAT/CATSER) e aparece como "Será importada", "Com erro" (com os motivos) ou "Duplicada" (mesmo código, descrição e unidade já no plano ou repetidos na planilha). Nada é gravado antes de confirmar.
+- **Confirmação**: grava só as linhas válidas, em lotes, numa transação, numerando em sequência; revalida duplicidade no momento da gravação. Plano aprovado não recebe itens por importação.
+- **Histórico**: cada importação guarda o nome do arquivo, o SHA-256, quem enviou, as linhas lidas e os totais; a confirmação entra na trilha de auditoria (evento `importacao`) e cada item criado também.
