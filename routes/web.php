@@ -126,6 +126,9 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::post('/pca/{plano}/importacoes/{importacao}/cancelar', [PcaImportacaoController::class, 'cancelar'])->name('pca.importacoes.cancelar');
         });
         Route::post('/pca/{plano}/aprovar', [PcaController::class, 'aprovar'])->middleware('can:pca.aprovar')->name('pca.aprovar');
+        Route::get('/pca/{plano}/versoes', [PcaController::class, 'versoes'])->middleware('can:pca.ver')->name('pca.versoes');
+        Route::post('/pca/{plano}/revisao', [PcaController::class, 'abrirRevisao'])->middleware('can:pca.gerenciar')->name('pca.revisao.abrir');
+        Route::post('/pca/{plano}/revisao/descartar', [PcaController::class, 'descartarRevisao'])->middleware('can:pca.gerenciar')->name('pca.revisao.descartar');
 
         // Demandas (DFD)
         Route::get('/demandas', [DemandaController::class, 'index'])->middleware('can:demandas.ver')->name('demandas.index');

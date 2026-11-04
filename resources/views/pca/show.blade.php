@@ -3,11 +3,17 @@
     <div class="row">
         <div>
             <a href="{{ route('pca.index') }}" class="small" style="font-weight:600;display:inline-flex;gap:4px;align-items:center"><x-icone nome="voltar" tamanho="16" />Planos</a>
-            <h1 class="h1" style="margin-top:8px">PCA {{ $plano->ano }} <span class="b {{ $plano->situacao === 'aprovado' ? 'b-ok' : 'b-info' }}" style="vertical-align:middle">{{ \App\Models\PlanoContratacao::SITUACOES[$plano->situacao] }}</span></h1>
+            <h1 class="h1" style="margin-top:8px">PCA {{ $plano->ano }} <span class="b {{ $plano->situacao === 'aprovado' ? 'b-ok' : 'b-info' }}" style="vertical-align:middle">{{ $plano->emRevisao() && $plano->situacao !== 'aprovado' ? ($plano->situacao === 'em_aprovacao' ? 'Revisão em aprovação' : 'Em revisão') : \App\Models\PlanoContratacao::SITUACOES[$plano->situacao] }}</span>@if ($plano->versao_atual > 0) <span class="b b-mute" style="vertical-align:middle">Versão {{ $plano->versao_atual }}</span>@endif</h1>
             @if ($plano->aprovado_em)<p class="sub">Aprovado por {{ $plano->aprovador?->name }} em {{ $plano->aprovado_em->format('d/m/Y H:i') }}.</p>@endif
         </div>
         <div class="btns">
+            @if ($plano->versao_atual > 0 || $plano->emRevisao())
+                <a href="{{ route('pca.versoes', $plano) }}" class="btn btn-s"><x-icone nome="relogio" />Versões e alterações</a>
+            @endif
             @can('pca.gerenciar')
+                @if ($plano->emRevisao() && $plano->situacao === 'rascunho')
+                    <form method="POST" action="{{ route('pca.revisao.descartar', $plano) }}" onsubmit="return confirm('Descartar a revisão? Os itens voltam a ser os da versão {{ $plano->versao_atual }}.')">@csrf<button class="btn btn-s" type="submit">Descartar revisão</button></form>
+                @endif
                 @if ($plano->situacao === 'rascunho')
                     <form method="POST" action="{{ route('pca.enviar', $plano) }}">@csrf<button class="btn btn-s" type="submit"><x-icone nome="enviar" />Enviar para aprovação</button></form>
                 @endif
@@ -24,6 +30,22 @@
             @endcan
         </div>
     </div>
+
+    @if ($plano->emRevisao())
+        <div class="aviso-lei" role="note"><b>Revisão da versão {{ $plano->versao_atual }}</b> aberta por {{ $plano->autorRevisao?->name ?? '—' }} em {{ $plano->revisao_aberta_em->format('d/m/Y H:i') }}: {{ $plano->revisao_justificativa }}. Depois das alterações, envie para nova aprovação; a versão {{ $plano->versao_atual }} continua vigente até lá. <span class="lei">art. 12, § 1º</span></div>
+    @endif
+    @can('pca.gerenciar')
+        @if ($plano->situacao === 'aprovado')
+            <details class="card">
+                <summary style="cursor:pointer"><b>Abrir revisão do plano</b> <span class="muted small">· para incluir, alterar ou excluir itens depois da aprovação</span></summary>
+                <form method="POST" action="{{ route('pca.revisao.abrir', $plano) }}" class="form-grid" style="margin-top:12px">
+                    @csrf
+                    <x-campo nome="justificativa" rotulo="Justificativa da revisão" obrigatorio classe="full" :ajuda="'Fica registrada na nova versão e na trilha de auditoria. Mínimo de '.\App\Licitacao\Regras\VersoesPca::JUSTIFICATIVA_MINIMA.' caracteres.'"><textarea id="campo-justificativa" name="justificativa" class="input" rows="3" required>{{ old('justificativa') }}</textarea></x-campo>
+                    <div class="full form-acoes"><button class="btn btn-p" type="submit"><x-icone nome="editar" />Abrir revisão</button></div>
+                </form>
+            </details>
+        @endif
+    @endcan
 
     <div class="kpis">
         <div class="card kpi"><span class="lbl"><span class="chip c-navy"><x-icone nome="cifrao" /></span>Valor total estimado</span><span class="val valor">{{ reais($itens->sum('valor_total_estimado')) }}</span><span class="foot">{{ $itens->count() }} itens</span></div>

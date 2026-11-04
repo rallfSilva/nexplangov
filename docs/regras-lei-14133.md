@@ -136,3 +136,12 @@ Publicação do edital ou aviso de contratação direta enfileira a compra; homo
 - **Pré-visualização obrigatória**: cada linha passa pelas mesmas regras de um item digitado (`RegrasItemPca`, inclusive a conferência no catálogo CATMAT/CATSER) e aparece como "Será importada", "Com erro" (com os motivos) ou "Duplicada" (mesmo código, descrição e unidade já no plano ou repetidos na planilha). Nada é gravado antes de confirmar.
 - **Confirmação**: grava só as linhas válidas, em lotes, numa transação, numerando em sequência; revalida duplicidade no momento da gravação. Plano aprovado não recebe itens por importação.
 - **Histórico**: cada importação guarda o nome do arquivo, o SHA-256, quem enviou, as linhas lidas e os totais; a confirmação entra na trilha de auditoria (evento `importacao`) e cada item criado também.
+
+## Versões e revisão do PCA (art. 12, VII e § 1º)
+
+- **Versão a cada aprovação**: aprovar o plano grava uma cópia imutável dos itens (`versoes_pca`), com quem aprovou, quando, quantidade de itens e valor total. Planos já aprovados antes desta mudança ganham a versão 1 na migração.
+- **Revisão justificada**: plano aprovado não aceita alteração direta. "Abrir revisão" exige justificativa (mínimo de 15 caracteres, `VersoesPca::JUSTIFICATIVA_MINIMA`), volta o plano para edição e registra o evento `revisao` na auditoria. A versão vigente continua valendo até a nova aprovação da autoridade competente. Na União, o Decreto nº 10.947/2022 (arts. 12 e 13) também exige justificativa e aprovação para alterar o PCA.
+- **Descartar revisão**: devolve os itens da versão vigente e o plano volta a aprovado.
+- **Número de item não volta**: item excluído não tem o número reaproveitado (`VersoesPca::proximoNumero`), para o histórico e o PNCP não confundirem itens diferentes.
+- **O que mudou**: a tela "Versões e alterações" compara quaisquer duas versões (ou a vigente com a revisão em andamento) e mostra itens incluídos, excluídos e alterados, campo a campo, e a variação do valor total. A regra pura de comparação fica em `App\Licitacao\Regras\VersoesPca` (testada em `tests/Unit/Lei14133/VersoesPcaTest.php`).
+- Depois de aprovar a nova versão, use "Atualizar no PNCP" para publicar o plano revisado.
