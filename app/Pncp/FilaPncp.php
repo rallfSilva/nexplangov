@@ -54,9 +54,6 @@ class FilaPncp
             }
         }
 
-        // Turma de treinamento: o envio é montado e conferido como de verdade, mas nunca sai do sistema.
-        $treinamento = (bool) $orgao?->treinamento;
-
         $envio = EnvioPncp::create([
             'orgao_id' => $alvo->getAttribute('orgao_id'),
             'user_id' => $usuario?->id,
@@ -64,8 +61,8 @@ class FilaPncp
             'publicavel_id' => $alvo->getKey(),
             'recurso' => $recurso,
             'operacao' => $operacao,
-            'estado' => $montado['pendencias'] === [] ? ($treinamento ? 'simulado' : 'pendente') : 'erro',
-            'ambiente' => $treinamento ? 'treinamento' : ($orgao?->pncp_ambiente ?? config('nexplangov.pncp.ambiente')),
+            'estado' => $montado['pendencias'] === [] ? 'pendente' : 'erro',
+            'ambiente' => $orgao?->pncp_ambiente ?? config('nexplangov.pncp.ambiente'),
             'payload' => $montado['corpo'],
             'arquivo_caminho' => $documento['caminho'] ?? null,
             'documento_titulo' => $documento['titulo'] ?? null,
@@ -74,7 +71,6 @@ class FilaPncp
             'metodo' => $montado['metodo'],
             'rota' => $montado['rota'],
             'erro' => $montado['pendencias'] === [] ? null : 'Antes de enviar: '.implode(' ', $montado['pendencias']),
-            'resposta' => $treinamento ? ['simulado' => true, 'mensagem' => 'Ambiente de treinamento: nada foi enviado ao PNCP.'] : null,
         ]);
 
         if ($envio->estado === 'pendente') {

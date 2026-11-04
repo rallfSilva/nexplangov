@@ -129,7 +129,7 @@ Guarde-as em tabelas `pncp_dominios` versionadas e sincronize com o Swagger vige
 | Termo de contrato | Inclusão do termo | |
 | "Excluir no PNCP" na lista de envios | `DELETE` com `justificativa` obrigatória (mín. 10 caracteres), que fica pública | |
 
-Regras implementadas: título do documento cortado em 50 caracteres e sem acento; a compra sem edital concluído não sai (pendência "Conclua a peça Minuta do edital", art. 54); arquivo de contrato só em PDF até 20 MB; órgão de turma de treinamento nunca envia (estado "Simulado").
+Regras implementadas: título do documento cortado em 50 caracteres e sem acento; a compra sem edital concluído não sai (pendência "Conclua a peça Minuta do edital", art. 54); arquivo de contrato só em PDF até 20 MB.
 
 Os PDFs gerados usam o Dompdf com acesso remoto desligado e ficam em `storage/app/private/orgaos/{id}/pncp/`.
 

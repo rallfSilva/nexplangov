@@ -57,11 +57,6 @@ class User extends Authenticatable
 
     public function exigeDoisFatores(): bool
     {
-        // Na turma de treinamento (só dados fictícios) a verificação em duas etapas é opcional.
-        if ($this->orgao_id !== null && $this->orgao?->treinamento) {
-            return false;
-        }
-
         return $this->hasAnyRole(['administrador-geral', 'administrador-orgao']);
     }
 

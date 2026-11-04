@@ -48,7 +48,7 @@ class DocumentoProcessoController extends Controller
             'estado' => $this->fluxo->estado($processo, $tipo),
             'versoes' => $processo->documentos()->where('tipo', $tipo)->with('autor')->orderByDesc('versao')->get(),
             'podeEditar' => $podeEditar,
-            'podeIa' => $podeEditar && AssistenteIa::habilitadaPara($processo->orgao) && $usuario->can('ia.usar') && ! in_array($tipo, AssistenteIa::BLOQUEADAS, true),
+            'podeIa' => $podeEditar && AssistenteIa::habilitada() && $usuario->can('ia.usar') && ! in_array($tipo, AssistenteIa::BLOQUEADAS, true),
             'destino' => $this->fluxo->destino($etapa),
             'modelos' => $modelos, 'modelo' => $modelo, 'valores' => $valores,
             'podeDecidir' => $atual ? $this->fluxo->podeDecidir($usuario, $atual) : false,

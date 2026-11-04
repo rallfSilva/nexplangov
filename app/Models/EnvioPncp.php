@@ -20,9 +20,9 @@ class EnvioPncp extends Model
         'ata' => 'Ata de registro de preços', 'pca' => 'PCA', 'arquivo_contrato' => 'Contrato assinado (PDF)', 'arquivo_ata' => 'Ata (PDF)',
     ];
 
-    public const AMBIENTES = ['producao' => 'Produção', 'homologacao' => 'Homologação', 'treinamento' => 'Treinamento'];
+    public const AMBIENTES = ['producao' => 'Produção', 'homologacao' => 'Homologação'];
 
-    public const ESTADOS = ['pendente' => 'Na fila', 'enviando' => 'Enviando', 'publicado' => 'Publicado', 'simulado' => 'Simulado (treinamento)', 'erro' => 'Com erro'];
+    public const ESTADOS = ['pendente' => 'Na fila', 'enviando' => 'Enviando', 'publicado' => 'Publicado', 'erro' => 'Com erro'];
 
     protected function casts(): array
     {
@@ -41,6 +41,6 @@ class EnvioPncp extends Model
 
     public function badge(): string
     {
-        return ['pendente' => 'b-info', 'enviando' => 'b-info', 'publicado' => 'b-ok', 'simulado' => 'b-mute', 'erro' => 'b-err'][$this->estado] ?? 'b-mute';
+        return ['pendente' => 'b-info', 'enviando' => 'b-info', 'publicado' => 'b-ok', 'erro' => 'b-err'][$this->estado] ?? 'b-mute';
     }
 }
