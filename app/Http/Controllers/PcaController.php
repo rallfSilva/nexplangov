@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Licitacao\Pca\RegrasItemPca;
+use App\Licitacao\Pca\RevisaoPca;
+use App\Licitacao\Regras\VersoesPca;
+use App\Licitacao\RegraViolada;
 use App\Models\ItemPca;
 use App\Models\PlanoContratacao;
 use App\Models\Unidade;
@@ -53,7 +56,7 @@ class PcaController extends Controller
         abort_if($item && $item->plano_contratacao_id !== $plano->id, 404);
 
         if (! $plano->editavel()) {
-            return back()->with('erro', 'O PCA aprovado não pode ser alterado diretamente. Registre uma revisão do plano.');
+            return back()->with('erro', 'O PCA aprovado não pode ser alterado diretamente. Abra uma revisão do plano, com justificativa.');
         }
 
         $request->merge([
@@ -79,7 +82,7 @@ class PcaController extends Controller
         abort_if($item->plano_contratacao_id !== $plano->id, 404);
 
         if (! $plano->editavel()) {
-            return back()->with('erro', 'O PCA aprovado não pode ser alterado diretamente.');
+            return back()->with('erro', 'O PCA aprovado não pode ser alterado diretamente. Abra uma revisão do plano, com justificativa.');
         }
 
         $item->delete();
@@ -95,18 +98,68 @@ class PcaController extends Controller
 
         $plano->update(['situacao' => 'em_aprovacao']);
 
-        return back()->with('sucesso', "PCA {$plano->ano} enviado para aprovação da autoridade competente.");
+        return back()->with('sucesso', $plano->emRevisao()
+            ? "Revisão do PCA {$plano->ano} enviada para aprovação da autoridade competente."
+            : "PCA {$plano->ano} enviado para aprovação da autoridade competente.");
     }
 
-    public function aprovar(Request $request, PlanoContratacao $plano): RedirectResponse
+    public function aprovar(Request $request, PlanoContratacao $plano, RevisaoPca $revisao): RedirectResponse
     {
-        if ($plano->situacao !== 'em_aprovacao') {
-            return back()->with('erro', 'Este PCA não está aguardando aprovação.');
+        try {
+            $versao = $revisao->aprovar($plano, $request->user());
+        } catch (RegraViolada $e) {
+            return back()->with('erro', $e->getMessage());
         }
 
-        $plano->forceFill(['situacao' => 'aprovado', 'aprovado_por' => $request->user()->id, 'aprovado_em' => now()])->save();
+        return back()->with('sucesso', "PCA {$plano->ano} aprovado (versão {$versao->numero}). Ele deve ser divulgado no sítio oficial e no PNCP (art. 12, § 1º).");
+    }
 
-        return back()->with('sucesso', "PCA {$plano->ano} aprovado. Ele deve ser divulgado no sítio oficial e no PNCP (art. 12, § 1º).");
+    public function abrirRevisao(Request $request, PlanoContratacao $plano, RevisaoPca $revisao): RedirectResponse
+    {
+        $request->validate(['justificativa' => ['required', 'string', 'max:2000']], [], ['justificativa' => 'justificativa da revisão']);
+
+        try {
+            $revisao->abrir($plano, $request->user(), $request->input('justificativa'));
+        } catch (RegraViolada $e) {
+            return back()->withInput()->with('erro', $e->getMessage());
+        }
+
+        return back()->with('sucesso', "Revisão aberta sobre a versão {$plano->versao_atual}. Altere os itens e envie de novo para aprovação.");
+    }
+
+    public function descartarRevisao(PlanoContratacao $plano, RevisaoPca $revisao): RedirectResponse
+    {
+        try {
+            $revisao->descartar($plano);
+        } catch (RegraViolada $e) {
+            return back()->with('erro', $e->getMessage());
+        }
+
+        return back()->with('sucesso', "Revisão descartada. O PCA voltou à versão {$plano->versao_atual}.");
+    }
+
+    /** Versões aprovadas e o que mudou entre elas (ou entre a vigente e a revisão em andamento). */
+    public function versoes(Request $request, PlanoContratacao $plano): View
+    {
+        $versoes = $plano->versoes()->with(['aprovador', 'autorRevisao'])->get();
+        $opcoes = $versoes->pluck('numero')->all();
+        if ($plano->emRevisao() || $plano->versao_atual === 0) {
+            array_unshift($opcoes, 'atual');
+        }
+
+        $para = $request->query('para', $opcoes[0] ?? null);
+        $para = in_array($para, $opcoes, false) ? $para : ($opcoes[0] ?? null);
+        $padraoDe = $para === 'atual' ? $plano->versao_atual : ((int) $para - 1);
+        $de = (int) $request->query('de', $padraoDe);
+
+        $itensDe = $versoes->firstWhere('numero', $de)?->itens ?? [];
+        $itensPara = $para === 'atual' ? $plano->copiaDosItens() : ($versoes->firstWhere('numero', (int) $para)?->itens ?? []);
+
+        return view('pca.versoes', [
+            'plano' => $plano, 'versoes' => $versoes, 'opcoes' => $opcoes, 'de' => $de, 'para' => $para,
+            'diff' => $para === null ? null : VersoesPca::comparar($itensDe, $itensPara),
+            'unidades' => Unidade::where('orgao_id', $plano->orgao_id)->pluck('sigla', 'id'),
+        ]);
     }
 
     private function orgaoDoUsuario(Request $request): int
