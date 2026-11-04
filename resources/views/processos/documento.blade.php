@@ -5,6 +5,9 @@
         <h1 class="h1" style="margin-top:8px">{{ $def['rotulo'] }}</h1>
         <p class="sub"><span class="lei">{{ $def['base'] }}</span> @if ($atual) · versão {{ $atual->versao }}, <span class="b {{ $estado['classe'] }}">{{ $estado['rotulo'] }}</span>@else · <span class="b {{ $estado['classe'] }}">{{ $estado['rotulo'] }}</span>@endif
             @if ($etapa?->prazo_em) · prazo {{ $etapa->prazo_em->format('d/m/Y') }}@if ($etapa->prazoVencido()) <span class="b b-err">vencido</span>@endif @endif</p>
+        @if ($atual && $atual->origem !== 'arquivo')
+            <p><a class="btn btn-s btn-sm" href="{{ route('documentos.docx', [$processo, $tipo]) }}"><x-icone nome="download" tamanho="16" />Baixar em Word (DOCX)</a></p>
+        @endif
     </div>
 
     @if ($estado['pendencias'])

@@ -3,6 +3,7 @@
         <div><h1 class="h1">Contratos</h1><p class="sub">Vigência, gestor e fiscal, aditivos e apostilamentos com os limites da lei.</p></div>
         <div class="btns">
             <a href="{{ route('contratos.index', ['filtro' => request('filtro') === 'vencendo' ? null : 'vencendo']) }}" class="btn btn-s"><x-icone nome="relogio" />{{ request('filtro') === 'vencendo' ? 'Ver todos' : 'Vencendo em 120 dias' }}</a>
+            <a href="{{ route('contratos.exportar', request()->only(['busca', 'filtro'])) }}" class="btn btn-s"><x-icone nome="planilha" />Exportar XLSX</a>
             @can('contratos.gerenciar')<a href="{{ route('contratos.create') }}" class="btn btn-p"><x-icone nome="mais" />Novo contrato</a>@endcan
         </div>
     </div>
