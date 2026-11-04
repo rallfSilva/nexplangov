@@ -11,6 +11,7 @@ use App\Http\Controllers\ContratoController;
 use App\Http\Controllers\DemandaController;
 use App\Http\Controllers\DispensaController;
 use App\Http\Controllers\DocumentoProcessoController;
+use App\Http\Controllers\ExportacaoController;
 use App\Http\Controllers\FluxoController;
 use App\Http\Controllers\FornecedorController;
 use App\Http\Controllers\GovernancaController;
@@ -126,6 +127,7 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::post('/pca/{plano}/importacoes/{importacao}/cancelar', [PcaImportacaoController::class, 'cancelar'])->name('pca.importacoes.cancelar');
         });
         Route::post('/pca/{plano}/aprovar', [PcaController::class, 'aprovar'])->middleware('can:pca.aprovar')->name('pca.aprovar');
+        Route::get('/pca/{plano}/exportar/{formato}', [ExportacaoController::class, 'pca'])->middleware(['can:pca.ver', 'throttle:20,1'])->whereIn('formato', ['xlsx', 'docx', 'csv'])->name('pca.exportar');
         Route::get('/pca/{plano}/versoes', [PcaController::class, 'versoes'])->middleware('can:pca.ver')->name('pca.versoes');
         Route::post('/pca/{plano}/revisao', [PcaController::class, 'abrirRevisao'])->middleware('can:pca.gerenciar')->name('pca.revisao.abrir');
         Route::post('/pca/{plano}/revisao/descartar', [PcaController::class, 'descartarRevisao'])->middleware('can:pca.gerenciar')->name('pca.revisao.descartar');
@@ -140,6 +142,8 @@ Route::middleware(['auth', 'ativo'])->group(function () {
 
         // Processos
         Route::get('/processos', [ProcessoController::class, 'index'])->middleware('can:processos.ver')->name('processos.index');
+        Route::get('/processos/exportar.xlsx', [ExportacaoController::class, 'processos'])->middleware(['can:processos.ver', 'throttle:10,1'])->name('processos.exportar');
+        Route::get('/processos/{processo}/documentos/{tipo}/docx', [ExportacaoController::class, 'peca'])->middleware(['can:processos.ver', 'throttle:20,1'])->name('documentos.docx');
         Route::middleware('can:processos.gerenciar')->group(function () {
             Route::get('/processos/novo', [ProcessoController::class, 'create'])->name('processos.create');
             Route::post('/processos', [ProcessoController::class, 'store'])->name('processos.store');
@@ -317,6 +321,7 @@ Route::middleware(['auth', 'ativo'])->group(function () {
 
         // Contratos
         Route::get('/contratos', [ContratoController::class, 'index'])->middleware('can:contratos.ver')->name('contratos.index');
+        Route::get('/contratos/exportar.xlsx', [ExportacaoController::class, 'contratos'])->middleware(['can:contratos.ver', 'throttle:10,1'])->name('contratos.exportar');
         Route::middleware('can:contratos.gerenciar')->group(function () {
             Route::get('/contratos/novo', [ContratoController::class, 'create'])->name('contratos.create');
             Route::post('/contratos', [ContratoController::class, 'store'])->name('contratos.store');

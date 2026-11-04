@@ -7,6 +7,16 @@
             @if ($plano->aprovado_em)<p class="sub">Aprovado por {{ $plano->aprovador?->name }} em {{ $plano->aprovado_em->format('d/m/Y H:i') }}.</p>@endif
         </div>
         <div class="btns">
+            @if ($itens->isNotEmpty())
+                <details class="menu-exportar" style="position:relative">
+                    <summary class="btn btn-s" style="list-style:none;cursor:pointer"><x-icone nome="download" />Exportar</summary>
+                    <div class="card" style="position:absolute;right:0;z-index:5;min-width:200px;padding:8px;display:flex;flex-direction:column;gap:4px">
+                        <a href="{{ route('pca.exportar', [$plano, 'xlsx']) }}">Planilha (XLSX)</a>
+                        <a href="{{ route('pca.exportar', [$plano, 'docx']) }}">Documento (DOCX)</a>
+                        <a href="{{ route('pca.exportar', [$plano, 'csv']) }}">Dados (CSV)</a>
+                    </div>
+                </details>
+            @endif
             @if ($plano->versao_atual > 0 || $plano->emRevisao())
                 <a href="{{ route('pca.versoes', $plano) }}" class="btn btn-s"><x-icone nome="relogio" />Versões e alterações</a>
             @endif

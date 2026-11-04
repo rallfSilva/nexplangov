@@ -4,7 +4,10 @@
             <h1 class="h1">Processos de contratação</h1>
             <p class="sub">Licitações e contratações diretas, da fase preparatória ao contrato.</p>
         </div>
-        @can('processos.gerenciar')<a href="{{ route('processos.create') }}" class="btn btn-p"><x-icone nome="mais" />Novo processo</a>@endcan
+        <div class="btns">
+            <a href="{{ route('processos.exportar', request()->only(['busca', 'situacao', 'modalidade'])) }}" class="btn btn-s"><x-icone nome="planilha" />Exportar XLSX</a>
+            @can('processos.gerenciar')<a href="{{ route('processos.create') }}" class="btn btn-p"><x-icone nome="mais" />Novo processo</a>@endcan
+        </div>
     </div>
 
     <form method="GET" class="card filtros" role="search">

@@ -145,3 +145,10 @@ Publicação do edital ou aviso de contratação direta enfileira a compra; homo
 - **Número de item não volta**: item excluído não tem o número reaproveitado (`VersoesPca::proximoNumero`), para o histórico e o PNCP não confundirem itens diferentes.
 - **O que mudou**: a tela "Versões e alterações" compara quaisquer duas versões (ou a vigente com a revisão em andamento) e mostra itens incluídos, excluídos e alterados, campo a campo, e a variação do valor total. A regra pura de comparação fica em `App\Licitacao\Regras\VersoesPca` (testada em `tests/Unit/Lei14133/VersoesPcaTest.php`).
 - Depois de aprovar a nova versão, use "Atualizar no PNCP" para publicar o plano revisado.
+
+## Exportações editáveis (XLSX, DOCX e CSV)
+
+- **PCA**: menu "Exportar" na tela do plano. XLSX com as abas Itens, Por categoria, Por unidade e Versões (quando houver); DOCX com resumo e tabela de itens, pronto para divulgação (art. 12, § 1º); CSV em UTF-8 com `;`.
+- **Peças do processo**: botão "Baixar em Word (DOCX)" em cada peça feita no editor (DFD, ETP, TR, mapa de riscos, edital, minuta...), com todos os campos, as assinaturas registradas e o SHA-256 da peça. É cópia de trabalho: a peça com validade é a do sistema.
+- **Listas**: processos (com os filtros da tela) e contratos em XLSX.
+- **Segurança**: textos sempre gravados como texto na planilha (um `=HYPERLINK(...)` vindo de um campo nunca vira fórmula); no CSV, células que começam com `=`, `+`, `-` ou `@` ganham apóstrofo. Toda exportação entra na trilha de auditoria (evento `exportacao`) e respeita o isolamento do órgão e as permissões de cada tela.

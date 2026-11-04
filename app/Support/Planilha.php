@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use OpenSpout\Common\Entity\Cell;
+use OpenSpout\Common\Entity\Cell\StringCell;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Common\Entity\Style\Style;
 use OpenSpout\Writer\XLSX\Writer;
@@ -41,7 +42,8 @@ final class Planilha
                 $escritor->addRow(new Row(array_map(function ($v) use ($data) {
                     $v = self::celula($v);
 
-                    return Cell::fromValue($v, $v instanceof \DateTimeInterface ? $data : null);
+                    // Texto sempre como texto: "=HYPERLINK(...)" vindo de um campo nunca vira fórmula.
+                    return is_string($v) ? new StringCell($v, null) : Cell::fromValue($v, $v instanceof \DateTimeInterface ? $data : null);
                 }, array_values($linha))));
             }
         }
