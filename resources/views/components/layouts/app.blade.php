@@ -66,6 +66,9 @@
             @can('exportacoes.gerar')
                 <a href="{{ route('integracoes.index') }}" class="{{ $nav('integracoes.*') }}"><x-icone nome="api" />Integrações</a>
             @endcan
+            @can('devolucao.gerar')
+                <a href="{{ route('devolucao.index') }}" class="{{ $nav('devolucao.*') }}"><x-icone nome="pasta" />Devolução de dados</a>
+            @endcan
             @can('governanca.ver')
                 <a href="{{ route('governanca') }}" class="{{ $nav('governanca') }}"><x-icone nome="balanca" />Governança</a>
             @endcan
