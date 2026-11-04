@@ -20,9 +20,9 @@ class EnvioPncp extends Model
         'ata' => 'Ata de registro de preços', 'pca' => 'PCA', 'arquivo_contrato' => 'Contrato assinado (PDF)', 'arquivo_ata' => 'Ata (PDF)',
     ];
 
-    public const AMBIENTES = ['producao' => 'Produção', 'homologacao' => 'Homologação', 'treinamento' => 'Treinamento'];
+    public const AMBIENTES = ['producao' => 'Produção', 'homologacao' => 'Homologação', 'treinamento' => 'Treinamento (registro antigo)'];
 
-    public const ESTADOS = ['pendente' => 'Na fila', 'enviando' => 'Enviando', 'publicado' => 'Publicado', 'simulado' => 'Simulado (treinamento)', 'erro' => 'Com erro'];
+    public const ESTADOS = ['pendente' => 'Na fila', 'enviando' => 'Enviando', 'publicado' => 'Publicado', 'simulado' => 'Simulado (registro antigo)', 'erro' => 'Com erro'];
 
     protected function casts(): array
     {

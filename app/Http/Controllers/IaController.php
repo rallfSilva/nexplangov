@@ -21,9 +21,6 @@ class IaController extends Controller
         $d = $request->validate(['acao' => ['required', 'in:sugerir,revisar'], 'campo' => ['required_if:acao,sugerir', 'nullable', 'string', 'max:60'], 'conteudo' => ['nullable', 'array'], 'conteudo.*' => ['nullable', 'string', 'max:20000']]);
         $u = $request->user();
 
-        if ($processo->orgao?->treinamento && ! AssistenteIa::habilitadaPara($processo->orgao)) {
-            return response()->json(['erro' => 'A NexMind IA não está liberada nas turmas de treinamento.'], 422);
-        }
         if (! $this->fluxo->podeElaborar($u, $processo, $tipo)) {
             return response()->json(['erro' => 'Você não pode elaborar esta peça agora.'], 403);
         }

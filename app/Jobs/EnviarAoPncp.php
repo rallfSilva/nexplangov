@@ -34,7 +34,7 @@ class EnviarAoPncp implements ShouldQueue
     {
         $envio = EnvioPncp::withoutGlobalScopes()->find($this->envioId);
 
-        // Envio de turma de treinamento nunca sai do sistema.
+        // Registro antigo das turmas de treinamento (recurso removido): nunca sai do sistema.
         if (! $envio || $envio->estado === 'publicado' || $envio->ambiente === 'treinamento') {
             return;
         }
