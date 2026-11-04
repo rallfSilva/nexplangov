@@ -95,6 +95,43 @@
         @endcan
     </div>
 
+    @can('pca.gerenciar')
+        <section class="card">
+            <div class="row">
+                <div>
+                    <h2>Importar planilha</h2>
+                    <p class="hint">Inclua muitos itens de uma vez, a partir de planilha XLSX ou CSV. Antes de gravar, você confere cada linha, com erros e duplicidades apontados.</p>
+                </div>
+                <a href="{{ route('pca.importacoes.modelo', $plano) }}" class="btn btn-s"><x-icone nome="download" />Baixar modelo</a>
+            </div>
+            @if ($plano->editavel())
+                <form method="POST" action="{{ route('pca.importacoes.store', $plano) }}" enctype="multipart/form-data" class="form-grid" style="margin-top:12px">
+                    @csrf
+                    <div class="campo full"><label for="arquivo-pca">Planilha (.xlsx ou .csv, até 5 MB e {{ \App\Licitacao\Pca\PlanilhaPca::MAX_LINHAS }} itens)</label><input id="arquivo-pca" type="file" name="arquivo" class="input" accept=".xlsx,.csv" required>@error('arquivo')<span class="erro">{{ $message }}</span>@enderror</div>
+                    <div class="full form-acoes"><button class="btn btn-p" type="submit"><x-icone nome="planilha" />Ler planilha</button></div>
+                </form>
+            @else
+                <p class="muted small" style="margin-top:8px">O plano aprovado não recebe itens diretamente.</p>
+            @endif
+            @if ($importacoes->isNotEmpty())
+                <div class="tbl-wrap" style="margin-top:14px"><table class="tbl">
+                    <thead><tr><th>Arquivo</th><th>Enviada em</th><th>Situação</th><th class="num">Itens</th><th class="acoes"><span class="sr-only">Ações</span></th></tr></thead>
+                    <tbody>
+                        @foreach ($importacoes as $imp)
+                            <tr>
+                                <td>{{ $imp->arquivo_nome }}<div class="muted small">{{ $imp->usuario?->name }}</div></td>
+                                <td>{{ $imp->created_at->format('d/m/Y H:i') }}</td>
+                                <td><span class="b {{ $imp->pendente() ? 'b-info' : ($imp->situacao === 'confirmada' ? 'b-ok' : 'b-mute') }}">{{ \App\Models\ImportacaoPca::SITUACOES[$imp->situacao] }}</span></td>
+                                <td class="num">{{ $imp->situacao === 'confirmada' ? $imp->importadas : $imp->validas }} de {{ $imp->total_linhas }}</td>
+                                <td class="acoes"><a href="{{ route('pca.importacoes.show', [$plano, $imp]) }}" class="btn btn-s btn-sm"><x-icone nome="olho" tamanho="16" /><span class="sr-only">Ver importação de {{ $imp->arquivo_nome }}</span></a></td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table></div>
+            @endif
+        </section>
+    @endcan
+
     <div class="card card-flush">
         <div class="tbl-wrap">
             <table class="tbl">

@@ -2,11 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Licitacao\Enums\CategoriaProcesso;
+use App\Licitacao\Pca\RegrasItemPca;
 use App\Models\ItemPca;
 use App\Models\PlanoContratacao;
 use App\Models\Unidade;
-use App\Rules\CodigoDeCatalogo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -45,6 +44,7 @@ class PcaController extends Controller
             'porCategoria' => $itens->groupBy('categoria')->map(fn ($g) => ['qtd' => $g->count(), 'valor' => (float) $g->sum('valor_total_estimado')])->sortByDesc('valor'),
             'unidades' => Unidade::where('ativo', true)->orderBy('sigla')->get(),
             'editando' => $request->integer('item') ? $itens->firstWhere('id', $request->integer('item')) : null,
+            'importacoes' => $plano->importacoes()->with('usuario')->limit(10)->get(),
         ]);
     }
 
@@ -61,25 +61,13 @@ class PcaController extends Controller
             'valor_unitario_estimado' => decimal_br($request->input('valor_unitario_estimado')),
         ]);
 
-        $dados = $request->validate([
-            'material_servico' => ['required', Rule::in(['M', 'S'])],
-            'categoria' => ['required', Rule::enum(CategoriaProcesso::class)],
-            'codigo_catalogo' => ['nullable', 'string', 'max:20', 'regex:/^[0-9]+$/', new CodigoDeCatalogo($request->input('material_servico'))],
-            'descricao' => ['required', 'string', 'max:2000'],
-            'unidade_fornecimento' => ['required', 'string', 'max:30'],
-            'quantidade' => ['required', 'numeric', 'gt:0'],
-            'valor_unitario_estimado' => ['required', 'numeric', 'gt:0'],
-            'unidade_id' => ['nullable', 'integer', Rule::exists('unidades', 'id')->where('orgao_id', $plano->orgao_id)],
-            'data_desejada' => ['nullable', 'date'],
-            'prioridade' => ['required', Rule::in([1, 2, 3])],
-            'natureza_despesa' => ['nullable', 'string', 'max:40'],
-        ], ['codigo_catalogo.regex' => 'Use só os números do código CATMAT ou CATSER.']);
+        $dados = $request->validate(RegrasItemPca::regras($plano->orgao_id, $request->input('material_servico')), RegrasItemPca::mensagens());
 
         if ($item) {
             $item->update($dados);
             $msg = "Item {$item->numero} atualizado.";
         } else {
-            $item = $plano->itens()->create($dados + ['orgao_id' => $plano->orgao_id, 'numero' => ((int) $plano->itens()->max('numero')) + 1]);
+            $item = $plano->itens()->create($dados + ['orgao_id' => $plano->orgao_id, 'numero' => $plano->proximoNumeroItem()]);
             $msg = "Item {$item->numero} incluído no PCA.";
         }
 

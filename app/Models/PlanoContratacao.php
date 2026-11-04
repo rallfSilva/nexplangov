@@ -39,6 +39,17 @@ class PlanoContratacao extends Model
         return $this->situacao !== 'aprovado';
     }
 
+    public function importacoes(): HasMany
+    {
+        return $this->hasMany(ImportacaoPca::class)->latest();
+    }
+
+    /** Próximo número de item: nunca reaproveita número já usado no plano. */
+    public function proximoNumeroItem(): int
+    {
+        return ((int) $this->itens()->max('numero')) + 1;
+    }
+
     public function valorTotal(): float
     {
         return (float) $this->itens()->sum('valor_total_estimado');
