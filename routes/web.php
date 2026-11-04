@@ -9,6 +9,7 @@ use App\Http\Controllers\CicloContratoController;
 use App\Http\Controllers\ConfiguracaoController;
 use App\Http\Controllers\ContratoController;
 use App\Http\Controllers\DemandaController;
+use App\Http\Controllers\DevolucaoDadosController;
 use App\Http\Controllers\DispensaController;
 use App\Http\Controllers\DocumentoProcessoController;
 use App\Http\Controllers\ExportacaoController;
@@ -109,6 +110,11 @@ Route::middleware(['auth', 'ativo'])->group(function () {
         });
         Route::get('/processos/{processo}/dossie', [IntegracaoController::class, 'dossie'])->middleware(['can:processos.ver', 'throttle:10,1'])->name('processos.dossie');
         Route::patch('/processos/{processo}/sei', [IntegracaoController::class, 'numeroSei'])->middleware('can:processos.gerenciar')->name('processos.sei');
+        Route::middleware('can:devolucao.gerar')->group(function () {
+            Route::get('/devolucao-de-dados', [DevolucaoDadosController::class, 'index'])->name('devolucao.index');
+            Route::post('/devolucao-de-dados', [DevolucaoDadosController::class, 'store'])->middleware('throttle:5,1')->name('devolucao.store');
+            Route::get('/devolucao-de-dados/{pacote}/baixar', [DevolucaoDadosController::class, 'baixar'])->middleware('throttle:10,1')->name('devolucao.baixar');
+        });
         Route::get('/master', MasterController::class)->middleware('can:master.ver')->name('master');
 
         // PCA (art. 12, VII)

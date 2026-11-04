@@ -152,3 +152,10 @@ Publicação do edital ou aviso de contratação direta enfileira a compra; homo
 - **Peças do processo**: botão "Baixar em Word (DOCX)" em cada peça feita no editor (DFD, ETP, TR, mapa de riscos, edital, minuta...), com todos os campos, as assinaturas registradas e o SHA-256 da peça. É cópia de trabalho: a peça com validade é a do sistema.
 - **Listas**: processos (com os filtros da tela) e contratos em XLSX.
 - **Segurança**: textos sempre gravados como texto na planilha (um `=HYPERLINK(...)` vindo de um campo nunca vira fórmula); no CSV, células que começam com `=`, `+`, `-` ou `@` ganham apóstrofo. Toda exportação entra na trilha de auditoria (evento `exportacao`) e respeita o isolamento do órgão e as permissões de cada tela.
+
+## Devolução de dados do órgão (fim do contrato)
+
+- **Quem gera**: administrador do órgão (permissão `devolucao.gerar`); o administrador-geral escolhe o órgão. A tela fica em Administração › Devolução de dados.
+- **O que vai no pacote (ZIP)**: todas as tabelas do órgão em CSV (UTF-8 com BOM, `;`) e JSONL, o cadastro do órgão, os perfis dos usuários e todos os arquivos enviados (anexos, peças, comprovantes). Inclui `LEIA-ME.txt` e `manifesto.json` com o SHA-256 de cada parte, para o órgão conferir a integridade.
+- **O que não vai**: senhas, tokens, segredos de dois fatores e as colunas `*_hash` de busca. CPFs e demais campos cifrados saem decifrados, porque o dado pertence ao órgão (controlador, LGPD art. 18, V); o LEIA-ME alerta para guardar o pacote com o mesmo cuidado.
+- **Geração em fila** (`GerarPacoteDevolucao`); um pedido por vez. O pacote fica disponível por 7 dias e depois é apagado pela rotina diária `nexplangov:devolucao-limpar`. Pedido, geração e download entram na trilha de auditoria.

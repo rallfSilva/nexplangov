@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 // Resumo diário de prazos por e-mail (o servidor precisa rodar `php artisan schedule:run` a cada minuto).
 Schedule::command('nexplangov:alertas')->dailyAt('07:00')->timezone('America/Sao_Paulo')->withoutOverlapping();
+
+// Pacotes de devolução de dados vencidos: o arquivo sai do armazenamento, o registro fica.
+Schedule::command('nexplangov:devolucao-limpar')->dailyAt('03:10')->timezone('America/Sao_Paulo')->withoutOverlapping();
