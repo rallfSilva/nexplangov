@@ -19,17 +19,25 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  * Processo de contratação: licitação ou contratação direta. A situação só muda pela
  * App\Licitacao\TramitacaoProcesso, que aplica as regras da Lei 14.133.
  */
-#[Fillable(['orgao_id', 'unidade_id', 'demanda_id', 'item_pca_id', 'justificativa_fora_pca', 'responsavel_id', 'fluxo_id', 'numero', 'ano', 'numero_compra', 'numero_sei', 'objeto', 'modalidade', 'amparo_legal', 'criterio_julgamento', 'modo_disputa', 'categoria', 'srp', 'orcamento_sigiloso', 'com_disputa', 'natureza_despesa', 'abertura_propostas_em', 'encerramento_propostas_em'])]
+#[Fillable(['orgao_id', 'unidade_id', 'unidade_atual_id', 'demanda_id', 'item_pca_id', 'justificativa_fora_pca', 'responsavel_id', 'fluxo_id', 'numero', 'ano', 'numero_compra', 'numero_sei', 'objeto', 'modalidade', 'amparo_legal', 'criterio_julgamento', 'modo_disputa', 'categoria', 'srp', 'orcamento_sigiloso', 'com_disputa', 'natureza_despesa', 'abertura_propostas_em', 'encerramento_propostas_em'])]
 class Processo extends Model
 {
     use Auditable, BelongsToOrgao;
+
+    protected static function booted(): void
+    {
+        // O processo nasce na unidade que o abriu.
+        static::creating(function (Processo $p) {
+            $p->unidade_atual_id ??= $p->unidade_id;
+        });
+    }
 
     protected function casts(): array
     {
         return [
             'srp' => 'boolean', 'orcamento_sigiloso' => 'boolean', 'com_disputa' => 'boolean',
             'valor_estimado' => 'decimal:2', 'valor_homologado' => 'decimal:2',
-            'abertura_propostas_em' => 'datetime', 'encerramento_propostas_em' => 'datetime', 'sessao_encerrada_em' => 'datetime',
+            'abertura_propostas_em' => 'datetime', 'encerramento_propostas_em' => 'datetime', 'sessao_encerrada_em' => 'datetime', 'arquivado_em' => 'datetime',
             'modalidade' => 'integer', 'amparo_legal' => 'integer', 'criterio_julgamento' => 'integer', 'modo_disputa' => 'integer', 'categoria' => 'integer',
         ];
     }
@@ -134,6 +142,27 @@ class Processo extends Model
     public function eventos(): HasMany
     {
         return $this->hasMany(EventoProcesso::class)->latest('id');
+    }
+
+    /** Unidade onde os autos estão agora. */
+    public function unidadeAtual(): BelongsTo
+    {
+        return $this->belongsTo(Unidade::class, 'unidade_atual_id');
+    }
+
+    public function tramites(): HasMany
+    {
+        return $this->hasMany(TramiteProcesso::class)->orderBy('enviado_em')->orderBy('id');
+    }
+
+    public function remessaPendente(): ?TramiteProcesso
+    {
+        return $this->tramites()->where('tipo', 'remessa')->whereNull('recebido_em')->whereNull('cancelado_em')->first();
+    }
+
+    public function arquivado(): bool
+    {
+        return $this->arquivado_em !== null;
     }
 
     /** Processo do qual este foi duplicado. */

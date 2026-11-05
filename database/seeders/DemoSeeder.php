@@ -86,10 +86,17 @@ class DemoSeeder extends Seeder
 
         $gab = $this->unidade($pm, 'GAB', 'Gabinete do Prefeito', 'gabinete', null, $u['autoridade'], '1');
         $semad = $this->unidade($pm, 'SEMAD', 'Secretaria Municipal de Administração', 'secretaria_adjunta', $gab, $u['planejamento'], '2');
-        $this->unidade($pm, 'PGM', 'Procuradoria-Geral do Município', 'assessoria', $gab, $u['juridico'], null);
+        $pgm = $this->unidade($pm, 'PGM', 'Procuradoria-Geral do Município', 'assessoria', $gab, $u['juridico'], null);
         $semed = $this->unidade($pm, 'SEMED', 'Secretaria Municipal de Educação', 'secretaria_adjunta', $gab, $u['requisitante'], '3');
         $semus = $this->unidade($pm, 'SEMUS', 'Secretaria Municipal de Saúde', 'secretaria_adjunta', $gab, null, '4');
         $this->unidade($camara, 'MESA', 'Mesa Diretora', 'gabinete', null, null, '1');
+
+        // Lotação de cada pessoa, para a tramitação entre unidades.
+        foreach (['autoridade' => $gab, 'planejamento' => $semad, 'agente-contratacao' => $semad, 'juridico' => $pgm, 'gestor-contrato' => $semad, 'gestor-contrato2' => $semad, 'requisitante' => $semed, 'auditor' => $gab] as $perfil => $unidade) {
+            if (isset($u[$perfil])) {
+                $u[$perfil]->forceFill(['unidade_id' => $unidade->id])->save();
+            }
+        }
 
         if (Processo::withoutGlobalScopes()->where('orgao_id', $pm->id)->exists()) {
             return; // já semeado

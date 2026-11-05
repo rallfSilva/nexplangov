@@ -21,6 +21,9 @@
         <nav class="nav">
             <span class="cap">Visão geral</span>
             <a href="{{ route('painel') }}" class="{{ $nav('painel') }}"><x-icone nome="painel" />Painel</a>
+            @can('processos.tramitar')
+                <a href="{{ route('tramitacao.meus') }}" class="{{ $nav('tramitacao.*') }}"><x-icone nome="pasta" />Meus processos</a>
+            @endcan
 
             <span class="cap">Planejamento</span>
             @can('pca.ver')

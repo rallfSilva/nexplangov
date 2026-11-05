@@ -14,7 +14,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['orgao_id', 'name', 'email', 'cpf', 'password', 'ativo'])]
+#[Fillable(['orgao_id', 'unidade_id', 'name', 'email', 'cpf', 'password', 'ativo'])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])]
 class User extends Authenticatable
 {
@@ -48,6 +48,30 @@ class User extends Authenticatable
     public function orgao(): BelongsTo
     {
         return $this->belongsTo(Orgao::class);
+    }
+
+    /** Unidade de lotação. */
+    public function unidade(): BelongsTo
+    {
+        return $this->belongsTo(Unidade::class);
+    }
+
+    /** Unidades em que a pessoa atua: a de lotação e as que chefia. */
+    public function unidadesDeAtuacao(): array
+    {
+        $chefiadas = Unidade::where('chefe_user_id', $this->id)->pluck('id')->all();
+
+        return array_values(array_unique(array_filter([$this->unidade_id, ...$chefiadas])));
+    }
+
+    /** Pode receber, enviar e arquivar processos na unidade? Lotação, chefia ou administração do órgão. */
+    public function atuaNaUnidade(?int $unidadeId): bool
+    {
+        if ($unidadeId === null) {
+            return false;
+        }
+
+        return $this->ehAdministradorGeral() || $this->hasRole('administrador-orgao') || in_array($unidadeId, $this->unidadesDeAtuacao(), true);
     }
 
     public function ehAdministradorGeral(): bool

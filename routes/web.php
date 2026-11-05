@@ -39,6 +39,7 @@ use App\Http\Controllers\ProcessoController;
 use App\Http\Controllers\RequisicaoController;
 use App\Http\Controllers\SancaoController;
 use App\Http\Controllers\SegurancaController;
+use App\Http\Controllers\TramiteController;
 use App\Http\Controllers\UnidadeController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\ValidacaoAssinaturaController;
@@ -172,6 +173,14 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::delete('/processos/{processo}/cotacoes/{cotacao}', [ItemProcessoController::class, 'excluirCotacao'])->name('processos.cotacoes.destroy');
         });
         Route::get('/processos/{processo}', [ProcessoController::class, 'show'])->middleware('can:processos.ver')->name('processos.show');
+        Route::middleware('can:processos.tramitar')->group(function () {
+            Route::get('/meus-processos', [TramiteController::class, 'meus'])->name('tramitacao.meus');
+            Route::post('/processos/{processo}/tramites', [TramiteController::class, 'enviar'])->name('tramitacao.enviar');
+            Route::post('/processos/{processo}/tramites/{tramite}/receber', [TramiteController::class, 'receber'])->name('tramitacao.receber');
+            Route::post('/processos/{processo}/tramites/{tramite}/cancelar', [TramiteController::class, 'cancelar'])->name('tramitacao.cancelar');
+            Route::post('/processos/{processo}/arquivar', [TramiteController::class, 'arquivar'])->name('tramitacao.arquivar');
+            Route::post('/processos/{processo}/desarquivar', [TramiteController::class, 'desarquivar'])->name('tramitacao.desarquivar');
+        });
         Route::post('/processos/{processo}/anotacoes', [AnotacaoProcessoController::class, 'store'])->middleware('can:processos.ver')->name('processos.anotacoes.store');
         Route::put('/processos/{processo}/anotacoes/{anotacao}', [AnotacaoProcessoController::class, 'update'])->middleware('can:processos.ver')->name('processos.anotacoes.update');
         Route::delete('/processos/{processo}/anotacoes/{anotacao}', [AnotacaoProcessoController::class, 'destroy'])->middleware('can:processos.ver')->name('processos.anotacoes.destroy');

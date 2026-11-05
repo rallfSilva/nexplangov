@@ -8,14 +8,15 @@
     $pos = array_search($sit, $fluxo, true);
     $cumpridos = collect($checklist)->where('cumprido', true)->count();
     $podeInstruir = auth()->user()->can('processos.gerenciar') && $processo->editavel();
-    $abas = ['resumo' => 'Resumo', 'instrucao' => 'Instrução ('.$cumpridos.'/'.count($checklist).')', 'itens' => 'Itens e preços', 'resultado' => 'Resultado', 'historico' => 'Histórico', 'pncp' => 'PNCP', 'anotacoes' => 'Anotações internas'.($totalAnotacoes ? ' ('.$totalAnotacoes.')' : '')];
+    $abas = ['resumo' => 'Resumo', 'instrucao' => 'Instrução ('.$cumpridos.'/'.count($checklist).')', 'itens' => 'Itens e preços', 'resultado' => 'Resultado', 'historico' => 'Histórico', 'pncp' => 'PNCP', 'tramitacao' => 'Tramitação', 'anotacoes' => 'Anotações internas'.($totalAnotacoes ? ' ('.$totalAnotacoes.')' : '')];
 @endphp
 <x-layouts.app :titulo="'Processo '.$processo->identificacao()">
     <div class="row">
         <div style="min-width:0">
             <a href="{{ route('processos.index') }}" class="small" style="font-weight:600;display:inline-flex;gap:4px;align-items:center"><x-icone nome="voltar" tamanho="16" />Processos</a>
             <h1 class="h1" style="margin-top:8px">Processo {{ $processo->identificacao() }} <span class="b {{ $sit->badge() }}" style="vertical-align:middle">{{ $sit->rotulo() }}</span></h1>
-            <p class="sub">{{ $processo->modalidadeEnum()->rotulo() }} · {{ $processo->amparoEnum()->rotulo() }} · {{ $processo->categoriaEnum()->rotulo() }}</p>
+            <p class="sub">{{ $processo->modalidadeEnum()->rotulo() }} · {{ $processo->amparoEnum()->rotulo() }} · {{ $processo->categoriaEnum()->rotulo() }}
+                · <a href="{{ route('processos.show', [$processo, 'aba' => 'tramitacao']) }}">@if ($processo->arquivado())<span class="b b-mute">arquivado em {{ $processo->unidadeAtual?->sigla }}</span>@elseif ($remessaPendente)<span class="b b-warn">em trânsito para {{ $remessaPendente->destino?->sigla }}</span>@else está em {{ $processo->unidadeAtual?->sigla ?? 'unidade não informada' }} @endif</a></p>
         </div>
         <div class="btns">
             @if ($podeInstruir)<a href="{{ route('processos.edit', $processo) }}" class="btn btn-s"><x-icone nome="editar" />Editar dados</a>@endif
@@ -303,6 +304,125 @@
                     <div class="ev"><span class="ponto"></span><div><b>{{ $e->rotuloPara() }}</b><div class="small muted">{{ $e->usuario?->name ?? 'Sistema' }} · {{ $e->created_at->format('d/m/Y H:i') }}</div>@if ($e->justificativa)<p style="margin:6px 0 0" class="small">{{ $e->justificativa }}</p>@endif</div></div>
                 @empty
                     <p class="muted">Ainda na fase preparatória, sem passagens registradas.</p>
+                @endforelse
+            </div>
+        </section>
+    @endif
+
+    @if ($aba === 'tramitacao')
+        @php($eu = auth()->user())
+        @php($podeTramitar = $eu->can('processos.tramitar'))
+        @php($naMinha = $eu->atuaNaUnidade($processo->unidade_atual_id))
+        @php($siglas = \App\Models\Unidade::pluck('sigla', 'id'))
+        @php($nomes = \App\Models\User::whereIn('id', collect($periodos)->pluck('responsavel')->filter())->pluck('name', 'id'))
+        <div class="g2">
+            <section class="card">
+                <h2>Onde o processo está</h2>
+                <dl class="dados">
+                    <div><dt>Unidade atual</dt><dd>{{ $processo->unidadeAtual ? $processo->unidadeAtual->sigla.' · '.$processo->unidadeAtual->nome : '—' }}</dd></div>
+                    <div><dt>Situação dos autos</dt><dd>
+                        @if ($processo->arquivado())<span class="b b-mute">Arquivado em {{ $processo->arquivado_em->format('d/m/Y') }}</span>
+                        @elseif ($remessaPendente)<span class="b b-warn">Em trânsito para {{ $remessaPendente->destino?->sigla }} desde {{ $remessaPendente->enviado_em->format('d/m/Y H:i') }}</span>
+                        @else<span class="b b-ok">Na unidade</span>@endif
+                    </dd></div>
+                    <div><dt>Unidade de origem</dt><dd>{{ $processo->unidade?->sigla ?? '—' }}</dd></div>
+                </dl>
+                @if ($podeTramitar && $remessaPendente)
+                    <div class="btns" style="margin-top:14px">
+                        @if ($eu->atuaNaUnidade($remessaPendente->unidade_destino_id))
+                            <form method="POST" action="{{ route('tramitacao.receber', [$processo, $remessaPendente]) }}">@csrf<button type="submit" class="btn btn-p btn-sm">Receber na {{ $remessaPendente->destino?->sigla }}</button></form>
+                        @endif
+                        @if ($remessaPendente->enviado_por === $eu->id || $eu->atuaNaUnidade($remessaPendente->unidade_origem_id))
+                            <details><summary class="btn btn-s btn-sm">Cancelar remessa</summary>
+                                <form method="POST" action="{{ route('tramitacao.cancelar', [$processo, $remessaPendente]) }}" style="margin-top:8px">@csrf
+                                    <label for="motivo-cancelamento" class="small">Motivo (antes do recebimento)</label>
+                                    <textarea id="motivo-cancelamento" name="motivo" class="input" rows="2" maxlength="2000" required></textarea>
+                                    <button type="submit" class="btn btn-d btn-sm" style="margin-top:6px">Cancelar a remessa</button>
+                                </form>
+                            </details>
+                        @endif
+                    </div>
+                @endif
+            </section>
+
+            @if ($podeTramitar && ! $remessaPendente)
+                <section class="card">
+                    @if ($processo->arquivado())
+                        <h2>Desarquivar</h2>
+                        @if ($naMinha)
+                            <form method="POST" action="{{ route('tramitacao.desarquivar', $processo) }}">@csrf
+                                <x-campo nome="motivo" rotulo="Por que o processo volta a tramitar" :obrigatorio="true"><textarea id="campo-motivo" name="motivo" class="input" rows="3" maxlength="2000" required>{{ old('motivo') }}</textarea></x-campo>
+                                <button type="submit" class="btn btn-s btn-sm" style="margin-top:8px">Desarquivar</button>
+                            </form>
+                        @else
+                            <p class="muted small">Só quem está lotado na unidade onde o processo foi arquivado pode desarquivá-lo.</p>
+                        @endif
+                    @elseif ($naMinha)
+                        <h2>Enviar a outra unidade</h2>
+                        <form method="POST" action="{{ route('tramitacao.enviar', $processo) }}">@csrf
+                            <x-campo nome="unidade_destino_id" rotulo="Unidade de destino" :obrigatorio="true">
+                                <select id="campo-unidade_destino_id" name="unidade_destino_id" class="input" required>
+                                    <option value="">Escolha</option>
+                                    @foreach ($unidadesAtivas as $un)
+                                        @continue($un->id === $processo->unidade_atual_id)
+                                        <option value="{{ $un->id }}" @selected((int) old('unidade_destino_id', $sugestaoDestino ?? 0) === $un->id)>{{ $un->sigla }} · {{ $un->nome }}@if (($sugestaoDestino ?? null) === $un->id) (próxima do roteiro) @endif</option>
+                                    @endforeach
+                                </select>
+                            </x-campo>
+                            <x-campo nome="despacho" rotulo="Despacho" :obrigatorio="true"><textarea id="campo-despacho" name="despacho" class="input" rows="3" maxlength="5000" required placeholder="Ex.: encaminho para análise e parecer jurídico (art. 53).">{{ old('despacho') }}</textarea></x-campo>
+                            <button type="submit" class="btn btn-p btn-sm" style="margin-top:8px"><x-icone nome="enviar" tamanho="16" />Enviar</button>
+                        </form>
+                        @if ($processo->situacaoEnum()->encerrado())
+                            <details style="margin-top:16px"><summary class="small" style="cursor:pointer;font-weight:600">Arquivar na unidade</summary>
+                                <form method="POST" action="{{ route('tramitacao.arquivar', $processo) }}" style="margin-top:8px">@csrf
+                                    <label for="despacho-arquivo" class="small">Despacho de arquivamento</label>
+                                    <textarea id="despacho-arquivo" name="despacho" class="input" rows="2" maxlength="5000" required></textarea>
+                                    <button type="submit" class="btn btn-s btn-sm" style="margin-top:6px">Arquivar</button>
+                                </form>
+                            </details>
+                        @endif
+                    @else
+                        <h2>Enviar a outra unidade</h2>
+                        <p class="muted small">O processo está em {{ $processo->unidadeAtual?->sigla ?? 'outra unidade' }}. Só quem está lotado lá pode enviá-lo ou arquivá-lo.</p>
+                    @endif
+                </section>
+            @endif
+        </div>
+
+        <section class="card">
+            <h2>Tempo de permanência</h2>
+            <p class="hint">Do recebimento até a saída de cada unidade, com quem recebeu. O tempo em trânsito vai do envio ao recebimento.</p>
+            <div class="tbl-wrap">
+                <table class="tbl">
+                    <thead><tr><th>Onde</th><th>Desde</th><th>Até</th><th>Responsável</th><th class="num">Dias</th></tr></thead>
+                    <tbody>
+                        @foreach ($periodos as $per)
+                            <tr>
+                                <td>@if ($per['transito'])<span class="b b-warn">Em trânsito</span>@else{{ $siglas[$per['unidade']] ?? '—' }}@endif</td>
+                                <td>{{ $per['inicio']->format('d/m/Y H:i') }}</td>
+                                <td>{{ $per['fim']?->format('d/m/Y H:i') ?? 'agora' }}</td>
+                                <td>{{ $per['responsavel'] ? ($nomes[$per['responsavel']] ?? '—') : '—' }}</td>
+                                <td class="num">{{ number_format($per['dias'], 1, ',', '.') }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Histórico de tramitação</h2>
+            <div class="tempo">
+                @forelse ($tramites as $t)
+                    @php($sit = $t->situacao())
+                    <div class="ev"><span class="ponto"></span><div>
+                        <b>@if ($t->tipo === 'remessa'){{ $t->origem?->sigla ?? '—' }} → {{ $t->destino?->sigla ?? '—' }}@else{{ \App\Models\TramiteProcesso::TIPOS[$t->tipo] }} em {{ $t->origem?->sigla ?? '—' }}@endif</b> <span class="b {{ $sit[1] }}">{{ $sit[0] }}</span>
+                        <div class="small muted">{{ $t->remetente?->name ?? 'Usuário removido' }} · {{ $t->enviado_em->format('d/m/Y H:i') }}@if ($t->recebido_em) · recebido por {{ $t->recebedor?->name }} em {{ $t->recebido_em->format('d/m/Y H:i') }} @endif @if ($t->cancelado_em) · cancelada por {{ $t->cancelador?->name }} em {{ $t->cancelado_em->format('d/m/Y H:i') }} @endif</div>
+                        @if ($t->despacho)<p style="margin:6px 0 0;white-space:pre-line" class="small">{{ $t->despacho }}</p>@endif
+                        @if ($t->motivo_cancelamento)<p style="margin:6px 0 0" class="small"><b>Motivo do cancelamento:</b> {{ $t->motivo_cancelamento }}</p>@endif
+                    </div></div>
+                @empty
+                    <p class="muted">O processo ainda não saiu da unidade de origem.</p>
                 @endforelse
             </div>
         </section>

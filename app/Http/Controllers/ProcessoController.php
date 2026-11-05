@@ -17,6 +17,7 @@ use App\Licitacao\Regras\PrevisaoPca;
 use App\Licitacao\RegraViolada;
 use App\Licitacao\TiposDocumento;
 use App\Licitacao\TramitacaoProcesso;
+use App\Licitacao\TramitacaoUnidades;
 use App\Models\AnotacaoProcesso;
 use App\Models\Demanda;
 use App\Models\Fluxo;
@@ -112,8 +113,8 @@ class ProcessoController extends Controller
 
     public function show(Request $request, Processo $processo, InstrucaoProcesso $instrucao, TramitacaoProcesso $tramitacao, LimiteDispensa $limite): View
     {
-        $processo->load(['itens.cotacoes', 'itens.vencedor', 'unidade', 'responsavel', 'eventos.usuario', 'enviosPncp', 'contratos', 'demanda', 'itemPca.plano', 'origem']);
-        $aba = in_array($request->query('aba'), ['instrucao', 'itens', 'resultado', 'historico', 'pncp', 'anotacoes'], true) ? $request->query('aba') : 'resumo';
+        $processo->load(['itens.cotacoes', 'itens.vencedor', 'unidade', 'responsavel', 'eventos.usuario', 'enviosPncp', 'contratos', 'demanda', 'itemPca.plano', 'origem', 'unidadeAtual']);
+        $aba = in_array($request->query('aba'), ['instrucao', 'itens', 'resultado', 'historico', 'pncp', 'anotacoes', 'tramitacao'], true) ? $request->query('aba') : 'resumo';
         $pesquisa = new PesquisaPrecos;
 
         $precos = $processo->itens->mapWithKeys(fn ($item) => [$item->id => $pesquisa->calcular(
@@ -142,6 +143,10 @@ class ProcessoController extends Controller
             'dispensa' => $dispensa,
             'tipos' => TiposDocumento::todos(),
             'documentos' => $processo->documentos()->orderByDesc('versao')->get()->unique('tipo')->keyBy('tipo'),
+            'tramites' => $aba === 'tramitacao' ? $processo->tramites()->with(['origem', 'destino', 'remetente', 'recebedor', 'cancelador'])->get() : collect(),
+            'periodos' => $aba === 'tramitacao' ? app(TramitacaoUnidades::class)->periodos($processo) : [],
+            'unidadesAtivas' => $aba === 'tramitacao' ? Unidade::where('ativo', true)->orderBy('sigla')->get() : collect(),
+            'remessaPendente' => $processo->remessaPendente(),
             'anotacoes' => $aba === 'anotacoes' ? $processo->anotacoes()->with('autor')->get() : collect(),
             'totalAnotacoes' => $processo->anotacoes()->count(),
             'podeAnotar' => AnotacaoProcesso::podeEscrever($request->user()),

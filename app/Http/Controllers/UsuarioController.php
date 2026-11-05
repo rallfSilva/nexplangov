@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Orgao;
+use App\Models\Unidade;
 use App\Models\User;
 use App\Support\Auditoria;
 use Illuminate\Http\RedirectResponse;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class UsuarioController extends Controller
@@ -107,6 +109,7 @@ class UsuarioController extends Controller
             'usuario' => $usuario,
             'perfis' => $this->perfisPermitidos($request->user()),
             'orgaos' => $request->user()->orgao_id === null ? Orgao::where('ativo', true)->orderBy('sigla')->get() : collect(),
+            'unidades' => Unidade::with('orgao')->where('ativo', true)->orderBy('sigla')->get(),
             'perfilAtual' => $usuario->exists ? $usuario->perfilPrincipal() : 'requisitante',
         ];
     }
@@ -137,6 +140,7 @@ class UsuarioController extends Controller
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($usuario)],
             'cpf' => ['nullable', 'digits:11', Rule::unique('users', 'cpf')->ignore($usuario)],
             'perfil' => ['required', Rule::in(array_keys($this->perfisPermitidos($quem)))],
+            'unidade_id' => ['nullable', 'integer'],
             'orgao_id' => [Rule::requiredIf($quem->orgao_id === null && $request->input('perfil') !== 'administrador-geral'), 'nullable', Rule::exists('orgaos', 'id')],
         ], [
             'perfil.in' => 'Você não tem permissão para atribuir esse perfil.',
@@ -156,8 +160,18 @@ class UsuarioController extends Controller
             default => (int) $dados['orgao_id'],
         };
 
+        $unidadeId = null;
+        if (! empty($dados['unidade_id'])) {
+            $unidade = Unidade::find($dados['unidade_id']);
+            if (! $unidade || $unidade->orgao_id !== $orgaoId) {
+                throw ValidationException::withMessages(['unidade_id' => 'A unidade de lotação precisa ser do mesmo órgão do usuário.']);
+            }
+            $unidadeId = $unidade->id;
+        }
+
         return [[
             'name' => $dados['name'],
+            'unidade_id' => $unidadeId,
             'email' => $dados['email'],
             'cpf' => $dados['cpf'] ?? null,
             'orgao_id' => $orgaoId,
