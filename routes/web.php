@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AnotacaoProcessoController;
 use App\Http\Controllers\AtaController;
 use App\Http\Controllers\AuditoriaController;
 use App\Http\Controllers\CapacitacaoController;
@@ -157,6 +158,7 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::post('/processos', [ProcessoController::class, 'store'])->name('processos.store');
             Route::get('/processos/{processo}/editar', [ProcessoController::class, 'edit'])->name('processos.edit');
             Route::put('/processos/{processo}', [ProcessoController::class, 'update'])->name('processos.update');
+            Route::post('/processos/{processo}/duplicar', [ProcessoController::class, 'duplicar'])->name('processos.duplicar');
             Route::post('/processos/{processo}/itens', [ItemProcessoController::class, 'store'])->name('processos.itens.store');
             Route::put('/processos/{processo}/itens/{item}', [ItemProcessoController::class, 'update'])->name('processos.itens.update');
             Route::delete('/processos/{processo}/itens/{item}', [ItemProcessoController::class, 'destroy'])->name('processos.itens.destroy');
@@ -170,6 +172,9 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::delete('/processos/{processo}/cotacoes/{cotacao}', [ItemProcessoController::class, 'excluirCotacao'])->name('processos.cotacoes.destroy');
         });
         Route::get('/processos/{processo}', [ProcessoController::class, 'show'])->middleware('can:processos.ver')->name('processos.show');
+        Route::post('/processos/{processo}/anotacoes', [AnotacaoProcessoController::class, 'store'])->middleware('can:processos.ver')->name('processos.anotacoes.store');
+        Route::put('/processos/{processo}/anotacoes/{anotacao}', [AnotacaoProcessoController::class, 'update'])->middleware('can:processos.ver')->name('processos.anotacoes.update');
+        Route::delete('/processos/{processo}/anotacoes/{anotacao}', [AnotacaoProcessoController::class, 'destroy'])->middleware('can:processos.ver')->name('processos.anotacoes.destroy');
         Route::post('/processos/{processo}/tramitar', [ProcessoController::class, 'tramitar'])->middleware('can:processos.ver')->name('processos.tramitar');
         Route::get('/processos/{processo}/documentos/{tipo}', [DocumentoProcessoController::class, 'edit'])->middleware('can:processos.ver')->name('documentos.edit');
         Route::post('/processos/{processo}/documentos/{tipo}', [DocumentoProcessoController::class, 'salvar'])->middleware('can:processos.ver')->name('documentos.salvar');

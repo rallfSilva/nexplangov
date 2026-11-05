@@ -210,7 +210,7 @@
         @if (in_array((int) auth()->id(), [(int) $contrato->fiscal_id, (int) $contrato->gestor_id], true))
             <details style="margin-top:12px" @if ($errors->any() && old('descricao')) open @endif><summary class="btn btn-p btn-sm" style="list-style:none">+ Nova anotação</summary>
                 <form method="POST" action="{{ route('contratos.ocorrencias.store', $contrato) }}" class="form-grid" style="margin-top:14px" novalidate>@csrf
-                    <x-campo nome="tipo" rotulo="Tipo" obrigatorio><select id="campo-tipo-ocorrencia" name="tipo" class="input">@foreach (\App\Licitacao\Regras\LivroOcorrencias::TIPOS as $v => $r)<option value="{{ $v }}" @selected(old('tipo') === $v)>{{ $r }}</option>@endforeach</select></x-campo>
+                    <div class="campo"><label for="campo-tipo-ocorrencia">Tipo <span aria-hidden="true" style="color:#9F1D1D">*</span></label><select id="campo-tipo-ocorrencia" name="tipo" class="input">@foreach (\App\Licitacao\Regras\LivroOcorrencias::TIPOS as $v => $r)<option value="{{ $v }}" @selected(old('tipo') === $v)>{{ $r }}</option>@endforeach</select>@error('tipo')<span class="erro">{{ $message }}</span>@enderror</div>
                     <x-campo nome="ocorrida_em" rotulo="Data da ocorrência" tipo="date" obrigatorio :valor="today()->format('Y-m-d')" />
                     <x-campo nome="descricao" rotulo="O que aconteceu" obrigatorio classe="full"><textarea id="campo-descricao" name="descricao" class="input" rows="3">{{ old('descricao') }}</textarea></x-campo>
                     <x-campo nome="providencias" rotulo="Providências determinadas ou adotadas" classe="full"><textarea id="campo-providencias" name="providencias" class="input" rows="2">{{ old('providencias') }}</textarea></x-campo>

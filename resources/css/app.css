@@ -71,6 +71,9 @@
     .sub { color: var(--color-texto2); font-size: 14px; margin: 6px 0 0; }
     .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
     .btns { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    details.duplicar { position: relative; }
+    details.duplicar > summary { list-style: none; cursor: pointer; }
+    details.duplicar > summary::-webkit-details-marker { display: none; }
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 12px; font: inherit; font-size: 14px; font-weight: 600; border: 1px solid transparent; cursor: pointer; text-decoration: none; white-space: nowrap; }
     .btn-p { background: var(--color-azul); color: #fff; }
     .btn-p:hover { background: var(--color-marinho); color: #fff; }

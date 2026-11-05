@@ -8,7 +8,7 @@
     $pos = array_search($sit, $fluxo, true);
     $cumpridos = collect($checklist)->where('cumprido', true)->count();
     $podeInstruir = auth()->user()->can('processos.gerenciar') && $processo->editavel();
-    $abas = ['resumo' => 'Resumo', 'instrucao' => 'Instrução ('.$cumpridos.'/'.count($checklist).')', 'itens' => 'Itens e preços', 'resultado' => 'Resultado', 'historico' => 'Histórico', 'pncp' => 'PNCP'];
+    $abas = ['resumo' => 'Resumo', 'instrucao' => 'Instrução ('.$cumpridos.'/'.count($checklist).')', 'itens' => 'Itens e preços', 'resultado' => 'Resultado', 'historico' => 'Histórico', 'pncp' => 'PNCP', 'anotacoes' => 'Anotações internas'.($totalAnotacoes ? ' ('.$totalAnotacoes.')' : '')];
 @endphp
 <x-layouts.app :titulo="'Processo '.$processo->identificacao()">
     <div class="row">
@@ -19,6 +19,18 @@
         </div>
         <div class="btns">
             @if ($podeInstruir)<a href="{{ route('processos.edit', $processo) }}" class="btn btn-s"><x-icone nome="editar" />Editar dados</a>@endif
+            @can('processos.gerenciar')
+                <details class="duplicar">
+                    <summary class="btn btn-s">Duplicar</summary>
+                    <form method="POST" action="{{ route('processos.duplicar', $processo) }}" class="card" style="position:absolute;right:0;z-index:5;width:320px;margin-top:6px">
+                        @csrf
+                        <p class="small" style="margin:0 0 10px;line-height:1.5">Cria um processo novo na fase preparatória com os dados, os itens, as cotações e as peças do editor como rascunho. Parecer, autorização, habilitação, propostas e resultado não são copiados.</p>
+                        <x-campo nome="numero" rotulo="Número do novo processo" :obrigatorio="true" />
+                        <x-campo nome="ano" rotulo="Ano" tipo="number" :valor="now()->year" :obrigatorio="true" />
+                        <button type="submit" class="btn btn-p btn-sm" style="margin-top:10px">Duplicar processo</button>
+                    </form>
+                </details>
+            @endcan
             @can('contratos.gerenciar')
                 @if ($sit === S::Homologado)<a href="{{ route('contratos.create', ['processo' => $processo->id]) }}" class="btn btn-p"><x-icone nome="contrato" />Cadastrar contrato</a>@endif
             @endcan
@@ -74,6 +86,7 @@
                     <div><dt>Critério</dt><dd>{{ \App\Licitacao\Enums\CriterioJulgamento::from($processo->criterio_julgamento)->rotulo() }}</dd></div>
                     <div><dt>Registro de preços</dt><dd>{{ $processo->srp ? 'Sim' : 'Não' }}</dd></div>
                     @if ($processo->abertura_propostas_em)<div><dt>Propostas</dt><dd>{{ $processo->abertura_propostas_em->format('d/m/Y H:i') }} a {{ $processo->encerramento_propostas_em?->format('d/m/Y H:i') }}</dd></div>@endif
+                    @if ($processo->origem)<div><dt>Duplicado de</dt><dd><a href="{{ route('processos.show', $processo->origem) }}">{{ $processo->origem->identificacao() }}</a></dd></div>@endif
                     @if ($processo->demanda)<div><dt>Demanda</dt><dd>{{ $processo->demanda->numero }}/{{ $processo->demanda->ano }}</dd></div>@endif
                     <div><dt>Previsão no PCA</dt><dd>
                         @if ($processo->itemPca)Item {{ $processo->itemPca->numero }} do PCA {{ $processo->itemPca->plano?->ano }}
@@ -290,6 +303,41 @@
                     <div class="ev"><span class="ponto"></span><div><b>{{ $e->rotuloPara() }}</b><div class="small muted">{{ $e->usuario?->name ?? 'Sistema' }} · {{ $e->created_at->format('d/m/Y H:i') }}</div>@if ($e->justificativa)<p style="margin:6px 0 0" class="small">{{ $e->justificativa }}</p>@endif</div></div>
                 @empty
                     <p class="muted">Ainda na fase preparatória, sem passagens registradas.</p>
+                @endforelse
+            </div>
+        </section>
+    @endif
+
+    @if ($aba === 'anotacoes')
+        <section class="card">
+            <h2>Anotações internas</h2>
+            <p class="hint">Rascunho de trabalho entre os servidores do processo. Não compõe os autos: não entra no checklist, no dossiê, nas exportações nem no PNCP. O que precisa constar do processo vai nas peças ou na justificativa da tramitação.</p>
+            @if ($podeAnotar)
+                <form method="POST" action="{{ route('processos.anotacoes.store', $processo) }}" style="margin-top:14px">
+                    @csrf
+                    <label for="texto-anotacao" class="sr-only">Nova anotação</label>
+                    <textarea id="texto-anotacao" name="texto" class="input" rows="3" maxlength="5000" required placeholder="Ex.: conferir com o requisitante a quantidade do item 3 antes de mandar ao jurídico.">{{ old('texto') }}</textarea>
+                    @error('texto')<p class="erro small">{{ $message }}</p>@enderror
+                    <button type="submit" class="btn btn-p btn-sm" style="margin-top:8px">Anotar</button>
+                </form>
+            @endif
+            <div class="tempo" style="margin-top:18px">
+                @forelse ($anotacoes as $n)
+                    <div class="ev" id="anotacao-{{ $n->id }}"><span class="ponto"></span><div style="flex:1;min-width:0">
+                        <b>{{ $n->autor?->name ?? 'Usuário removido' }}</b> <span class="small muted">{{ $n->created_at->format('d/m/Y H:i') }}@if ($n->updated_at->gt($n->created_at)) · editada @endif</span>
+                        <p style="margin:6px 0 0;white-space:pre-line" class="small">{{ $n->texto }}</p>
+                        @if ($n->user_id === auth()->id())
+                            <details style="margin-top:6px"><summary class="small">Editar ou excluir</summary>
+                                <form method="POST" action="{{ route('processos.anotacoes.update', [$processo, $n]) }}" style="margin-top:6px">@csrf @method('PUT')
+                                    <textarea name="texto" class="input" rows="3" maxlength="5000" required aria-label="Texto da anotação">{{ $n->texto }}</textarea>
+                                    <div class="btns" style="margin-top:6px"><button type="submit" class="btn btn-s btn-sm">Salvar</button></div>
+                                </form>
+                                <form method="POST" action="{{ route('processos.anotacoes.destroy', [$processo, $n]) }}" onsubmit="return confirm('Excluir a anotação?')" style="margin-top:6px">@csrf @method('DELETE')<button type="submit" class="btn btn-d btn-sm">Excluir</button></form>
+                            </details>
+                        @endif
+                    </div></div>
+                @empty
+                    <p class="muted">Nenhuma anotação.</p>
                 @endforelse
             </div>
         </section>

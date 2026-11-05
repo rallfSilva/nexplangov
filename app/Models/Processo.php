@@ -136,6 +136,18 @@ class Processo extends Model
         return $this->hasMany(EventoProcesso::class)->latest('id');
     }
 
+    /** Processo do qual este foi duplicado. */
+    public function origem(): BelongsTo
+    {
+        return $this->belongsTo(Processo::class, 'origem_id');
+    }
+
+    /** Anotações internas de rascunho (não compõem os autos). */
+    public function anotacoes(): HasMany
+    {
+        return $this->hasMany(AnotacaoProcesso::class)->latest('id');
+    }
+
     public function contratos(): HasMany
     {
         return $this->hasMany(Contrato::class);

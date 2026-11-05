@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Licitacao\DuplicacaoProcesso;
 use App\Licitacao\Enums\AmparoLegal;
 use App\Licitacao\Enums\CategoriaProcesso;
 use App\Licitacao\Enums\CriterioJulgamento;
@@ -16,6 +17,7 @@ use App\Licitacao\Regras\PrevisaoPca;
 use App\Licitacao\RegraViolada;
 use App\Licitacao\TiposDocumento;
 use App\Licitacao\TramitacaoProcesso;
+use App\Models\AnotacaoProcesso;
 use App\Models\Demanda;
 use App\Models\Fluxo;
 use App\Models\Fornecedor;
@@ -110,8 +112,8 @@ class ProcessoController extends Controller
 
     public function show(Request $request, Processo $processo, InstrucaoProcesso $instrucao, TramitacaoProcesso $tramitacao, LimiteDispensa $limite): View
     {
-        $processo->load(['itens.cotacoes', 'itens.vencedor', 'unidade', 'responsavel', 'eventos.usuario', 'enviosPncp', 'contratos', 'demanda', 'itemPca.plano']);
-        $aba = in_array($request->query('aba'), ['instrucao', 'itens', 'resultado', 'historico', 'pncp'], true) ? $request->query('aba') : 'resumo';
+        $processo->load(['itens.cotacoes', 'itens.vencedor', 'unidade', 'responsavel', 'eventos.usuario', 'enviosPncp', 'contratos', 'demanda', 'itemPca.plano', 'origem']);
+        $aba = in_array($request->query('aba'), ['instrucao', 'itens', 'resultado', 'historico', 'pncp', 'anotacoes'], true) ? $request->query('aba') : 'resumo';
         $pesquisa = new PesquisaPrecos;
 
         $precos = $processo->itens->mapWithKeys(fn ($item) => [$item->id => $pesquisa->calcular(
@@ -140,8 +142,24 @@ class ProcessoController extends Controller
             'dispensa' => $dispensa,
             'tipos' => TiposDocumento::todos(),
             'documentos' => $processo->documentos()->orderByDesc('versao')->get()->unique('tipo')->keyBy('tipo'),
+            'anotacoes' => $aba === 'anotacoes' ? $processo->anotacoes()->with('autor')->get() : collect(),
+            'totalAnotacoes' => $processo->anotacoes()->count(),
+            'podeAnotar' => AnotacaoProcesso::podeEscrever($request->user()),
             'fornecedores' => $aba === 'resultado' ? Fornecedor::where('ativo', true)->orderBy('razao_social')->get() : collect(),
         ]);
+    }
+
+    /** Duplica o processo para reaproveitar a instrução (contratação deserta, fracassada ou recorrente). */
+    public function duplicar(Request $request, Processo $processo, DuplicacaoProcesso $duplicacao): RedirectResponse
+    {
+        $dados = $request->validate([
+            'ano' => ['required', 'integer', 'min:2021', 'max:2100'],
+            'numero' => ['required', 'string', 'max:30', Rule::unique('processos', 'numero')->where('orgao_id', $processo->orgao_id)->where('ano', $request->integer('ano'))],
+        ], ['numero.unique' => 'Já existe processo com esse número neste ano.']);
+
+        $novo = $duplicacao->duplicar($processo, $request->user(), $dados['numero'], (int) $dados['ano']);
+
+        return redirect()->route('processos.show', $novo)->with('sucesso', "Processo {$novo->identificacao()} criado a partir do {$processo->identificacao()}. Confira os preços (cotações vencidas saem do cálculo, art. 23, § 1º), revise as peças e indique a previsão no PCA.");
     }
 
     public function tramitar(Request $request, Processo $processo, TramitacaoProcesso $tramitacao): RedirectResponse
