@@ -131,7 +131,7 @@ class DemoSeeder extends Seeder
 
         // Processo 1: pregão eletrônico na fase preparatória, instrução parcial
         $pregao = $this->processo($pm, $semed, [
-            'numero' => '012', 'ano' => 2026, 'numero_compra' => 'PE 005/2026', 'demanda_id' => $dKits->id, 'responsavel_id' => $u['agente-contratacao']->id,
+            'numero' => '012', 'ano' => 2026, 'numero_compra' => 'PE 005/2026', 'demanda_id' => $dKits->id, 'item_pca_id' => $itens26[1]->id, 'responsavel_id' => $u['agente-contratacao']->id,
             'objeto' => 'Aquisição de kits de material escolar para os alunos do ensino fundamental da rede municipal.',
             'modalidade' => 6, 'amparo_legal' => 1, 'criterio_julgamento' => 1, 'modo_disputa' => 1, 'categoria' => 2, 'srp' => true, 'natureza_despesa' => '3.3.90.30.22',
             'abertura_propostas_em' => '2026-11-20 08:00:00', 'encerramento_propostas_em' => '2026-12-04 09:00:00',
@@ -147,7 +147,7 @@ class DemoSeeder extends Seeder
 
         // Processo 2: dispensa por valor já homologada (conta para o limite do art. 75, II)
         $dispensa = $this->processo($pm, $semad, [
-            'numero' => '009', 'ano' => 2026, 'numero_compra' => 'DL 003/2026', 'responsavel_id' => $u['agente-contratacao']->id,
+            'numero' => '009', 'ano' => 2026, 'numero_compra' => 'DL 003/2026', 'item_pca_id' => $itens26[0]->id, 'responsavel_id' => $u['agente-contratacao']->id,
             'objeto' => 'Aquisição de papel A4 para as secretarias municipais.',
             'modalidade' => 8, 'amparo_legal' => 19, 'criterio_julgamento' => 1, 'modo_disputa' => 4, 'categoria' => 2, 'com_disputa' => true, 'natureza_despesa' => '3.3.90.30.16',
         ], 'homologado');
@@ -160,7 +160,7 @@ class DemoSeeder extends Seeder
 
         // Processo 3: pregão de limpeza já contratado, com contrato vencendo
         $limpeza = $this->processo($pm, $semad, [
-            'numero' => '031', 'ano' => 2025, 'numero_compra' => 'PE 014/2025', 'responsavel_id' => $u['agente-contratacao']->id,
+            'numero' => '031', 'ano' => 2025, 'numero_compra' => 'PE 014/2025', 'justificativa_fora_pca' => 'Contrato de limpeza anterior à adoção do PCA no sistema; previsão registrada no plano em papel de 2025.', 'responsavel_id' => $u['agente-contratacao']->id,
             'objeto' => 'Serviço contínuo de limpeza e conservação dos prédios da administração.',
             'modalidade' => 6, 'amparo_legal' => 1, 'criterio_julgamento' => 1, 'modo_disputa' => 1, 'categoria' => 6, 'natureza_despesa' => '3.3.90.37.02',
         ], 'contratado');

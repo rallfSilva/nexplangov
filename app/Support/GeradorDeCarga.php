@@ -84,7 +84,7 @@ final class GeradorDeCarga
 
                 $situacao = ['planejamento', 'analise_juridica', 'publicado', 'homologado', 'contratado'][$i % 5];
                 $p = Processo::create([
-                    'orgao_id' => $orgao->id, 'unidade_id' => $unidade->id, 'responsavel_id' => $responsavel?->id,
+                    'orgao_id' => $orgao->id, 'unidade_id' => $unidade->id, 'responsavel_id' => $responsavel?->id, 'item_pca_id' => $item->id,
                     'numero' => str_pad((string) ++$numeroProcesso, 3, '0', STR_PAD_LEFT), 'ano' => $ano, 'objeto' => $objeto,
                     'modalidade' => $i % 4 === 0 ? 8 : 6, 'amparo_legal' => $i % 4 === 0 ? 19 : 1, 'criterio_julgamento' => 1,
                     'modo_disputa' => $i % 4 === 0 ? 4 : 1, 'categoria' => $servico ? 6 : 2,

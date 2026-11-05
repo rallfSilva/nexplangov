@@ -2,6 +2,7 @@
 
 namespace App\Licitacao\Nexlicita;
 
+use App\Integracoes\Transparencia\VerificadorImpedimento;
 use App\Licitacao\Enums\CategoriaProcesso;
 use App\Licitacao\Enums\CriterioJulgamento;
 use App\Licitacao\Enums\Modalidade;
@@ -207,6 +208,7 @@ final class Sessao
         if ($sancao = $prop->fornecedor->impedidoEm()) {
             $motivos[] = "{$prop->fornecedor->razao_social} está impedido de contratar até ".($sancao->fim?->format('d/m/Y') ?? 'decisão em contrário').' (art. 156).';
         }
+        array_push($motivos, ...app(VerificadorImpedimento::class)->motivos($prop->fornecedor)); // CEIS e CNEP (art. 161)
         if (count($c['empatadas']) > 1 && in_array($prop->id, $c['empatadas'], true) && ! $prop->desempate_criterio) {
             $motivos[] = 'Há propostas empatadas: registre o critério de desempate aplicado (art. 60).';
         }

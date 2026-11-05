@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AnotacaoProcessoController;
 use App\Http\Controllers\AtaController;
 use App\Http\Controllers\AuditoriaController;
 use App\Http\Controllers\CapacitacaoController;
@@ -25,6 +26,7 @@ use App\Http\Controllers\LgpdController;
 use App\Http\Controllers\LicitacaoController;
 use App\Http\Controllers\MasterController;
 use App\Http\Controllers\ModeloController;
+use App\Http\Controllers\OcorrenciaContratoController;
 use App\Http\Controllers\OrdemController;
 use App\Http\Controllers\OrgaoController;
 use App\Http\Controllers\PagamentoController;
@@ -145,6 +147,7 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::post('/demandas', [DemandaController::class, 'store'])->name('demandas.store');
         });
         Route::patch('/demandas/{demanda}/analisar', [DemandaController::class, 'analisar'])->middleware('can:pca.gerenciar')->name('demandas.analisar');
+        Route::post('/demandas/prazos', [DemandaController::class, 'definirPrazo'])->middleware('can:pca.gerenciar')->name('demandas.prazos');
 
         // Processos
         Route::get('/processos', [ProcessoController::class, 'index'])->middleware('can:processos.ver')->name('processos.index');
@@ -155,6 +158,7 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::post('/processos', [ProcessoController::class, 'store'])->name('processos.store');
             Route::get('/processos/{processo}/editar', [ProcessoController::class, 'edit'])->name('processos.edit');
             Route::put('/processos/{processo}', [ProcessoController::class, 'update'])->name('processos.update');
+            Route::post('/processos/{processo}/duplicar', [ProcessoController::class, 'duplicar'])->name('processos.duplicar');
             Route::post('/processos/{processo}/itens', [ItemProcessoController::class, 'store'])->name('processos.itens.store');
             Route::put('/processos/{processo}/itens/{item}', [ItemProcessoController::class, 'update'])->name('processos.itens.update');
             Route::delete('/processos/{processo}/itens/{item}', [ItemProcessoController::class, 'destroy'])->name('processos.itens.destroy');
@@ -168,6 +172,9 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::delete('/processos/{processo}/cotacoes/{cotacao}', [ItemProcessoController::class, 'excluirCotacao'])->name('processos.cotacoes.destroy');
         });
         Route::get('/processos/{processo}', [ProcessoController::class, 'show'])->middleware('can:processos.ver')->name('processos.show');
+        Route::post('/processos/{processo}/anotacoes', [AnotacaoProcessoController::class, 'store'])->middleware('can:processos.ver')->name('processos.anotacoes.store');
+        Route::put('/processos/{processo}/anotacoes/{anotacao}', [AnotacaoProcessoController::class, 'update'])->middleware('can:processos.ver')->name('processos.anotacoes.update');
+        Route::delete('/processos/{processo}/anotacoes/{anotacao}', [AnotacaoProcessoController::class, 'destroy'])->middleware('can:processos.ver')->name('processos.anotacoes.destroy');
         Route::post('/processos/{processo}/tramitar', [ProcessoController::class, 'tramitar'])->middleware('can:processos.ver')->name('processos.tramitar');
         Route::get('/processos/{processo}/documentos/{tipo}', [DocumentoProcessoController::class, 'edit'])->middleware('can:processos.ver')->name('documentos.edit');
         Route::post('/processos/{processo}/documentos/{tipo}', [DocumentoProcessoController::class, 'salvar'])->middleware('can:processos.ver')->name('documentos.salvar');
@@ -282,7 +289,10 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::get('/fornecedores/{fornecedor}/editar', [FornecedorController::class, 'edit'])->name('fornecedores.edit');
             Route::put('/fornecedores/{fornecedor}', [FornecedorController::class, 'update'])->name('fornecedores.update');
             Route::post('/fornecedores/{fornecedor}/sancoes', [FornecedorController::class, 'registrarSancao'])->name('fornecedores.sancoes.store');
+            Route::post('/fornecedores/{fornecedor}/ceis-cnep', [FornecedorController::class, 'consultarImpedimento'])->middleware('throttle:10,1')->name('fornecedores.ceis');
         });
+        Route::get('/fornecedores/{fornecedor}/ceis-cnep', [FornecedorController::class, 'impedimentos'])->middleware('can:fornecedores.ver')->name('fornecedores.ceis.index');
+        Route::post('/fornecedores/{fornecedor}/ceis-cnep/{consulta}/ressalva', [FornecedorController::class, 'ressalvarImpedimento'])->middleware('can:processos.autorizar')->name('fornecedores.ceis.ressalva');
 
         // Medição, liquidação e pagamento na ordem cronológica (arts. 140 e 141)
         Route::get('/pagamentos', [PagamentoController::class, 'index'])->middleware('can:contratos.ver')->name('pagamentos.index');
@@ -334,6 +344,12 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::post('/contratos/{contrato}/termos', [ContratoController::class, 'registrarTermo'])->name('contratos.termos.store');
         });
         Route::get('/contratos/{contrato}', [ContratoController::class, 'show'])->middleware('can:contratos.ver')->name('contratos.show');
+
+        // Livro de ocorrências e designação de gestor e fiscal (art. 117)
+        Route::post('/contratos/{contrato}/ocorrencias', [OcorrenciaContratoController::class, 'store'])->middleware('can:contratos.ver')->name('contratos.ocorrencias.store');
+        Route::get('/contratos/{contrato}/ocorrencias.pdf', [OcorrenciaContratoController::class, 'livroPdf'])->middleware('can:contratos.ver')->name('contratos.ocorrencias.pdf');
+        Route::post('/contratos/{contrato}/designacao', [OcorrenciaContratoController::class, 'designar'])->middleware('can:processos.autorizar')->name('contratos.designacao');
+        Route::get('/contratos/{contrato}/designacao.pdf', [OcorrenciaContratoController::class, 'portaria'])->middleware('can:contratos.ver')->name('contratos.designacao.pdf');
 
         // PNCP
         Route::get('/pncp', [PncpController::class, 'index'])->middleware('can:processos.ver')->name('pncp.index');

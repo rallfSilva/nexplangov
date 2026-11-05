@@ -189,11 +189,14 @@ class OrdensAlertasTest extends TestCase
         $p = $this->processo([], 'contratado');
         $f = $this->fornecedor('99.000.555/0001-55');
 
-        return Contrato::create([
+        $c = Contrato::create([
             'orgao_id' => $this->orgao->id, 'processo_id' => $p->id, 'fornecedor_id' => $f->id, 'gestor_id' => $this->u['gestor-contrato']->id, 'fiscal_id' => $this->u['fiscal']->id,
             'numero' => '1', 'ano' => 2026, 'tipo' => 1, 'objeto' => 'Fornecimento de papel.', 'categoria' => 2, 'valor_inicial' => 1000, 'valor_global' => 1000,
             'assinatura' => today()->subYear(), 'vigencia_inicio' => today()->subYear(), 'vigencia_fim' => today()->addDays($dias), 'situacao' => 'vigente',
         ]);
+        $c->forceFill(['numero_controle_pncp' => '11222333000181-2-000001/2026'])->save(); // divulgado (art. 94): aqui só interessa a vigência
+
+        return $c;
     }
 
     public function test_alerta_de_contrato_vai_para_gestor_e_fiscal_e_nao_repete(): void

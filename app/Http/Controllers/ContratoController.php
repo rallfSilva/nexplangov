@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Integracoes\Transparencia\VerificadorImpedimento;
 use App\Licitacao\Enums\CategoriaProcesso;
 use App\Licitacao\Enums\TipoTermo;
 use App\Licitacao\Regras\AlteracaoContratual;
@@ -89,8 +90,13 @@ class ContratoController extends Controller
             foreach ($garantia->validar($request->input('garantia_percentual') === null ? null : (float) $request->input('garantia_percentual'), $request->input('justificativa_garantia'), $request->boolean('grande_vulto_engenharia')) as $e) {
                 $v->errors()->add('garantia_percentual', $e);
             }
-            if ($request->filled('fornecedor_id') && ($f = Fornecedor::find($request->integer('fornecedor_id'))) && $f->impedidoEm()) {
-                $v->errors()->add('fornecedor_id', "{$f->razao_social} tem sanção vigente que impede contratar (art. 156, III e IV).");
+            if ($request->filled('fornecedor_id') && ($f = Fornecedor::find($request->integer('fornecedor_id')))) {
+                if ($f->impedidoEm()) {
+                    $v->errors()->add('fornecedor_id', "{$f->razao_social} tem sanção vigente que impede contratar (art. 156, III e IV).");
+                }
+                foreach (app(VerificadorImpedimento::class)->motivos($f, $request->user()) as $motivo) { // CEIS e CNEP (art. 161)
+                    $v->errors()->add('fornecedor_id', $motivo);
+                }
             }
         });
 
@@ -112,12 +118,14 @@ class ContratoController extends Controller
             return $contrato;
         });
 
-        return redirect()->route('contratos.show', $contrato)->with('sucesso', "Contrato {$contrato->identificacao()} cadastrado. Publique no PNCP em até 20 dias úteis da assinatura (art. 94, II).");
+        $e = $contrato->eficacia();
+
+        return redirect()->route('contratos.show', $contrato)->with('sucesso', "Contrato {$contrato->identificacao()} cadastrado. Publique no PNCP até {$e['limite']->format('d/m/Y')} ({$e['base']}): até lá o contrato não tem eficácia e não pode ser medido nem pago.");
     }
 
     public function show(Contrato $contrato, AlteracaoContratual $alteracao): View
     {
-        $contrato->load(['fornecedor', 'processo', 'gestor', 'fiscal', 'termos', 'enviosPncp', 'medicoes.liquidacao']);
+        $contrato->load(['fornecedor', 'processo', 'gestor', 'fiscal', 'designador', 'termos', 'enviosPncp', 'medicoes.liquidacao', 'ocorrencias']);
         $base = $contrato->valorInicialAtualizado();
 
         return view('contratos.show', [

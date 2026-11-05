@@ -2,6 +2,7 @@
 
 namespace App\Licitacao\Alertas;
 
+use App\Licitacao\Regras\EficaciaContrato;
 use App\Licitacao\TiposDocumento;
 use App\Models\Ata;
 use App\Models\Contrato;
@@ -26,7 +27,7 @@ final class Detector
     {
         $hoje = ($hoje ?? today())->copy()->startOfDay();
 
-        return array_values(array_merge($this->contratos($hoje), $this->atas($hoje), $this->etapas($hoje), $this->impugnacoes($hoje), $this->ordens($hoje)));
+        return array_values(array_merge($this->contratos($hoje), $this->publicacaoContratos($hoje), $this->atas($hoje), $this->etapas($hoje), $this->impugnacoes($hoje), $this->ordens($hoje)));
     }
 
     /** @return list<array<string, mixed>> */
@@ -62,6 +63,28 @@ final class Detector
                 $dias < 0 ? "Contrato {$c->identificacao()} com vigência vencida" : "Contrato {$c->identificacao()} vence em {$dias} dia(s)",
                 "{$c->fornecedor->razao_social}. Vigência até {$c->vigencia_fim->format('d/m/Y')}. Decida sobre prorrogação ou nova contratação a tempo (art. 107).",
                 route('contratos.show', $c, false), $dias <= 30);
+        }
+
+        return $r;
+    }
+
+    /** Contrato sem divulgação no PNCP: alerta enquanto corre o prazo do art. 94 e urgente perto do fim ou vencido. */
+    private function publicacaoContratos(CarbonInterface $hoje): array
+    {
+        $r = [];
+
+        foreach (Contrato::with(['fornecedor', 'processo'])->where('situacao', 'vigente')->whereNull('numero_controle_pncp')->get() as $c) {
+            $e = $c->eficacia($hoje);
+            $vencido = $e['estado'] === 'vencido';
+            $urgente = $vencido || $e['restantes'] <= EficaciaContrato::DIAS_ALERTA;
+            $users = array_merge(array_filter([$c->gestor_id]), $this->com($c->orgao_id, 'pncp.enviar'));
+
+            $r[] = $this->alerta("pncp94:{$c->id}:".($vencido ? 'vencido' : ($urgente ? 'urgente' : 'aberto')), $c->orgao_id, $users,
+                $vencido ? "Contrato {$c->identificacao()} sem publicação no PNCP: prazo vencido" : "Contrato {$c->identificacao()} precisa ir ao PNCP até {$e['limite']->format('d/m/Y')}",
+                $vencido
+                    ? "O prazo terminou em {$e['limite']->format('d/m/Y')} ({$e['base']}). Sem a divulgação, o contrato não tem eficácia e não pode ser executado nem pago."
+                    : "Faltam {$e['restantes']} dia(s) útil(eis) ({$e['base']}). Até a divulgação, o contrato não tem eficácia: medição, liquidação e pagamento ficam bloqueados.",
+                route('contratos.show', $c, false), $urgente);
         }
 
         return $r;

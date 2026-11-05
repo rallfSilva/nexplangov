@@ -19,6 +19,19 @@
         <div class="card kpi"><span class="lbl">Supressões (limite 25%)</span><span class="val">{{ numero_br($limites['percentual_supressao']) }}%</span><div class="barra"><span style="width:{{ min(100, $limites['percentual_supressao'] / 25 * 100) }}%"></span></div></div>
     </div>
 
+    @php($eficacia = $contrato->eficacia())
+    @if ($eficacia['estado'] !== 'publicado')
+        <div class="flash {{ in_array($eficacia['estado'], ['vencido', 'publicado_fora_do_prazo'], true) ? 'flash-erro' : 'flash-aviso' }}" role="status">
+            @if ($eficacia['estado'] === 'vencido')
+                <b>Prazo de publicação no PNCP vencido em {{ $eficacia['limite']->format('d/m/Y') }}.</b> Sem a divulgação, o contrato não tem eficácia: medição, liquidação e pagamento estão bloqueados. Publique agora e registre nos autos o motivo do atraso <span class="lei">{{ $eficacia['base'] }}</span>
+            @elseif ($eficacia['estado'] === 'publicado_fora_do_prazo')
+                <b>Contrato publicado no PNCP depois do prazo ({{ $eficacia['limite']->format('d/m/Y') }}).</b> Registre nos autos a justificativa do atraso <span class="lei">{{ $eficacia['base'] }}</span>
+            @else
+                <b>Publique no PNCP até {{ $eficacia['limite']->format('d/m/Y') }}</b> (faltam {{ $eficacia['restantes'] }} dia(s) útil(eis)). Até a divulgação, o contrato não tem eficácia: medição, liquidação e pagamento ficam bloqueados <span class="lei">{{ $eficacia['base'] }}</span>
+            @endif
+        </div>
+    @endif
+
     <section class="card">
         <h2>Contrato assinado</h2>
         <p class="hint">O arquivo assinado vai ao PNCP junto da publicação do contrato <span class="lei">art. 94</span>. Só PDF, até 20 MB.</p>
@@ -40,6 +53,7 @@
             <dl class="dados">
                 <div><dt>Gestor</dt><dd>{{ $contrato->gestor?->name ?? '—' }}</dd></div>
                 <div><dt>Fiscal</dt><dd>{{ $contrato->fiscal?->name ?? '—' }}</dd></div>
+                <div><dt>Designação</dt><dd>@if ($contrato->designacao_ato){{ $contrato->designacao_ato }}, {{ $contrato->designacao_em->format('d/m/Y') }} · <a href="{{ route('contratos.designacao.pdf', $contrato) }}">PDF</a>@else<span class="b b-warn">pendente</span>@endif</dd></div>
                 <div><dt>Assinatura</dt><dd>{{ $contrato->assinatura->format('d/m/Y') }}</dd></div>
                 <div><dt>Início</dt><dd>{{ $contrato->vigencia_inicio->format('d/m/Y') }}</dd></div>
                 <div><dt>Contínuo</dt><dd>{{ $contrato->servico_continuo ? 'Sim (até 10 anos)' : 'Não' }}</dd></div>
@@ -165,6 +179,48 @@
     </section>
 
     @include('contratos._medicoes')
+
+    <section class="card" id="ocorrencias">
+        <div class="row">
+            <h2>Livro de ocorrências</h2>
+            <a class="btn btn-s btn-sm" href="{{ route('contratos.ocorrencias.pdf', $contrato) }}"><x-icone nome="download" tamanho="16" />Livro em PDF</a>
+        </div>
+        <p class="hint">O fiscal anota as ocorrências da execução e determina o que for preciso para regularizar faltas ou defeitos. O que passar da sua competência vai aos superiores. As anotações não se alteram nem se apagam: para corrigir, registre uma retificação <span class="lei">art. 117, §§ 1º e 2º</span></p>
+        @can('processos.autorizar')
+            @unless ($contrato->designacao_ato)
+                <form method="POST" action="{{ route('contratos.designacao', $contrato) }}" class="filtros" style="margin-top:12px" novalidate>@csrf
+                    <div class="campo"><label for="designacao_ato">Ato de designação do gestor e do fiscal</label><input id="designacao_ato" name="designacao_ato" class="input" maxlength="60" placeholder="Portaria nº 12/2026" value="{{ old('designacao_ato') }}"></div>
+                    <div class="campo"><label for="designacao_em">Data</label><input id="designacao_em" type="date" name="designacao_em" class="input" value="{{ old('designacao_em', today()->format('Y-m-d')) }}"></div>
+                    <div class="btns"><button class="btn btn-s btn-sm" type="submit">Registrar designação</button></div>
+                </form>
+            @endunless
+        @endcan
+        <div class="list" style="margin-top:12px">
+            @forelse ($contrato->ocorrencias as $o)
+                <div class="li"><span class="chip {{ in_array($o->tipo, ['determinacao', 'comunicacao_superior'], true) ? 'c-warn' : 'c-navy' }}">{{ $o->numero }}</span>
+                    <div style="min-width:0"><b>{{ $o->tipoRotulo() }}</b>@if ($o->retifica_id) · retifica a anotação nº {{ $contrato->ocorrencias->firstWhere('id', $o->retifica_id)?->numero }}@endif
+                        <div style="margin-top:4px;line-height:1.6">{{ $o->descricao }}</div>
+                        @if ($o->providencias)<div class="small" style="margin-top:4px"><b>Providências:</b> {{ $o->providencias }}</div>@endif
+                        <div class="meta">Ocorrida em {{ $o->ocorrida_em->format('d/m/Y') }} · registrada por {{ $o->autor_nome }} ({{ $o->autor_papel }}) em {{ $o->registrada_em->format('d/m/Y H:i') }}@if ($o->prazo_regularizacao) · regularizar até {{ $o->prazo_regularizacao->format('d/m/Y') }}@endif</div>
+                    </div></div>
+            @empty
+                <div class="li muted">Nenhuma anotação.</div>
+            @endforelse
+        </div>
+        @if (in_array((int) auth()->id(), [(int) $contrato->fiscal_id, (int) $contrato->gestor_id], true))
+            <details style="margin-top:12px" @if ($errors->any() && old('descricao')) open @endif><summary class="btn btn-p btn-sm" style="list-style:none">+ Nova anotação</summary>
+                <form method="POST" action="{{ route('contratos.ocorrencias.store', $contrato) }}" class="form-grid" style="margin-top:14px" novalidate>@csrf
+                    <div class="campo"><label for="campo-tipo-ocorrencia">Tipo <span aria-hidden="true" style="color:#9F1D1D">*</span></label><select id="campo-tipo-ocorrencia" name="tipo" class="input">@foreach (\App\Licitacao\Regras\LivroOcorrencias::TIPOS as $v => $r)<option value="{{ $v }}" @selected(old('tipo') === $v)>{{ $r }}</option>@endforeach</select>@error('tipo')<span class="erro">{{ $message }}</span>@enderror</div>
+                    <x-campo nome="ocorrida_em" rotulo="Data da ocorrência" tipo="date" obrigatorio :valor="today()->format('Y-m-d')" />
+                    <x-campo nome="descricao" rotulo="O que aconteceu" obrigatorio classe="full"><textarea id="campo-descricao" name="descricao" class="input" rows="3">{{ old('descricao') }}</textarea></x-campo>
+                    <x-campo nome="providencias" rotulo="Providências determinadas ou adotadas" classe="full"><textarea id="campo-providencias" name="providencias" class="input" rows="2">{{ old('providencias') }}</textarea></x-campo>
+                    <x-campo nome="prazo_regularizacao" rotulo="Prazo para regularizar (determinação)" tipo="date" />
+                    <x-campo nome="retifica_id" rotulo="Retifica a anotação (retificação)"><select id="campo-retifica_id" name="retifica_id" class="input"><option value="">Nenhuma</option>@foreach ($contrato->ocorrencias as $o)<option value="{{ $o->id }}">Nº {{ $o->numero }} · {{ $o->ocorrida_em->format('d/m/Y') }}</option>@endforeach</select></x-campo>
+                    <div class="campo"><button class="btn btn-p" type="submit">Registrar no livro</button></div>
+                </form>
+            </details>
+        @endif
+    </section>
 
     <section class="card"><h2>Publicações no PNCP</h2>@include('pncp._lista', ['envios' => $contrato->enviosPncp])</section>
 </x-layouts.app>

@@ -2,6 +2,7 @@
 
 namespace App\Licitacao\Contratos;
 
+use App\Integracoes\Transparencia\VerificadorImpedimento;
 use App\Licitacao\RegraViolada;
 use App\Models\AtaItem;
 use App\Models\OrdemFornecimento;
@@ -76,6 +77,7 @@ final class GestaoOrdens
         if ($sancao = $ai->ata->fornecedor->impedidoEm()) {
             $m[] = "{$ai->ata->fornecedor->razao_social} está impedido de contratar até ".($sancao->fim?->format('d/m/Y') ?? 'decisão em contrário').' (art. 156).';
         }
+        array_push($m, ...app(VerificadorImpedimento::class)->motivos($ai->ata->fornecedor)); // CEIS e CNEP (art. 161)
         if ($m) {
             throw new RegraViolada($m);
         }
