@@ -7,6 +7,21 @@
         @can('demandas.criar')<a href="{{ route('demandas.create') }}" class="btn btn-p"><x-icone nome="mais" />Nova demanda</a>@endcan
     </div>
 
+    @can('pca.gerenciar')
+        <section class="card">
+            <h2>Prazo de envio de demandas</h2>
+            <p class="hint">Depois da data-limite, a unidade só envia demanda para o exercício nas exceções (sigilosa, suprimento de fundos, pronto pagamento), com justificativa <span class="lei">art. 12, VII</span></p>
+            <form method="POST" action="{{ route('demandas.prazos') }}" class="filtros" style="margin-top:10px" novalidate>@csrf
+                <div class="campo"><label for="prazo-exercicio">Exercício do PCA</label><select id="prazo-exercicio" name="exercicio" class="input">@foreach ([now()->year, now()->year + 1] as $ex)<option value="{{ $ex }}">{{ $ex }}</option>@endforeach</select></div>
+                <div class="campo"><label for="prazo-data">Data-limite</label><input id="prazo-data" type="date" name="data_limite" class="input"></div>
+                <div class="btns"><button class="btn btn-s btn-sm" type="submit">Definir prazo</button></div>
+            </form>
+            @if ($prazos->isNotEmpty())
+                <p class="small" style="margin-top:8px">@foreach ($prazos as $p)PCA {{ $p->exercicio }}: até {{ $p->data_limite->format('d/m/Y') }}@if (\App\Licitacao\Regras\PrazoDemanda::encerrado($p->data_limite, today())) <span class="b b-mute">encerrado</span>@endif @if (! $loop->last) · @endif @endforeach</p>
+            @endif
+        </section>
+    @endcan
+
     <form method="GET" class="card filtros">
         <div class="campo">
             <label for="f-sit">Situação</label>
@@ -25,7 +40,9 @@
                     @forelse ($demandas as $d)
                         <tr>
                             <td class="sigla">{{ $d->numero }}/{{ $d->ano }}</td>
-                            <td>{{ $d->objeto }}<div class="muted small">{{ $d->solicitante?->name }} · {{ $d->created_at->format('d/m/Y') }}@if ($d->itemPca) · item {{ $d->itemPca->numero }} do PCA @endif</div>
+                            <td>{{ $d->objeto }}<div class="muted small">{{ $d->solicitante?->name }} · {{ $d->created_at->format('d/m/Y') }}@if ($d->exercicio) · PCA {{ $d->exercicio }}@endif @if ($d->itemPca) · item {{ $d->itemPca->numero }} do PCA @endif</div>
+                                @if ($d->vinculadas->isNotEmpty())<div class="small muted">Vinculada a {{ $d->vinculadas->map(fn ($v) => $v->numero.'/'.$v->ano)->implode(', ') }}</div>@endif
+                                @if ($d->excecao_prazo)<div class="small"><span class="b b-warn">fora do prazo</span> {{ \App\Licitacao\Regras\PrazoDemanda::EXCECOES[$d->excecao_prazo] ?? '' }}</div>@endif
                                 @if ($d->motivo_recusa)<div class="small" style="color:#9A3412">Devolvida: {{ $d->motivo_recusa }}</div>@endif</td>
                             <td>{{ $d->unidade?->sigla }}</td>
                             <td class="num valor">{{ $d->valor_estimado ? reais($d->valor_estimado) : '—' }}</td>

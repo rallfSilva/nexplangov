@@ -146,6 +146,7 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::post('/demandas', [DemandaController::class, 'store'])->name('demandas.store');
         });
         Route::patch('/demandas/{demanda}/analisar', [DemandaController::class, 'analisar'])->middleware('can:pca.gerenciar')->name('demandas.analisar');
+        Route::post('/demandas/prazos', [DemandaController::class, 'definirPrazo'])->middleware('can:pca.gerenciar')->name('demandas.prazos');
 
         // Processos
         Route::get('/processos', [ProcessoController::class, 'index'])->middleware('can:processos.ver')->name('processos.index');
