@@ -171,6 +171,12 @@ class Processo extends Model
         return $this->belongsTo(Processo::class, 'origem_id');
     }
 
+    /** Documentos juntados livremente aos autos. */
+    public function juntadas(): HasMany
+    {
+        return $this->hasMany(JuntadaProcesso::class)->orderBy('juntado_em')->orderBy('id');
+    }
+
     /** Anotações internas de rascunho (não compõem os autos). */
     public function anotacoes(): HasMany
     {

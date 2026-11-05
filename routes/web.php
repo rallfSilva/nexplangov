@@ -22,6 +22,7 @@ use App\Http\Controllers\ImpugnacaoController;
 use App\Http\Controllers\IntegracaoController;
 use App\Http\Controllers\IrpController;
 use App\Http\Controllers\ItemProcessoController;
+use App\Http\Controllers\JuntadaController;
 use App\Http\Controllers\LgpdController;
 use App\Http\Controllers\LicitacaoController;
 use App\Http\Controllers\MasterController;
@@ -181,6 +182,10 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::post('/processos/{processo}/arquivar', [TramiteController::class, 'arquivar'])->name('tramitacao.arquivar');
             Route::post('/processos/{processo}/desarquivar', [TramiteController::class, 'desarquivar'])->name('tramitacao.desarquivar');
         });
+        Route::post('/processos/{processo}/juntadas', [JuntadaController::class, 'store'])->middleware(['can:processos.ver', 'throttle:30,1'])->name('processos.juntadas.store');
+        Route::get('/processos/{processo}/juntadas/{juntada}', [JuntadaController::class, 'arquivo'])->middleware('can:processos.ver')->name('processos.juntadas.arquivo');
+        Route::post('/processos/{processo}/juntadas/{juntada}/desentranhar', [JuntadaController::class, 'desentranhar'])->middleware('can:processos.ver')->name('processos.juntadas.desentranhar');
+        Route::get('/processos/{processo}/autos.pdf', [JuntadaController::class, 'pdf'])->middleware(['can:processos.ver', 'throttle:10,1'])->name('processos.autos.pdf');
         Route::post('/processos/{processo}/anotacoes', [AnotacaoProcessoController::class, 'store'])->middleware('can:processos.ver')->name('processos.anotacoes.store');
         Route::put('/processos/{processo}/anotacoes/{anotacao}', [AnotacaoProcessoController::class, 'update'])->middleware('can:processos.ver')->name('processos.anotacoes.update');
         Route::delete('/processos/{processo}/anotacoes/{anotacao}', [AnotacaoProcessoController::class, 'destroy'])->middleware('can:processos.ver')->name('processos.anotacoes.destroy');

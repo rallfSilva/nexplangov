@@ -8,7 +8,7 @@
     $pos = array_search($sit, $fluxo, true);
     $cumpridos = collect($checklist)->where('cumprido', true)->count();
     $podeInstruir = auth()->user()->can('processos.gerenciar') && $processo->editavel();
-    $abas = ['resumo' => 'Resumo', 'instrucao' => 'Instrução ('.$cumpridos.'/'.count($checklist).')', 'itens' => 'Itens e preços', 'resultado' => 'Resultado', 'historico' => 'Histórico', 'pncp' => 'PNCP', 'tramitacao' => 'Tramitação', 'anotacoes' => 'Anotações internas'.($totalAnotacoes ? ' ('.$totalAnotacoes.')' : '')];
+    $abas = ['resumo' => 'Resumo', 'instrucao' => 'Instrução ('.$cumpridos.'/'.count($checklist).')', 'itens' => 'Itens e preços', 'resultado' => 'Resultado', 'historico' => 'Histórico', 'pncp' => 'PNCP', 'autos' => 'Autos', 'tramitacao' => 'Tramitação', 'anotacoes' => 'Anotações internas'.($totalAnotacoes ? ' ('.$totalAnotacoes.')' : '')];
 @endphp
 <x-layouts.app :titulo="'Processo '.$processo->identificacao()">
     <div class="row">
@@ -307,6 +307,68 @@
                 @endforelse
             </div>
         </section>
+    @endif
+
+    @if ($aba === 'autos')
+        <section class="card">
+            <div class="row">
+                <div>
+                    <h2>Árvore do processo</h2>
+                    <p class="hint">Todos os documentos dos autos, numerados pela ordem de entrada e agrupados por fase. <span class="lei">art. 12, I</span></p>
+                </div>
+                <a class="btn btn-p btn-sm" href="{{ route('processos.autos.pdf', $processo) }}" target="_blank" rel="noopener"><x-icone nome="download" tamanho="16" />PDF único dos autos</a>
+            </div>
+            @forelse ($autos['arvore'] as $fase => $docs)
+                <details open style="margin-top:14px">
+                    <summary style="cursor:pointer;font-weight:700;color:#1E5470">{{ \App\Licitacao\Regras\AutosProcesso::FASES[$fase] }} <span class="b b-mute">{{ count($docs) }}</span></summary>
+                    <div class="list" style="margin:8px 0 0 14px">
+                        @foreach ($docs as $d)
+                            @php($desent = $d['tipo'] === 'juntada' && $d['ref']->desentranhado_em)
+                            <div class="li" @if ($desent) style="opacity:.6" @endif>
+                                <span class="sigla" style="min-width:2.4em">{{ $d['numero'] }}</span>
+                                <div style="flex:1;min-width:0">
+                                    @if ($d['tipo'] === 'peca')<a href="{{ route('documentos.edit', [$processo, $d['ref']->tipo]) }}">{{ $d['titulo'] }}</a>
+                                    @elseif ($d['tipo'] === 'contrato')<a href="{{ route('contratos.show', $d['ref']) }}">{{ $d['titulo'] }}</a>
+                                    @elseif ($d['tipo'] === 'juntada')<a href="{{ route('processos.juntadas.arquivo', [$processo, $d['ref']]) }}">@if ($desent)<s>{{ $d['titulo'] }}</s>@else{{ $d['titulo'] }}@endif</a>
+                                    @else{{ $d['titulo'] }}@endif
+                                    <div class="small muted">{{ $d['base'] }} · {{ $d['data']->format('d/m/Y H:i') }}@if ($d['autor']) · {{ $d['autor'] }} @endif @if ($d['detalhe']) · {{ $d['detalhe'] }} @endif</div>
+                                    @if ($desent)<div class="small"><span class="b b-err">desentranhado</span> em {{ $d['ref']->desentranhado_em->format('d/m/Y') }} por {{ $d['ref']->desentranhador?->name }}: {{ $d['ref']->motivo_desentranhamento }}</div>@endif
+                                </div>
+                                @if ($d['tipo'] === 'juntada' && ! $desent && ($d['ref']->autor_id === auth()->id() || auth()->user()->can('processos.autorizar')))
+                                    <details><summary class="small" style="cursor:pointer">Desentranhar</summary>
+                                        <form method="POST" action="{{ route('processos.juntadas.desentranhar', [$processo, $d['ref']]) }}" style="margin-top:6px;min-width:260px">@csrf
+                                            <label class="small" for="motivo-dj-{{ $d['ref']->id }}">Motivo</label>
+                                            <textarea id="motivo-dj-{{ $d['ref']->id }}" name="motivo" class="input" rows="2" maxlength="2000" required></textarea>
+                                            <button type="submit" class="btn btn-d btn-sm" style="margin-top:6px">Desentranhar</button>
+                                        </form>
+                                    </details>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </details>
+            @empty
+                <p class="muted" style="margin-top:12px">Nenhum documento nos autos ainda. As peças entram aqui quando concluídas.</p>
+            @endforelse
+        </section>
+
+        @if (\App\Models\AnotacaoProcesso::podeEscrever(auth()->user()))
+            <section class="card">
+                <h2>Juntar documento</h2>
+                <p class="hint">Certidões, ofícios, declarações, comprovantes e outros documentos avulsos. O documento juntado não se altera nem se apaga; se entrou por engano, é desentranhado com motivo.</p>
+                <form method="POST" action="{{ route('processos.juntadas.store', $processo) }}" enctype="multipart/form-data" class="form-grid" style="margin-top:12px">@csrf
+                    <x-campo nome="tipo" rotulo="Tipo" :obrigatorio="true">
+                        <select id="campo-tipo" name="tipo" class="input" required>
+                            @foreach (\App\Models\JuntadaProcesso::TIPOS as $v => $r)<option value="{{ $v }}" @selected(old('tipo') === $v)>{{ $r }}</option>@endforeach
+                        </select>
+                    </x-campo>
+                    <x-campo nome="titulo" rotulo="Título" :obrigatorio="true" maxlength="200" placeholder="Ex.: Certidão de regularidade com o FGTS" />
+                    <x-campo nome="descricao" rotulo="Descrição" classe="full"><textarea id="campo-descricao" name="descricao" class="input" rows="2" maxlength="2000">{{ old('descricao') }}</textarea></x-campo>
+                    <x-campo nome="arquivo" rotulo="Arquivo (PDF, DOCX, ODT, XLSX, ODS, PNG ou JPG, até 30 MB)" :obrigatorio="true" classe="full"><input id="campo-arquivo" type="file" name="arquivo" class="input" required accept=".pdf,.docx,.odt,.xlsx,.ods,.png,.jpg,.jpeg"></x-campo>
+                    <div class="full"><button type="submit" class="btn btn-p btn-sm">Juntar aos autos</button></div>
+                </form>
+            </section>
+        @endif
     @endif
 
     @if ($aba === 'tramitacao')
