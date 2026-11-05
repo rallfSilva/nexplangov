@@ -9,6 +9,7 @@ use App\Models\DocumentoProcesso;
 use App\Models\EtapaProcesso;
 use App\Models\Fluxo;
 use App\Models\Processo;
+use App\Models\SolicitacaoExterna;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -261,6 +262,11 @@ final class FluxoDocumento
         $assinaram = $d->assinaturas()->pluck('user_id')->all();
 
         if (array_diff($this->assinantes($d), $assinaram) !== []) {
+            return false;
+        }
+
+        // Pedido de assinatura a pessoa de fora ainda aberto também segura a conclusão.
+        if (SolicitacaoExterna::where('documento_id', $d->id)->where('tipo', 'assinatura')->whereNull('respondida_em')->whereNull('cancelada_em')->exists()) {
             return false;
         }
 

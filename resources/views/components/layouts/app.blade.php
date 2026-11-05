@@ -24,6 +24,9 @@
             @can('processos.tramitar')
                 <a href="{{ route('tramitacao.meus') }}" class="{{ $nav('tramitacao.*') }}"><x-icone nome="pasta" />Meus processos</a>
             @endcan
+            @can('processos.ver')
+                <a href="{{ route('assinaturas.pendentes') }}" class="{{ $nav('assinaturas.pendentes') }}"><x-icone nome="editar" />Assinaturas pendentes</a>
+            @endcan
 
             <span class="cap">Planejamento</span>
             @can('pca.ver')

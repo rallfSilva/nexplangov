@@ -2,9 +2,11 @@
 
 namespace App\Licitacao\Fluxo;
 
+use App\Licitacao\Regras\PedidoExterno;
 use App\Licitacao\RegraViolada;
 use App\Models\Assinatura;
 use App\Models\DocumentoProcesso;
+use App\Models\SolicitacaoExterna;
 use App\Models\User;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
@@ -56,15 +58,51 @@ final class Assinaturas
         });
     }
 
-    public function selo(string $hashDocumento, int $userId, string $instante, string $codigo): string
+    /** Assinatura de pessoa de fora do órgão, pelo link do e-mail, com confirmação do nome. */
+    public function assinarExterno(DocumentoProcesso $d, SolicitacaoExterna $s, string $nomeDigitado, ?string $ip = null): Assinatura
     {
-        return hash_hmac('sha256', "{$hashDocumento}|{$userId}|{$instante}|{$codigo}", (string) config('app.key'));
+        $motivos = PedidoExterno::motivosResposta($s->cancelada_em !== null, $s->respondida_em !== null, $s->prazo_em, now());
+        if ($s->tipo !== 'assinatura' || $s->documento_id !== $d->id) {
+            $motivos[] = 'Este link não é de assinatura desta peça.';
+        }
+        if ($d->situacao !== 'aguardando_assinatura') {
+            $motivos[] = 'A peça não está mais aguardando assinatura.';
+        }
+        if (! PedidoExterno::nomeConfere($s->nome, $nomeDigitado)) {
+            $motivos[] = 'Digite o seu nome completo exatamente como está no pedido.';
+        }
+        if ($motivos !== []) {
+            throw new RegraViolada($motivos);
+        }
+
+        return DB::transaction(function () use ($d, $s, $ip) {
+            $agora = now();
+            $hash = $d->hashAtual();
+            $codigo = strtoupper(Str::random(12));
+
+            $assinatura = Assinatura::create([
+                'orgao_id' => $d->orgao_id, 'documento_id' => $d->id, 'user_id' => null, 'solicitacao_externa_id' => $s->id, 'nome' => $s->nome,
+                'perfil' => 'Signatário externo', 'assinado_em' => $agora, 'hash_documento' => $hash, 'codigo' => $codigo,
+                'selo' => $this->selo($hash, 'ext:'.$s->id, $agora->toIso8601String(), $codigo), 'ip' => $ip,
+            ]);
+            $s->forceFill(['respondida_em' => $agora, 'ip_resposta' => $ip, 'resposta' => 'Assinatura '.self::formatarCodigo($codigo)])->save();
+
+            $this->fluxo->concluirSeAssinada($d->refresh());
+
+            return $assinatura;
+        });
+    }
+
+    /** Selo da assinatura: o signatário é o id do usuário ou "ext:{pedido}" para quem assinou pelo link. */
+    public function selo(string $hashDocumento, int|string $signatario, string $instante, string $codigo): string
+    {
+        return hash_hmac('sha256', "{$hashDocumento}|{$signatario}|{$instante}|{$codigo}", (string) config('app.key'));
     }
 
     /** @return array{valida: bool, motivo: ?string} */
     public function verificar(Assinatura $a): array
     {
-        $esperado = $this->selo($a->hash_documento, $a->user_id, $a->assinado_em->toIso8601String(), $a->codigo);
+        $esperado = $this->selo($a->hash_documento, $a->user_id ?? 'ext:'.$a->solicitacao_externa_id, $a->assinado_em->toIso8601String(), $a->codigo);
 
         if (! hash_equals($esperado, $a->selo)) {
             return ['valida' => false, 'motivo' => 'O selo da assinatura não confere.'];

@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use LogicException;
 
 /** Assinatura eletrônica de uma peça. Imutável: não se altera nem se apaga. */
-#[Fillable(['orgao_id', 'documento_id', 'user_id', 'nome', 'perfil', 'assinado_em', 'hash_documento', 'codigo', 'selo', 'ip'])]
+#[Fillable(['orgao_id', 'documento_id', 'user_id', 'solicitacao_externa_id', 'nome', 'perfil', 'assinado_em', 'hash_documento', 'codigo', 'selo', 'ip'])]
 class Assinatura extends Model
 {
     use Auditable, BelongsToOrgao;

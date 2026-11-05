@@ -352,6 +352,48 @@
             @endforelse
         </section>
 
+        <section class="card">
+            <h2>Pedidos a pessoas de fora do órgão</h2>
+            <p class="hint">Notificação com ciência, assinatura de peça ou envio de documentos, por e-mail com link pessoal. Os documentos recebidos entram nos autos como juntada.</p>
+            <div class="list" style="margin-top:10px">
+                @forelse ($pedidos as $s)
+                    @php($sit = $s->situacao())
+                    <div class="li">
+                        <div style="flex:1;min-width:0"><b>{{ $s->rotuloTipo() }}</b> · {{ $s->nome }}@if ($s->documento) · {{ \App\Licitacao\TiposDocumento::get($s->documento->tipo)['rotulo'] ?? '' }} @endif
+                            <div class="small muted">Enviado em {{ $s->enviado_em?->format('d/m/Y H:i') }} por {{ $s->criador?->name ?? '—' }} · prazo {{ $s->prazo_em->format('d/m/Y') }}@if ($s->resposta) · {{ $s->resposta }} @endif</div></div>
+                        <span class="b {{ $sit[1] }}">{{ $sit[0] }}</span>
+                        @if ($s->pendente() && \App\Models\AnotacaoProcesso::podeEscrever(auth()->user()))
+                            <form method="POST" action="{{ route('processos.pedidos.cancelar', [$processo, $s]) }}" onsubmit="return confirm('Cancelar o pedido? O link deixa de valer.')">@csrf<button type="submit" class="btn btn-g btn-sm">Cancelar</button></form>
+                        @endif
+                    </div>
+                @empty
+                    <p class="muted">Nenhum pedido enviado.</p>
+                @endforelse
+            </div>
+            @if (\App\Models\AnotacaoProcesso::podeEscrever(auth()->user()))
+                <details style="margin-top:14px" @if (old('email')) open @endif><summary class="btn btn-s btn-sm">Novo pedido por e-mail</summary>
+                    <form method="POST" action="{{ route('processos.pedidos.store', $processo) }}" class="form-grid" style="margin-top:12px">@csrf
+                        <div class="campo"><label for="campo-tipo-pedido">Tipo de pedido <span aria-hidden="true" style="color:#9F1D1D">*</span></label>
+                            <select id="campo-tipo-pedido" name="tipo" class="input" required>
+                                @foreach (\App\Licitacao\Regras\PedidoExterno::TIPOS as $v => $r)<option value="{{ $v }}" @selected(old('tipo') === $v)>{{ $r }}</option>@endforeach
+                            </select>
+                        </div>
+                        <x-campo nome="documento_id" rotulo="Peça a assinar (só para assinatura)">
+                            <select id="campo-documento_id" name="documento_id" class="input">
+                                <option value="">Nenhuma</option>
+                                @foreach ($aguardandoAssinatura as $doc)<option value="{{ $doc->id }}" @selected((int) old('documento_id') === $doc->id)>{{ \App\Licitacao\TiposDocumento::get($doc->tipo)['rotulo'] ?? $doc->tipo }} (versão {{ $doc->versao }})</option>@endforeach
+                            </select>
+                        </x-campo>
+                        <x-campo nome="nome" rotulo="Nome completo da pessoa" :obrigatorio="true" maxlength="160" />
+                        <x-campo nome="email" rotulo="E-mail" tipo="email" :obrigatorio="true" maxlength="255" />
+                        <x-campo nome="prazo_em" rotulo="Prazo para responder" tipo="date" :valor="now()->addDays(5)->toDateString()" :obrigatorio="true" />
+                        <x-campo nome="mensagem" rotulo="Mensagem do e-mail" :obrigatorio="true" classe="full"><textarea id="campo-mensagem" name="mensagem" class="input" rows="3" maxlength="3000" required placeholder="Ex.: Pedimos o envio da certidão de regularidade fiscal atualizada.">{{ old('mensagem') }}</textarea></x-campo>
+                        <div class="full"><button type="submit" class="btn btn-p btn-sm"><x-icone nome="email" tamanho="16" />Enviar pedido</button></div>
+                    </form>
+                </details>
+            @endif
+        </section>
+
         @if (\App\Models\AnotacaoProcesso::podeEscrever(auth()->user()))
             <section class="card">
                 <h2>Juntar documento</h2>

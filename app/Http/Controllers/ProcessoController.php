@@ -25,6 +25,7 @@ use App\Models\Fluxo;
 use App\Models\Fornecedor;
 use App\Models\ItemPca;
 use App\Models\Processo;
+use App\Models\SolicitacaoExterna;
 use App\Models\Unidade;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
@@ -148,6 +149,8 @@ class ProcessoController extends Controller
             'periodos' => $aba === 'tramitacao' ? app(TramitacaoUnidades::class)->periodos($processo) : [],
             'unidadesAtivas' => $aba === 'tramitacao' ? Unidade::where('ativo', true)->orderBy('sigla')->get() : collect(),
             'autos' => $aba === 'autos' ? app(AutosDoProcesso::class)->montar($processo) : null,
+            'pedidos' => $aba === 'autos' ? SolicitacaoExterna::with(['documento', 'criador'])->where('processo_id', $processo->id)->latest('id')->get() : collect(),
+            'aguardandoAssinatura' => $aba === 'autos' ? $processo->documentos()->where('situacao', 'aguardando_assinatura')->get() : collect(),
             'remessaPendente' => $processo->remessaPendente(),
             'anotacoes' => $aba === 'anotacoes' ? $processo->anotacoes()->with('autor')->get() : collect(),
             'totalAnotacoes' => $processo->anotacoes()->count(),
