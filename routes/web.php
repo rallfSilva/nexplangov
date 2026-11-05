@@ -282,7 +282,10 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::get('/fornecedores/{fornecedor}/editar', [FornecedorController::class, 'edit'])->name('fornecedores.edit');
             Route::put('/fornecedores/{fornecedor}', [FornecedorController::class, 'update'])->name('fornecedores.update');
             Route::post('/fornecedores/{fornecedor}/sancoes', [FornecedorController::class, 'registrarSancao'])->name('fornecedores.sancoes.store');
+            Route::post('/fornecedores/{fornecedor}/ceis-cnep', [FornecedorController::class, 'consultarImpedimento'])->middleware('throttle:10,1')->name('fornecedores.ceis');
         });
+        Route::get('/fornecedores/{fornecedor}/ceis-cnep', [FornecedorController::class, 'impedimentos'])->middleware('can:fornecedores.ver')->name('fornecedores.ceis.index');
+        Route::post('/fornecedores/{fornecedor}/ceis-cnep/{consulta}/ressalva', [FornecedorController::class, 'ressalvarImpedimento'])->middleware('can:processos.autorizar')->name('fornecedores.ceis.ressalva');
 
         // Medição, liquidação e pagamento na ordem cronológica (arts. 140 e 141)
         Route::get('/pagamentos', [PagamentoController::class, 'index'])->middleware('can:contratos.ver')->name('pagamentos.index');

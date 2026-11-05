@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Integracoes\Transparencia\ConsultaCeisCnep;
+use App\Licitacao\Regras\ImpedimentoCadastral;
+use App\Models\ConsultaImpedimento;
 use App\Models\Fornecedor;
 use App\Models\SancaoFornecedor;
 use App\Rules\Cnpj;
@@ -40,18 +43,28 @@ class FornecedorController extends Controller
         return view('fornecedores.form', ['fornecedor' => new Fornecedor(['tipo_pessoa' => 'PJ', 'ativo' => true])]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, ConsultaCeisCnep $consulta): RedirectResponse
     {
         $orgaoId = $request->user()->orgao_id;
         abort_unless($orgaoId, 422);
         $fornecedor = Fornecedor::create($this->validar($request, $orgaoId) + ['orgao_id' => $orgaoId]);
+        $msg = "Fornecedor {$fornecedor->razao_social} cadastrado.";
 
-        return redirect()->route('fornecedores.edit', $fornecedor)->with('sucesso', "Fornecedor {$fornecedor->razao_social} cadastrado.");
+        // Consulta preventiva ao CEIS e ao CNEP logo no cadastro (art. 161).
+        if ($consulta->habilitada()) {
+            $c = $consulta->consultar($fornecedor, $request->user());
+            $msg .= ' '.$this->resumoConsulta($c);
+        }
+
+        return redirect()->route('fornecedores.edit', $fornecedor)->with('sucesso', $msg);
     }
 
     public function edit(Fornecedor $fornecedor): View
     {
-        return view('fornecedores.form', ['fornecedor' => $fornecedor->load('sancoes')]);
+        return view('fornecedores.form', [
+            'fornecedor' => $fornecedor->load('sancoes'),
+            'ultimaConsulta' => ConsultaImpedimento::where('fornecedor_id', $fornecedor->id)->latest('consultado_em')->latest('id')->first(),
+        ]);
     }
 
     public function update(Request $request, Fornecedor $fornecedor): RedirectResponse
@@ -76,6 +89,57 @@ class FornecedorController extends Controller
         $fornecedor->sancoes()->create($dados + ['orgao_id' => $fornecedor->orgao_id]);
 
         return back()->with('sucesso', 'Sanção registrada. Se for impedimento ou inidoneidade, informe também no cadastro nacional (art. 161).');
+    }
+
+    /** Consultas ao CEIS e ao CNEP do fornecedor, com a análise de abrangência (art. 161 e art. 156, § 4º). */
+    public function impedimentos(Fornecedor $fornecedor, ConsultaCeisCnep $consulta): View
+    {
+        return view('fornecedores.ceis', [
+            'fornecedor' => $fornecedor,
+            'consultas' => ConsultaImpedimento::with(['autorRessalva', 'usuario'])->where('fornecedor_id', $fornecedor->id)->latest('consultado_em')->latest('id')->limit(10)->get(),
+            'habilitada' => $consulta->habilitada(),
+        ]);
+    }
+
+    /** Consulta o CEIS e o CNEP na hora (art. 161). */
+    public function consultarImpedimento(Request $request, Fornecedor $fornecedor, ConsultaCeisCnep $consulta): RedirectResponse
+    {
+        if (! $consulta->habilitada()) {
+            return back()->with('erro', 'A consulta ao CEIS e ao CNEP não está configurada. Informe a chave da API do Portal da Transparência no .env (TRANSPARENCIA_CHAVE).');
+        }
+
+        $c = $consulta->consultar($fornecedor, $request->user());
+
+        return back()->with($c->situacao === 'indisponivel' ? 'erro' : 'sucesso', $this->resumoConsulta($c));
+    }
+
+    /**
+     * Análise de abrangência pela autoridade: a sanção encontrada não alcança este órgão (art. 156, § 4º).
+     * Não cabe para declaração de inidoneidade, que vale para toda a Administração (art. 156, § 5º).
+     */
+    public function ressalvarImpedimento(Request $request, Fornecedor $fornecedor, ConsultaImpedimento $consulta): RedirectResponse
+    {
+        abort_unless($consulta->fornecedor_id === $fornecedor->id, 404);
+
+        $dados = $request->validate(['justificativa' => ['required', 'string', 'min:'.ImpedimentoCadastral::JUSTIFICATIVA_MINIMA, 'max:5000']],
+            ['justificativa.min' => 'Explique por que a sanção não alcança este órgão, com pelo menos '.ImpedimentoCadastral::JUSTIFICATIVA_MINIMA.' caracteres.']);
+
+        if (! ImpedimentoCadastral::podeRessalvar($consulta->vigentes())) {
+            return back()->with('erro', 'Não há análise de abrangência a registrar: ou não há sanção impeditiva vigente, ou ela é de inidoneidade, que alcança toda a Administração (art. 156, § 5º).');
+        }
+
+        $consulta->update(['ressalva_justificativa' => trim($dados['justificativa']), 'ressalva_por' => $request->user()->id, 'ressalva_em' => now()]);
+
+        return back()->with('sucesso', 'Análise de abrangência registrada. Ela vale enquanto as sanções do cadastro forem as mesmas.');
+    }
+
+    private function resumoConsulta(ConsultaImpedimento $c): string
+    {
+        return match ($c->situacao) {
+            'regular' => 'CEIS e CNEP: nada consta.',
+            'sancionado' => 'CEIS e CNEP: há '.count($c->registros ?? []).' registro(s) de sanção. Confira na ficha do fornecedor.',
+            default => 'Não foi possível consultar o CEIS e o CNEP agora: '.$c->erro,
+        };
     }
 
     /** @return array<string, mixed> */

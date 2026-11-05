@@ -62,6 +62,16 @@ return [
         'max_paginas' => 3,
     ],
 
+    // Portal da Transparência, API de dados: consulta automática ao CEIS e ao CNEP antes de adjudicar e contratar
+    // (art. 161). A chave é gratuita (cadastro no portal) e fica só no .env. Sem chave, a consulta fica desligada.
+    'transparencia' => [
+        'url' => env('TRANSPARENCIA_URL', 'https://api.portaldatransparencia.gov.br/api-de-dados'),
+        'chave' => env('TRANSPARENCIA_CHAVE'),
+        'timeout' => (int) env('TRANSPARENCIA_TIMEOUT', 20),
+        // Por quantas horas uma consulta vale antes de ser refeita na hora de contratar.
+        'validade_horas' => (int) env('NEXPLANGOV_CEIS_VALIDADE_HORAS', 24),
+    ],
+
     // SEI: endereço para abrir um processo pelo número (o número entra no lugar de {numero}).
     'sei' => [
         'url_consulta' => env('SEI_URL_CONSULTA'),

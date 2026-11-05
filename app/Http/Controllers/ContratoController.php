@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Integracoes\Transparencia\VerificadorImpedimento;
 use App\Licitacao\Enums\CategoriaProcesso;
 use App\Licitacao\Enums\TipoTermo;
 use App\Licitacao\Regras\AlteracaoContratual;
@@ -89,8 +90,13 @@ class ContratoController extends Controller
             foreach ($garantia->validar($request->input('garantia_percentual') === null ? null : (float) $request->input('garantia_percentual'), $request->input('justificativa_garantia'), $request->boolean('grande_vulto_engenharia')) as $e) {
                 $v->errors()->add('garantia_percentual', $e);
             }
-            if ($request->filled('fornecedor_id') && ($f = Fornecedor::find($request->integer('fornecedor_id'))) && $f->impedidoEm()) {
-                $v->errors()->add('fornecedor_id', "{$f->razao_social} tem sanção vigente que impede contratar (art. 156, III e IV).");
+            if ($request->filled('fornecedor_id') && ($f = Fornecedor::find($request->integer('fornecedor_id')))) {
+                if ($f->impedidoEm()) {
+                    $v->errors()->add('fornecedor_id', "{$f->razao_social} tem sanção vigente que impede contratar (art. 156, III e IV).");
+                }
+                foreach (app(VerificadorImpedimento::class)->motivos($f, $request->user()) as $motivo) { // CEIS e CNEP (art. 161)
+                    $v->errors()->add('fornecedor_id', $motivo);
+                }
             }
         });
 

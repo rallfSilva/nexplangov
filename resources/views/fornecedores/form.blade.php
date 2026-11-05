@@ -26,6 +26,22 @@
 
     @if ($fornecedor->exists)
         <section class="card">
+            <h2>CEIS e CNEP</h2>
+            <p class="hint">O sistema consulta os cadastros nacionais de sanções antes de adjudicar, contratar e emitir ordem de fornecimento <span class="lei">art. 161</span></p>
+            <p class="small" style="margin-top:10px">
+                @if ($ultimaConsulta)
+                    Última consulta em {{ $ultimaConsulta->consultado_em->format('d/m/Y H:i') }}:
+                    <span class="b {{ $ultimaConsulta->situacao === 'regular' ? 'b-ok' : ($ultimaConsulta->situacao === 'sancionado' ? 'b-err' : 'b-warn') }}">{{ \App\Models\ConsultaImpedimento::SITUACOES[$ultimaConsulta->situacao] }}</span>
+                @else
+                    Ainda não consultado.
+                @endif
+            </p>
+            <div class="btns" style="margin-top:12px">
+                <form method="POST" action="{{ route('fornecedores.ceis', $fornecedor) }}">@csrf<button class="btn btn-s btn-sm" type="submit">Consultar agora</button></form>
+                <a class="btn btn-g btn-sm" href="{{ route('fornecedores.ceis.index', $fornecedor) }}">Ver consultas e sanções</a>
+            </div>
+        </section>
+        <section class="card">
             <h2>Sanções</h2>
             <p class="hint">Impedimento e inidoneidade vigentes bloqueiam o fornecedor no resultado e no contrato. <span class="lei">Art. 156</span></p>
             <div class="list">
