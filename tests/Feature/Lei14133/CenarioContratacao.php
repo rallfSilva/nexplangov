@@ -48,6 +48,7 @@ trait CenarioContratacao
             'categoria' => 2,
             'abertura_propostas_em' => '2026-12-01 08:00:00',
             'encerramento_propostas_em' => '2026-12-10 08:00:00',
+            'justificativa_fora_pca' => 'Contratação de teste fora do plano, justificada para o cenário.',
         ]);
         $p->forceFill(['situacao' => $situacao])->save();
 

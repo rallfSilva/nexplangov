@@ -6,6 +6,7 @@ use App\Licitacao\Enums\AmparoLegal;
 use App\Licitacao\Enums\CategoriaProcesso;
 use App\Licitacao\Enums\Modalidade;
 use App\Licitacao\Enums\SituacaoProcesso;
+use App\Licitacao\Regras\PrevisaoPca;
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToOrgao;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -18,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  * Processo de contratação: licitação ou contratação direta. A situação só muda pela
  * App\Licitacao\TramitacaoProcesso, que aplica as regras da Lei 14.133.
  */
-#[Fillable(['orgao_id', 'unidade_id', 'demanda_id', 'responsavel_id', 'fluxo_id', 'numero', 'ano', 'numero_compra', 'numero_sei', 'objeto', 'modalidade', 'amparo_legal', 'criterio_julgamento', 'modo_disputa', 'categoria', 'srp', 'orcamento_sigiloso', 'com_disputa', 'natureza_despesa', 'abertura_propostas_em', 'encerramento_propostas_em'])]
+#[Fillable(['orgao_id', 'unidade_id', 'demanda_id', 'item_pca_id', 'justificativa_fora_pca', 'responsavel_id', 'fluxo_id', 'numero', 'ano', 'numero_compra', 'numero_sei', 'objeto', 'modalidade', 'amparo_legal', 'criterio_julgamento', 'modo_disputa', 'categoria', 'srp', 'orcamento_sigiloso', 'com_disputa', 'natureza_despesa', 'abertura_propostas_em', 'encerramento_propostas_em'])]
 class Processo extends Model
 {
     use Auditable, BelongsToOrgao;
@@ -81,6 +82,18 @@ class Processo extends Model
     public function demanda(): BelongsTo
     {
         return $this->belongsTo(Demanda::class);
+    }
+
+    /** Item do PCA que esta contratação atende (art. 12, VII). */
+    public function itemPca(): BelongsTo
+    {
+        return $this->belongsTo(ItemPca::class);
+    }
+
+    /** Previsto no PCA ou com justificativa formal para estar fora dele (art. 18, § 1º, II). */
+    public function previsaoPcaResolvida(): bool
+    {
+        return $this->item_pca_id !== null || PrevisaoPca::justificativaValida($this->justificativa_fora_pca);
     }
 
     public function propostas(): HasMany

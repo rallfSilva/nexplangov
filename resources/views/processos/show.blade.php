@@ -75,7 +75,15 @@
                     <div><dt>Registro de preços</dt><dd>{{ $processo->srp ? 'Sim' : 'Não' }}</dd></div>
                     @if ($processo->abertura_propostas_em)<div><dt>Propostas</dt><dd>{{ $processo->abertura_propostas_em->format('d/m/Y H:i') }} a {{ $processo->encerramento_propostas_em?->format('d/m/Y H:i') }}</dd></div>@endif
                     @if ($processo->demanda)<div><dt>Demanda</dt><dd>{{ $processo->demanda->numero }}/{{ $processo->demanda->ano }}</dd></div>@endif
+                    <div><dt>Previsão no PCA</dt><dd>
+                        @if ($processo->itemPca)Item {{ $processo->itemPca->numero }} do PCA {{ $processo->itemPca->plano?->ano }}
+                        @elseif ($processo->previsaoPcaResolvida())<span class="b b-warn">fora do plano, justificado</span>
+                        @else<span class="b b-err">sem previsão nem justificativa</span>@endif
+                    </dd></div>
                 </dl>
+                @if (! $processo->itemPca && $processo->justificativa_fora_pca)
+                    <p class="small" style="margin:10px 0 0;line-height:1.6"><b>Justificativa para contratar fora do PCA</b> <span class="lei">art. 12, VII</span><br>{{ $processo->justificativa_fora_pca }}</p>
+                @endif
                 <div class="btns" style="margin-top:14px;align-items:flex-end">
                     @can('processos.gerenciar')
                         <form method="POST" action="{{ route('processos.sei', $processo) }}" class="btns">@csrf @method('PATCH')
@@ -135,6 +143,8 @@
                         </div>
                         @if (isset($tipos[$item['chave']]))
                             <a href="{{ route('documentos.edit', [$processo, $item['chave']]) }}" class="btn btn-s btn-sm">{{ isset($documentos[$item['chave']]) ? 'Abrir' : 'Preencher' }}</a>
+                        @elseif ($item['chave'] === 'previsao_pca' && ! $item['cumprido'] && $podeInstruir)
+                            <a href="{{ route('processos.edit', $processo) }}" class="btn btn-s btn-sm">Indicar</a>
                         @elseif ($item['chave'] === 'pesquisa_precos')
                             <a href="{{ route('processos.show', [$processo, 'aba' => 'itens']) }}" class="btn btn-s btn-sm">Ir aos preços</a>
                         @endif

@@ -24,6 +24,23 @@
             <x-campo nome="objeto" rotulo="Objeto" obrigatorio classe="full">
                 <textarea id="campo-objeto" name="objeto" class="input" rows="3" maxlength="5120">{{ old('objeto', $processo->objeto) }}</textarea>
             </x-campo>
+            <div class="campo full">
+                <div class="aviso-lei" style="margin:0">Toda contratação precisa estar prevista no Plano de Contratações Anual. Fora do plano, o processo só abre com justificativa formal, que fica nos autos <span class="lei">art. 12, VII, e art. 18, § 1º, II</span></div>
+            </div>
+            <x-campo nome="item_pca_id" rotulo="Item do PCA {{ $anoPca }} que esta contratação atende" classe="full" ajuda="Só aparecem itens de plano aprovado. Mudou o ano do processo? Salve e reabra para ver os itens do outro exercício.">
+                <select id="campo-item_pca_id" name="item_pca_id" class="input">
+                    <option value="">Não está previsto no PCA</option>
+                    @foreach ($itensPca as $i)<option value="{{ $i->id }}" @selected($sel('item_pca_id', $i->id))>{{ $i->numero }} · {{ \Illuminate\Support\Str::limit($i->descricao, 90) }}@if (in_array($i->id, $sugestoesPca, true)) (sugerido)@endif</option>@endforeach
+                </select>
+            </x-campo>
+            @if ($sugestoesPca)
+                <div class="campo full"><p class="hint" style="margin:0">O sistema cruzou o objeto com o PCA e encontrou itens parecidos, marcados como "sugerido". Confira antes de justificar a contratação fora do plano.</p></div>
+            @elseif ($itensPca->isEmpty())
+                <div class="campo full"><p class="hint" style="margin:0">Não há PCA aprovado para {{ $anoPca }}. Sem plano, justifique a contratação abaixo.</p></div>
+            @endif
+            <x-campo nome="justificativa_fora_pca" rotulo="Justificativa para contratar fora do PCA" classe="full" ajuda="Obrigatória quando nenhum item do plano for escolhido. Mínimo de {{ \App\Licitacao\Regras\PrevisaoPca::JUSTIFICATIVA_MINIMA }} caracteres.">
+                <textarea id="campo-justificativa_fora_pca" name="justificativa_fora_pca" class="input" rows="3" maxlength="5000">{{ old('justificativa_fora_pca', $processo->justificativa_fora_pca) }}</textarea>
+            </x-campo>
             <x-campo nome="modalidade" rotulo="Modalidade ou forma" obrigatorio>
                 <select id="campo-modalidade" name="modalidade" class="input">@foreach (Modalidade::opcoes() as $v => $r)<option value="{{ $v }}" @selected($sel('modalidade', $v))>{{ $r }}</option>@endforeach</select>
             </x-campo>

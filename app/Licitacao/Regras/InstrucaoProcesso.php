@@ -35,6 +35,14 @@ final class InstrucaoProcesso
 
         $itens = [
             $doc('dfd'),
+            [
+                'chave' => 'previsao_pca',
+                'rotulo' => 'Previsão no PCA ou justificativa para contratar fora dele',
+                'base' => 'Art. 12, VII, e art. 18, § 1º, II',
+                'cumprido' => $processo->previsaoPcaResolvida(),
+                'etapa' => 'instrucao',
+                'detalhe' => $processo->previsaoPcaResolvida() ? null : 'Indique o item do plano em "Editar dados" ou justifique.',
+            ],
         ];
 
         if ($modalidade->ehContratacaoDireta()) {

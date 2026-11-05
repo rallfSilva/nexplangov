@@ -12,15 +12,18 @@ use App\Licitacao\Fluxo\FluxoDocumento;
 use App\Licitacao\Regras\InstrucaoProcesso;
 use App\Licitacao\Regras\LimiteDispensa;
 use App\Licitacao\Regras\PesquisaPrecos;
+use App\Licitacao\Regras\PrevisaoPca;
 use App\Licitacao\RegraViolada;
 use App\Licitacao\TiposDocumento;
 use App\Licitacao\TramitacaoProcesso;
 use App\Models\Demanda;
 use App\Models\Fluxo;
 use App\Models\Fornecedor;
+use App\Models\ItemPca;
 use App\Models\Processo;
 use App\Models\Unidade;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -55,6 +58,7 @@ class ProcessoController extends Controller
             'objeto' => $demanda?->objeto,
             'unidade_id' => $demanda?->unidade_id,
             'demanda_id' => $demanda?->id,
+            'item_pca_id' => $demanda?->item_pca_id,
             'modalidade' => Modalidade::PregaoEletronico->value,
             'amparo_legal' => AmparoLegal::Art28I->value,
             'criterio_julgamento' => CriterioJulgamento::MenorPreco->value,
@@ -106,7 +110,7 @@ class ProcessoController extends Controller
 
     public function show(Request $request, Processo $processo, InstrucaoProcesso $instrucao, TramitacaoProcesso $tramitacao, LimiteDispensa $limite): View
     {
-        $processo->load(['itens.cotacoes', 'itens.vencedor', 'unidade', 'responsavel', 'eventos.usuario', 'enviosPncp', 'contratos', 'demanda']);
+        $processo->load(['itens.cotacoes', 'itens.vencedor', 'unidade', 'responsavel', 'eventos.usuario', 'enviosPncp', 'contratos', 'demanda', 'itemPca.plano']);
         $aba = in_array($request->query('aba'), ['instrucao', 'itens', 'resultado', 'historico', 'pncp'], true) ? $request->query('aba') : 'resumo';
         $pesquisa = new PesquisaPrecos;
 
@@ -166,11 +170,30 @@ class ProcessoController extends Controller
     /** @return array<string, mixed> */
     private function dadosFormulario(Processo $processo): array
     {
+        $ano = (int) old('ano', $processo->ano ?: now()->format('Y'));
+        $itensPca = $this->itensPcaVigentes($ano);
+
         return [
             'processo' => $processo,
+            'anoPca' => $ano,
+            'itensPca' => $itensPca,
+            // Cruzamento automático do objeto com o PCA vigente (art. 12, VII): só sugere, quem escolhe é o servidor.
+            'sugestoesPca' => filled($processo->objeto) && ! $processo->item_pca_id
+                ? PrevisaoPca::sugerir((string) $processo->objeto, $itensPca->map(fn ($i) => ['id' => $i->id, 'descricao' => $i->descricao]))
+                : [],
             'unidades' => Unidade::where('ativo', true)->orderBy('sigla')->get(),
             'responsaveis' => User::where('orgao_id', $processo->orgao_id ?? auth()->user()->orgao_id)->where('ativo', true)->orderBy('name')->get(),
         ];
+    }
+
+    /**
+     * Itens do PCA do exercício com versão aprovada (a vigente vale até a nova aprovação, art. 12, § 1º).
+     *
+     * @return Collection<int, ItemPca>
+     */
+    private function itensPcaVigentes(int $ano): Collection
+    {
+        return ItemPca::whereHas('plano', fn ($q) => $q->where('ano', $ano)->where('versao_atual', '>', 0))->orderBy('numero')->get();
     }
 
     /** @return array<string, mixed> */
@@ -184,6 +207,8 @@ class ProcessoController extends Controller
             'unidade_id' => ['required', 'integer', Rule::exists('unidades', 'id')->where('orgao_id', $orgaoId)],
             'responsavel_id' => ['nullable', 'integer', Rule::exists('users', 'id')->where('orgao_id', $orgaoId)],
             'demanda_id' => ['nullable', 'integer', Rule::exists('demandas', 'id')->where('orgao_id', $orgaoId)],
+            'item_pca_id' => ['nullable', 'integer', Rule::exists('itens_pca', 'id')->where('orgao_id', $orgaoId)],
+            'justificativa_fora_pca' => ['nullable', 'string', 'max:5000'],
             'modalidade' => ['required', Rule::enum(Modalidade::class)],
             'amparo_legal' => ['required', Rule::enum(AmparoLegal::class)],
             'criterio_julgamento' => ['required', Rule::enum(CriterioJulgamento::class)],
@@ -198,6 +223,20 @@ class ProcessoController extends Controller
         ]);
 
         $validador->after(function (Validator $v) use ($request) {
+            // Trava de execução cruzada com o PCA (art. 12, VII, e art. 18, § 1º, II).
+            $item = $request->integer('item_pca_id') ? ItemPca::with('plano')->find($request->integer('item_pca_id')) : null;
+            $motivos = PrevisaoPca::motivos(
+                $item !== null,
+                $item?->plano?->versao_atual > 0,
+                $item?->plano?->ano,
+                $request->integer('ano'),
+                $request->input('justificativa_fora_pca'),
+            );
+
+            foreach ($motivos as $motivo) {
+                $v->errors()->add($item ? 'item_pca_id' : 'justificativa_fora_pca', $motivo);
+            }
+
             $modalidade = Modalidade::tryFrom($request->integer('modalidade'));
             $amparo = AmparoLegal::tryFrom($request->integer('amparo_legal'));
             $categoria = CategoriaProcesso::tryFrom($request->integer('categoria'));
@@ -220,6 +259,11 @@ class ProcessoController extends Controller
         });
 
         $dados = $validador->validate();
+
+        if ($dados['item_pca_id'] ?? null) {
+            $dados['justificativa_fora_pca'] = null; // previsto no plano: a justificativa não se aplica
+        }
+
         $dados['srp'] = $request->boolean('srp');
         $dados['orcamento_sigiloso'] = $request->boolean('orcamento_sigiloso');
         $dados['com_disputa'] = $request->boolean('com_disputa');
