@@ -32,7 +32,7 @@ class Contrato extends Model
         return [
             'servico_continuo' => 'boolean', 'reforma_equipamento' => 'boolean',
             'valor_inicial' => 'decimal:2', 'valor_global' => 'decimal:2', 'garantia_percentual' => 'decimal:2',
-            'assinatura' => 'date', 'vigencia_inicio' => 'date', 'vigencia_fim' => 'date', 'tipo' => 'integer', 'categoria' => 'integer',
+            'assinatura' => 'date', 'vigencia_inicio' => 'date', 'vigencia_fim' => 'date', 'designacao_em' => 'date', 'tipo' => 'integer', 'categoria' => 'integer',
         ];
     }
 
@@ -80,6 +80,17 @@ class Contrato extends Model
     public function valorAtualizadoTotal(): float
     {
         return round($this->valorInicialAtualizado() + $this->totalAcrescimos() - $this->totalSupressoes(), 2);
+    }
+
+    /** Livro de ocorrências do fiscal (art. 117, § 1º). */
+    public function ocorrencias(): HasMany
+    {
+        return $this->hasMany(OcorrenciaContrato::class)->orderByDesc('numero');
+    }
+
+    public function designador(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'designado_por');
     }
 
     public function rescisoes(): HasMany

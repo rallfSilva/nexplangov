@@ -25,6 +25,7 @@ use App\Http\Controllers\LgpdController;
 use App\Http\Controllers\LicitacaoController;
 use App\Http\Controllers\MasterController;
 use App\Http\Controllers\ModeloController;
+use App\Http\Controllers\OcorrenciaContratoController;
 use App\Http\Controllers\OrdemController;
 use App\Http\Controllers\OrgaoController;
 use App\Http\Controllers\PagamentoController;
@@ -337,6 +338,12 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::post('/contratos/{contrato}/termos', [ContratoController::class, 'registrarTermo'])->name('contratos.termos.store');
         });
         Route::get('/contratos/{contrato}', [ContratoController::class, 'show'])->middleware('can:contratos.ver')->name('contratos.show');
+
+        // Livro de ocorrências e designação de gestor e fiscal (art. 117)
+        Route::post('/contratos/{contrato}/ocorrencias', [OcorrenciaContratoController::class, 'store'])->middleware('can:contratos.ver')->name('contratos.ocorrencias.store');
+        Route::get('/contratos/{contrato}/ocorrencias.pdf', [OcorrenciaContratoController::class, 'livroPdf'])->middleware('can:contratos.ver')->name('contratos.ocorrencias.pdf');
+        Route::post('/contratos/{contrato}/designacao', [OcorrenciaContratoController::class, 'designar'])->middleware('can:processos.autorizar')->name('contratos.designacao');
+        Route::get('/contratos/{contrato}/designacao.pdf', [OcorrenciaContratoController::class, 'portaria'])->middleware('can:contratos.ver')->name('contratos.designacao.pdf');
 
         // PNCP
         Route::get('/pncp', [PncpController::class, 'index'])->middleware('can:processos.ver')->name('pncp.index');
