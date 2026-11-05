@@ -11,6 +11,7 @@ use App\Licitacao\Enums\Modalidade;
 use App\Licitacao\Enums\ModoDisputa;
 use App\Licitacao\Enums\SituacaoProcesso;
 use App\Licitacao\Fluxo\FluxoDocumento;
+use App\Licitacao\Regras\EscolhaFluxo;
 use App\Licitacao\Regras\InstrucaoProcesso;
 use App\Licitacao\Regras\LimiteDispensa;
 use App\Licitacao\Regras\PesquisaPrecos;
@@ -151,6 +152,7 @@ class ProcessoController extends Controller
             'autos' => $aba === 'autos' ? app(AutosDoProcesso::class)->montar($processo) : null,
             'pedidos' => $aba === 'autos' ? SolicitacaoExterna::with(['documento', 'criador'])->where('processo_id', $processo->id)->latest('id')->get() : collect(),
             'aguardandoAssinatura' => $aba === 'autos' ? $processo->documentos()->where('situacao', 'aguardando_assinatura')->get() : collect(),
+            'sugestaoDestino' => $aba === 'tramitacao' ? EscolhaFluxo::proximaUnidade($processo->fluxo?->roteiro_unidades ?? [], $processo->unidade_atual_id) : null,
             'remessaPendente' => $processo->remessaPendente(),
             'anotacoes' => $aba === 'anotacoes' ? $processo->anotacoes()->with('autor')->get() : collect(),
             'totalAnotacoes' => $processo->anotacoes()->count(),

@@ -9,7 +9,7 @@
             @forelse ($fluxos as $f)
                 <tr>
                     <td><b>{{ $f->nome }}</b>@if ($f->descricao)<div class="muted small">{{ $f->descricao }}</div>@endif</td>
-                    <td>{{ \App\Models\Fluxo::APLICACOES[$f->aplicacao] }}</td>
+                    <td>{{ $f->abrangencia() }}@if ($f->roteiro_unidades)<div class="muted small">Roteiro: {{ collect($f->roteiro_unidades)->map(fn ($id) => $siglas[$id] ?? '?')->implode(' → ') }}</div>@endif</td>
                     <td class="valor">{{ $f->etapas_count }}</td>
                     <td>@if ($f->padrao)<span class="b b-ok">Padrão</span> @endif @if (! $f->ativo)<span class="b b-mute">Inativo</span>@endif</td>
                     <td class="acoes"><a class="btn btn-s btn-sm" href="{{ route('fluxos.edit', $f) }}"><x-icone nome="editar" tamanho="16" />Abrir</a></td>

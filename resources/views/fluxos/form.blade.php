@@ -13,9 +13,21 @@
         <div class="form-grid">
             <x-campo nome="nome" rotulo="Nome do fluxo" :valor="$fluxo->nome" obrigatorio />
             <x-campo nome="aplicacao" rotulo="Vale para" obrigatorio><select id="campo-aplicacao" name="aplicacao" class="input">@foreach (\App\Models\Fluxo::APLICACOES as $v => $r)<option value="{{ $v }}" @selected(old('aplicacao', $fluxo->aplicacao) === $v)>{{ $r }}</option>@endforeach</select></x-campo>
+            <x-campo nome="modalidade" rotulo="Tipo de processo (modalidade)" ajuda="Em branco: vale para todas."><select id="campo-modalidade" name="modalidade" class="input"><option value="">Todas</option>@foreach (\App\Licitacao\Enums\Modalidade::opcoes() as $v => $r)<option value="{{ $v }}" @selected((string) old('modalidade', $fluxo->modalidade) === (string) $v)>{{ $r }}</option>@endforeach</select></x-campo>
+            <x-campo nome="unidade_id" rotulo="Secretaria que abre o processo" ajuda="Em branco: vale para todas. O fluxo da secretaria vence o da modalidade."><select id="campo-unidade_id" name="unidade_id" class="input"><option value="">Todas</option>@foreach ($unidades as $un)<option value="{{ $un->id }}" @selected((int) old('unidade_id', $fluxo->unidade_id) === $un->id)>{{ $un->sigla }} · {{ $un->nome }}</option>@endforeach</select></x-campo>
             <x-campo nome="descricao" rotulo="Descrição" :valor="$fluxo->descricao" />
             <div class="campo"><label class="check"><input type="hidden" name="padrao" value="0"><input type="checkbox" name="padrao" value="1" @checked(old('padrao', $fluxo->padrao))> Usar como fluxo padrão</label>
                 <label class="check"><input type="hidden" name="ativo" value="0"><input type="checkbox" name="ativo" value="1" @checked(old('ativo', $fluxo->ativo ?? true))> Ativo</label></div>
+        </div>
+
+        <h2 style="margin-top:22px">Roteiro de unidades</h2>
+        <p class="hint">Ordem das unidades por onde o processo costuma passar. Na remessa, o sistema sugere a próxima unidade do roteiro; quem envia pode escolher outra.</p>
+        @php($roteiro = old('roteiro_unidades', $fluxo->roteiro_unidades ?? []))
+        <div class="form-grid" style="margin-top:8px">
+            @for ($r = 0; $r < 6; $r++)
+                <div class="campo"><label for="roteiro-{{ $r }}">{{ $r + 1 }}ª unidade</label>
+                    <select id="roteiro-{{ $r }}" name="roteiro_unidades[]" class="input"><option value="">—</option>@foreach ($unidades as $un)<option value="{{ $un->id }}" @selected((int) ($roteiro[$r] ?? 0) === $un->id)>{{ $un->sigla }}</option>@endforeach</select></div>
+            @endfor
         </div>
 
         <h2 style="margin-top:22px">Etapas</h2>
