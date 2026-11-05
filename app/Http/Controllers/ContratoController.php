@@ -112,7 +112,9 @@ class ContratoController extends Controller
             return $contrato;
         });
 
-        return redirect()->route('contratos.show', $contrato)->with('sucesso', "Contrato {$contrato->identificacao()} cadastrado. Publique no PNCP em até 20 dias úteis da assinatura (art. 94, II).");
+        $e = $contrato->eficacia();
+
+        return redirect()->route('contratos.show', $contrato)->with('sucesso', "Contrato {$contrato->identificacao()} cadastrado. Publique no PNCP até {$e['limite']->format('d/m/Y')} ({$e['base']}): até lá o contrato não tem eficácia e não pode ser medido nem pago.");
     }
 
     public function show(Contrato $contrato, AlteracaoContratual $alteracao): View

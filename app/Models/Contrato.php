@@ -3,14 +3,19 @@
 namespace App\Models;
 
 use App\Licitacao\Enums\TipoTermo;
+use App\Licitacao\Regras\EficaciaContrato;
 use App\Licitacao\Regras\VigenciaContratual;
+use App\Licitacao\RegraViolada;
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToOrgao;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Carbon;
 
 #[Fillable(['orgao_id', 'processo_id', 'fornecedor_id', 'gestor_id', 'fiscal_id', 'numero', 'ano', 'tipo', 'objeto', 'categoria', 'servico_continuo', 'reforma_equipamento', 'valor_inicial', 'valor_global', 'garantia_percentual', 'justificativa_garantia', 'assinatura', 'vigencia_inicio', 'vigencia_fim', 'fundamento_vigencia_especial', 'situacao', 'arquivo_caminho', 'arquivo_nome', 'arquivo_hash'])]
 class Contrato extends Model
@@ -112,6 +117,40 @@ class Contrato extends Model
     public function identificacao(): string
     {
         return "{$this->numero}/{$this->ano}";
+    }
+
+    /** Veio de contratação direta (art. 94, II). Sem processo vinculado, vale o prazo menor, por segurança. */
+    public function contratacaoDireta(): bool
+    {
+        return $this->processo ? $this->processo->modalidadeEnum()->ehContratacaoDireta() : true;
+    }
+
+    /** Divulgado no PNCP: só então o contrato tem eficácia (art. 94). */
+    public function publicadoNoPncp(): bool
+    {
+        return filled($this->numero_controle_pncp);
+    }
+
+    public function publicadoNoPncpEm(): ?CarbonInterface
+    {
+        $em = $this->enviosPncp()->reorder()->where('recurso', 'contrato')->where('estado', 'publicado')->min('publicado_em');
+
+        // Publicado sem envio registrado (dado antigo ou lançado à mão): considera a data da assinatura.
+        return $em ? Carbon::parse($em) : ($this->publicadoNoPncp() ? $this->assinatura : null);
+    }
+
+    /** @return array{estado: string, limite: CarbonImmutable, restantes: ?int, base: string} */
+    public function eficacia(?CarbonInterface $hoje = null): array
+    {
+        return app(EficaciaContrato::class)->situacao($this->assinatura, $this->contratacaoDireta(), $this->publicadoNoPncpEm(), $hoje ?? today());
+    }
+
+    /** Impede medir, liquidar e pagar contrato sem eficácia (art. 94). */
+    public function exigirEficacia(string $acao): void
+    {
+        if ($m = app(EficaciaContrato::class)->motivosBloqueio($this->publicadoNoPncp(), $acao)) {
+            throw new RegraViolada($m);
+        }
     }
 
     protected function rotuloAuditoria(): string

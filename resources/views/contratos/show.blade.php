@@ -19,6 +19,19 @@
         <div class="card kpi"><span class="lbl">Supressões (limite 25%)</span><span class="val">{{ numero_br($limites['percentual_supressao']) }}%</span><div class="barra"><span style="width:{{ min(100, $limites['percentual_supressao'] / 25 * 100) }}%"></span></div></div>
     </div>
 
+    @php($eficacia = $contrato->eficacia())
+    @if ($eficacia['estado'] !== 'publicado')
+        <div class="flash {{ in_array($eficacia['estado'], ['vencido', 'publicado_fora_do_prazo'], true) ? 'flash-erro' : 'flash-aviso' }}" role="status">
+            @if ($eficacia['estado'] === 'vencido')
+                <b>Prazo de publicação no PNCP vencido em {{ $eficacia['limite']->format('d/m/Y') }}.</b> Sem a divulgação, o contrato não tem eficácia: medição, liquidação e pagamento estão bloqueados. Publique agora e registre nos autos o motivo do atraso <span class="lei">{{ $eficacia['base'] }}</span>
+            @elseif ($eficacia['estado'] === 'publicado_fora_do_prazo')
+                <b>Contrato publicado no PNCP depois do prazo ({{ $eficacia['limite']->format('d/m/Y') }}).</b> Registre nos autos a justificativa do atraso <span class="lei">{{ $eficacia['base'] }}</span>
+            @else
+                <b>Publique no PNCP até {{ $eficacia['limite']->format('d/m/Y') }}</b> (faltam {{ $eficacia['restantes'] }} dia(s) útil(eis)). Até a divulgação, o contrato não tem eficácia: medição, liquidação e pagamento ficam bloqueados <span class="lei">{{ $eficacia['base'] }}</span>
+            @endif
+        </div>
+    @endif
+
     <section class="card">
         <h2>Contrato assinado</h2>
         <p class="hint">O arquivo assinado vai ao PNCP junto da publicação do contrato <span class="lei">art. 94</span>. Só PDF, até 20 MB.</p>

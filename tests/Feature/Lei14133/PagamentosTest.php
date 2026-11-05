@@ -31,11 +31,16 @@ class PagamentosTest extends TestCase
         $p = $this->processo(['categoria' => $categoria], 'contratado');
         $f = $this->fornecedor($cnpj);
 
-        return Contrato::create([
+        $c = Contrato::create([
             'orgao_id' => $this->orgao->id, 'processo_id' => $p->id, 'fornecedor_id' => $f->id, 'gestor_id' => $this->u['gestor-contrato']->id, 'fiscal_id' => $this->u['fiscal']->id,
             'numero' => (string) random_int(1, 9999), 'ano' => 2026, 'tipo' => 1, 'objeto' => 'Limpeza predial (fictícia).', 'categoria' => $categoria, 'valor_inicial' => 12000, 'valor_global' => 12000,
             'assinatura' => '2026-01-02', 'vigencia_inicio' => '2026-01-02', 'vigencia_fim' => '2026-12-31', 'situacao' => 'vigente',
         ]);
+
+        // Divulgado no PNCP: só assim o contrato tem eficácia para medir e pagar (art. 94).
+        $c->forceFill(['numero_controle_pncp' => '11222333000181-2-'.str_pad((string) $c->id, 6, '0', STR_PAD_LEFT).'/2026'])->save();
+
+        return $c;
     }
 
     private function medirEAprovar(Contrato $c, string $valor = '1.000,00'): Medicao

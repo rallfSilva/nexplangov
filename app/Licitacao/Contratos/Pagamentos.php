@@ -23,6 +23,7 @@ final class Pagamentos
 
     public function medir(Contrato $c, string $inicio, string $fim, float $valor, string $descricao, User $u): Medicao
     {
+        $c->exigirEficacia('registrar medição'); // art. 94: sem divulgação no PNCP, o contrato não produz efeitos
         $m = [];
         if ($fim < $inicio) {
             $m[] = 'O fim do período medido não pode ser anterior ao início.';
@@ -86,6 +87,7 @@ final class Pagamentos
         $m = [];
 
         if ($origem instanceof Medicao) {
+            $origem->contrato->exigirEficacia('liquidar'); // art. 94
             if ($origem->situacao !== 'aprovada') {
                 $m[] = 'Só se liquida medição aprovada pelo gestor.';
             }
@@ -170,6 +172,7 @@ final class Pagamentos
 
     public function pagar(Liquidacao $l, string $data, string $ordemBancaria, User $u): void
     {
+        $l->contrato?->exigirEficacia('pagar'); // art. 94
         $m = [];
         if ($l->situacao !== 'liquidado') {
             $m[] = 'Este crédito não está aguardando pagamento.';
