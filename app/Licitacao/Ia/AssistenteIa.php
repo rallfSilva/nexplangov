@@ -8,6 +8,7 @@ use App\Licitacao\TiposDocumento;
 use App\Models\Processo;
 use App\Models\User;
 use App\Models\UsoIa;
+use App\Support\Parametros;
 use Illuminate\Support\Str;
 
 /**
@@ -106,7 +107,7 @@ final class AssistenteIa
     /** O mesmo limite diário vale para todo uso da IA. */
     public static function limiteAtingido(User $u): bool
     {
-        return UsoIa::where('user_id', $u->id)->where('created_at', '>=', today())->count() >= (int) config('nexplangov.ia.limite_diario_por_usuario');
+        return UsoIa::where('user_id', $u->id)->where('created_at', '>=', today())->count() >= (int) Parametros::valor('ia_limite_diario', $u->orgao_id);
     }
 
     private function exigirHabilitada(): void

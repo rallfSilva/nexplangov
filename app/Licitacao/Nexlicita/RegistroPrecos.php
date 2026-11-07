@@ -8,6 +8,7 @@ use App\Models\Irp;
 use App\Models\IrpManifestacao;
 use App\Models\Processo;
 use App\Models\User;
+use App\Support\Parametros;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -19,10 +20,10 @@ final class RegistroPrecos
 {
     public function __construct(private DiasUteis $dias) {}
 
-    /** Prazo mínimo de manifestação, em dias úteis. Vem do regulamento do ente (padrão: 8, ajustável por NEXPLANGOV_IRP_PRAZO_MINIMO). */
+    /** Prazo mínimo de manifestação, em dias úteis. Vem do regulamento do ente (padrão: 8, ajustável pelo órgão em Parâmetros). */
     public function prazoMinimo(): int
     {
-        return (int) config('nexplangov.irp_prazo_minimo_dias_uteis', 8);
+        return (int) Parametros::valor('irp_prazo_minimo_dias_uteis');
     }
 
     public function abrir(User $u, string $objeto, ?string $justificativa, string $manifestacaoAte, ?int $unidadeId): Irp

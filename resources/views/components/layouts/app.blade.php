@@ -90,6 +90,9 @@
                 <a href="{{ route('orgaos.index') }}" class="{{ $nav('orgaos.*') }}"><x-icone nome="predio" />Órgãos</a>
                 <a href="{{ route('configuracoes.index') }}" class="{{ $nav('configuracoes.*') }}"><x-icone nome="engrenagem" />Valores da lei</a>
             @endcan
+            @can('parametros.gerenciar')
+                <a href="{{ route('parametros.index') }}" class="{{ $nav('parametros.*') }}"><x-icone nome="engrenagem" />Parâmetros e permissões</a>
+            @endcan
             @can('modelos.gerenciar')
                 <a href="{{ route('modelos.index') }}" class="{{ $nav('modelos.*') }}"><x-icone nome="pasta" />Modelos de documentos</a>
             @endcan

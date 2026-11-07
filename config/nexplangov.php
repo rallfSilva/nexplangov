@@ -31,6 +31,9 @@ return [
     // vigência da ata. A Lei 14.133 deixa ao regulamento; o federal (Decreto nº 11.462/2023) adota 90 dias.
     'carona_prazo_contratacao_dias' => (int) env('NEXPLANGOV_CARONA_PRAZO', 90),
 
+    // Tolerância (% da mediana) para descartar cotação destoante na pesquisa de preços (art. 23). Ajustável por órgão.
+    'preco_tolerancia_pct' => (int) env('NEXPLANGOV_PRECO_TOLERANCIA', 50),
+
     // Prazo (dias corridos) para pagar depois da liquidação, quando o contrato não fixar outro (art. 92, V).
     'pagamento_prazo_dias' => (int) env('NEXPLANGOV_PRAZO_PAGAMENTO', 30),
 

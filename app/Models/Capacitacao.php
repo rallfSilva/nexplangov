@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToOrgao;
+use App\Support\Parametros;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -30,7 +31,7 @@ class Capacitacao extends Model
 
     public function vigente(): bool
     {
-        return $this->concluida_em->gte(today()->subMonths(config('nexplangov.capacitacao_validade_meses')));
+        return $this->concluida_em->gte(today()->subMonths(Parametros::valor('capacitacao_validade_meses', $this->orgao_id)));
     }
 
     protected function rotuloAuditoria(): string

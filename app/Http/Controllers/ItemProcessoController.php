@@ -12,6 +12,7 @@ use App\Models\Processo;
 use App\Rules\Cnpj;
 use App\Rules\CodigoDeCatalogo;
 use App\Rules\DescricaoNaoVaga;
+use App\Support\Parametros;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -172,7 +173,7 @@ class ItemProcessoController extends Controller
     public function recalcular(ItemProcesso $item): void
     {
         $item->load('cotacoes');
-        $r = (new PesquisaPrecos)->calcular(
+        $r = (new PesquisaPrecos(Parametros::valor('preco_tolerancia_pct', $item->orgao_id) / 100))->calcular(
             $item->cotacoes->map(fn ($c) => ['valor' => $c->valor_unitario, 'fonte' => $c->fonte, 'data' => $c->data_cotacao, 'desconsiderada' => $c->desconsiderada, 'motivo' => $c->motivo_desconsideracao])->values()->all(),
             $item->metodo_preco,
         );

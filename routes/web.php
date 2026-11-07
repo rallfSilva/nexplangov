@@ -35,6 +35,7 @@ use App\Http\Controllers\OrdemController;
 use App\Http\Controllers\OrgaoController;
 use App\Http\Controllers\PagamentoController;
 use App\Http\Controllers\PainelController;
+use App\Http\Controllers\ParametroController;
 use App\Http\Controllers\PcaConsolidacaoController;
 use App\Http\Controllers\PcaController;
 use App\Http\Controllers\PcaImportacaoController;
@@ -109,6 +110,15 @@ Route::middleware(['auth', 'ativo'])->group(function () {
         Route::middleware('can:orgaos.gerenciar')->group(function () {
             Route::get('/configuracoes', [ConfiguracaoController::class, 'index'])->name('configuracoes.index');
             Route::post('/configuracoes/valores', [ConfiguracaoController::class, 'salvarValor'])->name('configuracoes.valores');
+        });
+
+        // Parâmetros do órgão e permissões extras (11.2, 11.4 e 11.5)
+        Route::middleware('can:parametros.gerenciar')->group(function () {
+            Route::get('/parametros', [ParametroController::class, 'index'])->name('parametros.index');
+            Route::put('/parametros/{chave}', [ParametroController::class, 'salvar'])->where('chave', '[a-z_]+')->name('parametros.salvar');
+            Route::delete('/parametros/{chave}', [ParametroController::class, 'restaurar'])->where('chave', '[a-z_]+')->name('parametros.restaurar');
+            Route::post('/parametros/permissoes', [ParametroController::class, 'conceder'])->name('parametros.conceder');
+            Route::post('/parametros/permissoes/{concessao}/revogar', [ParametroController::class, 'revogar'])->name('parametros.revogar');
         });
 
         // Catálogo CATMAT/CATSER e painel master

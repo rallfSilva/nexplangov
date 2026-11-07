@@ -29,6 +29,7 @@ use App\Models\Processo;
 use App\Models\SolicitacaoExterna;
 use App\Models\Unidade;
 use App\Models\User;
+use App\Support\Parametros;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -118,7 +119,7 @@ class ProcessoController extends Controller
     {
         $processo->load(['itens.cotacoes', 'itens.vencedor', 'unidade', 'responsavel', 'eventos.usuario', 'enviosPncp', 'contratos', 'demanda', 'itemPca.plano', 'origem', 'unidadeAtual']);
         $aba = in_array($request->query('aba'), ['instrucao', 'itens', 'resultado', 'historico', 'pncp', 'anotacoes', 'tramitacao', 'autos', 'riscos'], true) ? $request->query('aba') : 'resumo';
-        $pesquisa = new PesquisaPrecos;
+        $pesquisa = new PesquisaPrecos(Parametros::valor('preco_tolerancia_pct', $processo->orgao_id) / 100);
 
         $precos = $processo->itens->mapWithKeys(fn ($item) => [$item->id => $pesquisa->calcular(
             $item->cotacoes->map(fn ($c) => ['valor' => $c->valor_unitario, 'fonte' => $c->fonte, 'data' => $c->data_cotacao, 'desconsiderada' => $c->desconsiderada, 'motivo' => $c->motivo_desconsideracao])->values()->all(),

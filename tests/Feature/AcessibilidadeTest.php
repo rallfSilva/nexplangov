@@ -27,7 +27,7 @@ class AcessibilidadeTest extends TestCase
         'painel', 'processos.index', 'processos.create', 'pca.index', 'demandas.index', 'demandas.create',
         'contratos.index', 'contratos.create', 'atas.index', 'ordens.index', 'requisicoes.index', 'fornecedores.index',
         'fornecedores.create', 'unidades.index', 'usuarios.index', 'usuarios.create', 'auditoria.index', 'lgpd.index',
-        'governanca', 'relatorios.gestao', 'capacitacao.index', 'catalogo.index', 'catalogo.orgao.index', 'catalogo.orgao.create', 'integracoes.index', 'dispensa.simulador', 'irp.index',
+        'governanca', 'relatorios.gestao', 'capacitacao.index', 'catalogo.index', 'catalogo.orgao.index', 'catalogo.orgao.create', 'parametros.index', 'integracoes.index', 'dispensa.simulador', 'irp.index',
         'modelos.index', 'modelos.create', 'fluxos.index', 'fluxos.create', 'unidades.create', 'pncp.index', 'seguranca',
     ];
 

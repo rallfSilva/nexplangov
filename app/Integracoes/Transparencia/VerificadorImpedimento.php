@@ -5,6 +5,7 @@ namespace App\Integracoes\Transparencia;
 use App\Models\ConsultaImpedimento;
 use App\Models\Fornecedor;
 use App\Models\User;
+use App\Support\Parametros;
 
 /**
  * Antes de adjudicar, contratar ou emitir ordem de fornecimento, confere o fornecedor no CEIS e no CNEP
@@ -30,7 +31,7 @@ final class VerificadorImpedimento
     public function consultaRecente(Fornecedor $f, ?User $u = null): ConsultaImpedimento
     {
         $ultima = ConsultaImpedimento::where('fornecedor_id', $f->id)->where('situacao', '!=', 'indisponivel')->latest('consultado_em')->latest('id')->first();
-        $validade = now()->subHours((int) config('nexplangov.transparencia.validade_horas', 24));
+        $validade = now()->subHours((int) Parametros::valor('ceis_validade_horas', $f->orgao_id));
 
         return $ultima && $ultima->consultado_em->greaterThan($validade) ? $ultima : $this->consulta->consultar($f, $u);
     }

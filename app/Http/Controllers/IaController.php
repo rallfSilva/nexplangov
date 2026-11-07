@@ -7,7 +7,6 @@ use App\Licitacao\Ia\AssistenteIa;
 use App\Licitacao\Ia\IaIndisponivel;
 use App\Licitacao\RegraViolada;
 use App\Models\Processo;
-use App\Models\UsoIa;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -24,7 +23,7 @@ class IaController extends Controller
         if (! $this->fluxo->podeElaborar($u, $processo, $tipo)) {
             return response()->json(['erro' => 'Você não pode elaborar esta peça agora.'], 403);
         }
-        if (UsoIa::where('user_id', $u->id)->where('created_at', '>=', today())->count() >= config('nexplangov.ia.limite_diario_por_usuario')) {
+        if (AssistenteIa::limiteAtingido($u)) {
             return response()->json(['erro' => 'Você chegou ao limite diário de uso da IA. Amanhã o limite renova.'], 429);
         }
 

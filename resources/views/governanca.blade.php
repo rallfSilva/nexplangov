@@ -25,7 +25,7 @@
             </div>
         </section>
         <section class="card"><h2>Capacitação dos agentes</h2>
-            <p class="hint">Quem atua nas contratações com curso registrado nos últimos {{ config('nexplangov.capacitacao_validade_meses') }} meses <span class="lei">art. 7º, II, e art. 173</span></p>
+            <p class="hint">Quem atua nas contratações com curso registrado nos últimos {{ \App\Support\Parametros::valor('capacitacao_validade_meses') }} meses <span class="lei">art. 7º, II, e art. 173</span></p>
             <div class="kpi" style="padding:0"><span class="val">{{ $pct($capacitacao['pct']) }}</span><span class="foot">{{ $capacitacao['capacitados'] }} de {{ $capacitacao['agentes'] }} agentes</span>@if ($capacitacao['pct'] !== null)<div class="barra {{ $capacitacao['pct'] < 60 ? 'alerta' : '' }}"><span style="width:{{ $capacitacao['pct'] }}%"></span></div>@endif</div>
             @can('capacitacao.ver')<p style="margin-top:10px"><a class="btn btn-s btn-sm" href="{{ route('capacitacao.index') }}">Ver capacitação</a></p>@endcan
         </section>

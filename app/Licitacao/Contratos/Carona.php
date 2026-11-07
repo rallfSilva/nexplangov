@@ -9,6 +9,7 @@ use App\Models\AtaAdesao;
 use App\Models\AtaItem;
 use App\Models\User;
 use App\Support\Documento;
+use App\Support\Parametros;
 use App\Support\Pdf;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -120,7 +121,7 @@ final class Carona
     /** Link assinado, com validade, para o fornecedor responder sem conta no sistema. */
     public function linkAceite(AtaAdesao $a): string
     {
-        return URL::temporarySignedRoute('carona.aceite', now()->addDays((int) config('nexplangov.carona_link_aceite_dias', 15)), ['adesao' => $a->id]);
+        return URL::temporarySignedRoute('carona.aceite', now()->addDays((int) Parametros::valor('carona_link_aceite_dias', $a->orgao_id)), ['adesao' => $a->id]);
     }
 
     /** Autorização ou negativa do gerenciador; os limites e o aceite são conferidos de novo na autorização. */
@@ -155,7 +156,7 @@ final class Carona
 
         $dados = ['situacao' => $autorizar ? 'autorizada' : 'negada', 'motivo_decisao' => $motivo ? trim($motivo) : null, 'decidida_por' => $u->id, 'decidida_em' => now()];
         if ($autorizar) {
-            $dados['prazo_contratacao'] = $this->regras->prazoContratacao(today(), $ata->vigencia_fim, (int) config('nexplangov.carona_prazo_contratacao_dias', 90))->toDateString();
+            $dados['prazo_contratacao'] = $this->regras->prazoContratacao(today(), $ata->vigencia_fim, (int) Parametros::valor('carona_prazo_contratacao_dias', $ata->orgao_id))->toDateString();
             $dados['codigo_verificacao'] = strtoupper(Str::random(4).'-'.Str::random(4).'-'.Str::random(4));
         }
         $a->forceFill($dados)->save();

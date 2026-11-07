@@ -9,6 +9,7 @@ use App\Models\Liquidacao;
 use App\Models\Medicao;
 use App\Models\OrdemFornecimento;
 use App\Models\User;
+use App\Support\Parametros;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -136,7 +137,7 @@ final class Pagamentos
             'categoria' => $d['categoria'], 'fonte_recurso' => trim($d['fonte_recurso']), 'nota_fiscal' => trim($d['nota_fiscal']), 'nota_emitida_em' => $d['nota_emitida_em'],
             'valor_bruto' => $bruto, 'retencoes' => $retencoes, 'valor_liquido' => round($bruto - $retencoes, 2), 'atesto' => trim($d['atesto']),
             'liquidado_em' => $hoje->toDateString(), 'liquidado_por' => $u->id,
-            'vencimento' => $this->regras->vencimento($hoje, (int) config('nexplangov.pagamento_prazo_dias', 30))->toDateString(),
+            'vencimento' => $this->regras->vencimento($hoje, (int) Parametros::valor('pagamento_prazo_dias', $origem->orgao_id))->toDateString(),
         ]);
     }
 
