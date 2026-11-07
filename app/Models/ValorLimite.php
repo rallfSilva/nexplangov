@@ -17,6 +17,7 @@ class ValorLimite extends Model
     public const DISPOSITIVOS = [
         'art75_I' => 'Art. 75, I: dispensa para obras e serviços de engenharia',
         'art75_II' => 'Art. 75, II: dispensa para outros serviços e compras',
+        'art6_XXII' => 'Art. 6º, XXII: obras, serviços e fornecimentos de grande vulto',
     ];
 
     protected function casts(): array

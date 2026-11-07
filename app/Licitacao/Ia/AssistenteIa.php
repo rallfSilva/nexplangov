@@ -2,6 +2,7 @@
 
 namespace App\Licitacao\Ia;
 
+use App\Licitacao\Regras\MatrizRiscos;
 use App\Licitacao\RegraViolada;
 use App\Licitacao\TiposDocumento;
 use App\Models\Processo;
@@ -56,6 +57,77 @@ final class AssistenteIa
         return $this->chamar($p, $tipo, 'revisar', $pedido, $u);
     }
 
+    /**
+     * Proposta inicial da matriz de riscos a partir do objeto, dos itens, do ETP e do TR. Volta só as linhas que passam
+     * nas regras da matriz; nada é gravado sem o servidor aceitar (art. 22).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function sugerirRiscos(Processo $p, User $u): array
+    {
+        $this->exigirHabilitada();
+        $linhas = ["Processo {$p->identificacao()}. Objeto: {$p->objeto}", 'Modalidade: '.$p->modalidadeEnum()->rotulo().'. Categoria: '.$p->categoriaEnum()->rotulo().'.'];
+        foreach ($p->itens()->limit(30)->get() as $i) {
+            $linhas[] = "Item {$i->numero}: {$i->descricao} ({$i->quantidade} {$i->unidade_medida}).";
+        }
+        foreach ($p->documentos()->whereIn('tipo', ['etp', 'termo_referencia'])->orderByDesc('versao')->get()->unique('tipo') as $d) {
+            $linhas[] = "\nTrechos de ".(TiposDocumento::get($d->tipo)['rotulo'] ?? $d->tipo).':';
+            foreach (($d->conteudo ?? []) as $v) {
+                if (is_string($v) && trim($v) !== '') {
+                    $linhas[] = '- '.Str::limit(trim($v), 1200);
+                }
+            }
+        }
+        foreach ($p->riscos as $r) {
+            $linhas[] = "Risco já registrado: {$r->risco}.";
+        }
+        $pedido = Anonimizador::limpar(implode("\n", $linhas))
+            ."\n\nProponha até 8 riscos novos desta contratação (art. 18, X, e art. 22). Responda só com um array JSON, sem texto fora dele, em que cada elemento tem as chaves "
+            .'"risco", "causa", "consequencia", "probabilidade" (inteiro de 1 a 5), "impacto" (inteiro de 1 a 5), "alocacao" ("contratante", "contratado" ou "compartilhado", art. 103), '
+            .'"tratamento" (prevenção ou contingência) e "responsavel" (função, nunca nome de pessoa).';
+
+        return MatrizRiscos::lerSugestao($this->chamarSem($p->orgao_id, $p->id, 'mapa_riscos', 'riscos', $pedido, $u));
+    }
+
+    /** Recomendações em outras etapas (PCA, pesquisa de preços, gestão do contrato). Texto de apoio, sem decidir nada. */
+    public function recomendar(string $etapa, string $contexto, int $orgaoId, ?int $processoId, User $u): string
+    {
+        $this->exigirHabilitada();
+        $foco = [
+            'pca' => 'o Plano de Contratações Anual (art. 12, VII): o que agrupar, o que falta planejar, riscos de fracionamento (art. 75, § 1º) e de falta de orçamento (art. 18 e art. 150)',
+            'precos' => 'a pesquisa de preços (art. 23): fontes que faltam, cotações discrepantes ou vencidas e se o método escolhido é adequado. Não decida descartar preço: aponte o que o servidor deve conferir',
+            'contrato' => 'a gestão e a fiscalização do contrato (arts. 104, 117, 124 a 136 e 140): prazos, limites de acréscimo, ocorrências pendentes e providências do gestor e do fiscal',
+        ][$etapa] ?? throw new RegraViolada(['Etapa desconhecida.']);
+        $pedido = Anonimizador::limpar($contexto)."\n\nFaça recomendações práticas sobre {$foco}. Liste em tópicos curtos, do mais para o menos urgente, citando o artigo em cada ponto. Não reescreva documentos.";
+
+        return $this->chamarSem($orgaoId, $processoId, $etapa, 'recomendar', $pedido, $u);
+    }
+
+    /** O mesmo limite diário vale para todo uso da IA. */
+    public static function limiteAtingido(User $u): bool
+    {
+        return UsoIa::where('user_id', $u->id)->where('created_at', '>=', today())->count() >= (int) config('nexplangov.ia.limite_diario_por_usuario');
+    }
+
+    private function exigirHabilitada(): void
+    {
+        if (! self::habilitada()) {
+            throw new RegraViolada(['A NexMind IA não está ativada neste servidor.']);
+        }
+    }
+
+    /** Registro de uso: quem, quando, em qual etapa e quanto consumiu. O texto não é guardado; só o hash do pedido. */
+    private function chamarSem(int $orgaoId, ?int $processoId, string $tipo, string $acao, string $pedido, User $u): string
+    {
+        $r = $this->cliente->responder(self::SISTEMA, $pedido);
+        UsoIa::create([
+            'orgao_id' => $orgaoId, 'user_id' => $u->id, 'processo_id' => $processoId, 'tipo_documento' => $tipo, 'acao' => $acao,
+            'hash_pedido' => hash('sha256', $pedido), 'tokens_entrada' => $r['tokens_entrada'], 'tokens_saida' => $r['tokens_saida'],
+        ]);
+
+        return $r['texto'];
+    }
+
     private function exigir(string $tipo): array
     {
         if (! self::habilitada()) {
@@ -88,14 +160,6 @@ final class AssistenteIa
 
     private function chamar(Processo $p, string $tipo, string $acao, string $pedido, User $u): string
     {
-        $r = $this->cliente->responder(self::SISTEMA, $pedido);
-
-        // Registro de uso: quem, quando, em qual peça e quanto consumiu. O texto não é guardado; só o hash do pedido.
-        UsoIa::create([
-            'orgao_id' => $p->orgao_id, 'user_id' => $u->id, 'processo_id' => $p->id, 'tipo_documento' => $tipo, 'acao' => $acao,
-            'hash_pedido' => hash('sha256', $pedido), 'tokens_entrada' => $r['tokens_entrada'], 'tokens_saida' => $r['tokens_saida'],
-        ]);
-
-        return $r['texto'];
+        return $this->chamarSem($p->orgao_id, $p->id, $tipo, $acao, $pedido, $u);
     }
 }

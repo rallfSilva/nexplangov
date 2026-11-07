@@ -42,7 +42,9 @@ use App\Http\Controllers\PedidoExternoController;
 use App\Http\Controllers\PncpController;
 use App\Http\Controllers\PrecosComprasGovController;
 use App\Http\Controllers\ProcessoController;
+use App\Http\Controllers\RecomendacaoIaController;
 use App\Http\Controllers\RequisicaoController;
+use App\Http\Controllers\RiscoProcessoController;
 use App\Http\Controllers\SancaoController;
 use App\Http\Controllers\SegurancaController;
 use App\Http\Controllers\TramiteController;
@@ -219,6 +221,19 @@ Route::middleware(['auth', 'ativo'])->group(function () {
         Route::get('/processos/{processo}/documentos/{tipo}', [DocumentoProcessoController::class, 'edit'])->middleware('can:processos.ver')->name('documentos.edit');
         Route::post('/processos/{processo}/documentos/{tipo}', [DocumentoProcessoController::class, 'salvar'])->middleware('can:processos.ver')->name('documentos.salvar');
         Route::post('/processos/{processo}/documentos/{tipo}/decidir', [DocumentoProcessoController::class, 'decidir'])->middleware('can:processos.ver')->name('documentos.decidir');
+        Route::middleware('can:processos.gerenciar')->group(function () {
+            Route::post('/processos/{processo}/riscos', [RiscoProcessoController::class, 'store'])->name('processos.riscos.store');
+            Route::put('/processos/{processo}/riscos/{risco}', [RiscoProcessoController::class, 'update'])->whereNumber('risco')->name('processos.riscos.update');
+            Route::delete('/processos/{processo}/riscos/{risco}', [RiscoProcessoController::class, 'destroy'])->whereNumber('risco')->name('processos.riscos.destroy');
+            Route::post('/processos/{processo}/riscos/ia', [RiscoProcessoController::class, 'sugerir'])->middleware(['can:ia.usar', 'throttle:6,1'])->name('processos.riscos.ia');
+            Route::post('/processos/{processo}/riscos/ia/aceitar', [RiscoProcessoController::class, 'aceitar'])->name('processos.riscos.aceitar');
+            Route::post('/processos/{processo}/riscos/peca', [RiscoProcessoController::class, 'peca'])->name('processos.riscos.peca');
+        });
+        Route::middleware(['can:ia.usar', 'throttle:6,1'])->group(function () {
+            Route::post('/pca/{plano}/ia', [RecomendacaoIaController::class, 'pca'])->middleware('can:pca.ver')->name('ia.pca');
+            Route::post('/processos/{processo}/precos/ia', [RecomendacaoIaController::class, 'precos'])->middleware('can:processos.ver')->name('ia.precos');
+            Route::post('/contratos/{contrato}/ia', [RecomendacaoIaController::class, 'contrato'])->middleware('can:contratos.ver')->name('ia.contrato');
+        });
         Route::post('/processos/{processo}/documentos/{tipo}/ia', IaController::class)->middleware(['can:ia.usar', 'throttle:12,1'])->name('documentos.ia');
         Route::post('/processos/{processo}/documentos/{tipo}/assinar', [DocumentoProcessoController::class, 'assinar'])->middleware(['can:processos.ver', 'throttle:10,1'])->name('documentos.assinar');
         Route::get('/processos/{processo}/documentos/{tipo}/folha', [DocumentoProcessoController::class, 'folha'])->middleware('can:processos.ver')->name('documentos.folha');

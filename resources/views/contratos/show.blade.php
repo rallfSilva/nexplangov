@@ -222,5 +222,6 @@
         @endif
     </section>
 
+    @include('ia._recomendacao', ['rota' => route('ia.contrato', $contrato), 'titulo' => 'Prazos, limites de acréscimo, ocorrências pendentes e providências do gestor e do fiscal'])
     <section class="card"><h2>Publicações no PNCP</h2>@include('pncp._lista', ['envios' => $contrato->enviosPncp])</section>
 </x-layouts.app>

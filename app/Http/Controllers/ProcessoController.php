@@ -117,7 +117,7 @@ class ProcessoController extends Controller
     public function show(Request $request, Processo $processo, InstrucaoProcesso $instrucao, TramitacaoProcesso $tramitacao, LimiteDispensa $limite): View
     {
         $processo->load(['itens.cotacoes', 'itens.vencedor', 'unidade', 'responsavel', 'eventos.usuario', 'enviosPncp', 'contratos', 'demanda', 'itemPca.plano', 'origem', 'unidadeAtual']);
-        $aba = in_array($request->query('aba'), ['instrucao', 'itens', 'resultado', 'historico', 'pncp', 'anotacoes', 'tramitacao', 'autos'], true) ? $request->query('aba') : 'resumo';
+        $aba = in_array($request->query('aba'), ['instrucao', 'itens', 'resultado', 'historico', 'pncp', 'anotacoes', 'tramitacao', 'autos', 'riscos'], true) ? $request->query('aba') : 'resumo';
         $pesquisa = new PesquisaPrecos;
 
         $precos = $processo->itens->mapWithKeys(fn ($item) => [$item->id => $pesquisa->calcular(
@@ -150,6 +150,9 @@ class ProcessoController extends Controller
             'periodos' => $aba === 'tramitacao' ? app(TramitacaoUnidades::class)->periodos($processo) : [],
             'unidadesAtivas' => $aba === 'tramitacao' ? Unidade::where('ativo', true)->orderBy('sigla')->get() : collect(),
             'autos' => $aba === 'autos' ? app(AutosDoProcesso::class)->montar($processo) : null,
+            'riscos' => $aba === 'riscos' ? $processo->riscos : collect(),
+            'riscosIa' => $aba === 'riscos' ? session("riscos_ia.{$processo->id}", []) : [],
+            'matrizObrigatoria' => $aba === 'riscos' && $processo->matrizDeRiscosObrigatoria(),
             'pedidos' => $aba === 'autos' ? SolicitacaoExterna::with(['documento', 'criador'])->where('processo_id', $processo->id)->latest('id')->get() : collect(),
             'aguardandoAssinatura' => $aba === 'autos' ? $processo->documentos()->where('situacao', 'aguardando_assinatura')->get() : collect(),
             'sugestaoDestino' => $aba === 'tramitacao' ? EscolhaFluxo::proximaUnidade($processo->fluxo?->roteiro_unidades ?? [], $processo->unidade_atual_id) : null,

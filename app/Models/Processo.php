@@ -134,6 +134,22 @@ class Processo extends Model
         return $this->hasMany(EtapaProcesso::class)->orderBy('ordem');
     }
 
+    /** Obra ou serviço de engenharia de grande vulto (art. 6º, XXII): a matriz de riscos é obrigatória (art. 22, § 3º). */
+    public function matrizDeRiscosObrigatoria(): bool
+    {
+        if (! in_array((int) $this->categoria, [7, 9], true)) {
+            return false;
+        }
+        $grandeVulto = ValorLimite::where('ano', $this->ano)->where('dispositivo', 'art6_XXII')->value('valor');
+
+        return $grandeVulto !== null && (float) $this->valor_estimado >= (float) $grandeVulto;
+    }
+
+    public function riscos(): HasMany
+    {
+        return $this->hasMany(RiscoProcesso::class)->orderBy('ordem');
+    }
+
     public function documentos(): HasMany
     {
         return $this->hasMany(DocumentoProcesso::class);
