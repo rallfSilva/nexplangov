@@ -3,6 +3,7 @@
 namespace App\Licitacao\Alertas;
 
 use App\Licitacao\Regras\EficaciaContrato;
+use App\Licitacao\Regras\ParametrosOrgao;
 use App\Licitacao\TiposDocumento;
 use App\Models\Ata;
 use App\Models\Contrato;
@@ -10,6 +11,7 @@ use App\Models\EtapaProcesso;
 use App\Models\Impugnacao;
 use App\Models\OrdemFornecimento;
 use App\Models\User;
+use App\Support\Parametros;
 use Carbon\CarbonInterface;
 
 /**
@@ -49,13 +51,14 @@ final class Detector
 
     private function contratos(CarbonInterface $hoje): array
     {
-        $marcos = config('nexplangov.alertas_vigencia');
-        $limite = $hoje->copy()->addDays(max($marcos));
+        // Cada órgão define os seus marcos (Parâmetros); a busca cobre o maior marco permitido.
+        $limite = $hoje->copy()->addDays(ParametrosOrgao::DEFINICOES['alertas_vigencia']['max']);
         $r = [];
+        $marcos = [];
 
         foreach (Contrato::with('fornecedor')->where('situacao', 'vigente')->whereDate('vigencia_fim', '<=', $limite)->get() as $c) {
             $dias = (int) $hoje->diffInDays($c->vigencia_fim->copy()->startOfDay(), false);
-            $marco = self::marcoAtingido($dias, $marcos);
+            $marco = self::marcoAtingido($dias, $marcos[$c->orgao_id] ??= Parametros::valor('alertas_vigencia', $c->orgao_id));
             if ($marco === null) {
                 continue;
             }

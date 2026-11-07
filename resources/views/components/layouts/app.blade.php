@@ -43,6 +43,7 @@
             @endcan
             @can('catalogo.ver')
                 <a href="{{ route('catalogo.index') }}" class="{{ $nav('catalogo.*') }}"><x-icone nome="busca" />Catálogo CATMAT/CATSER</a>
+                <a href="{{ route('catalogo.orgao.index') }}" class="{{ $nav('catalogo.orgao.*') }}"><x-icone nome="pasta" />Catálogo do órgão</a>
             @endcan
             @can('fornecedores.ver')
                 <a href="{{ route('fornecedores.index') }}" class="{{ $nav('fornecedores.*') }}"><x-icone nome="fornecedor" />Fornecedores</a>
@@ -77,6 +78,7 @@
             @endcan
             @can('governanca.ver')
                 <a href="{{ route('governanca') }}" class="{{ $nav('governanca') }}"><x-icone nome="balanca" />Governança</a>
+                <a href="{{ route('relatorios.gestao') }}" class="{{ $nav('relatorios.*') }}"><x-icone nome="painel" />Painéis gerenciais</a>
             @endcan
             @can('capacitacao.ver')
                 <a href="{{ route('capacitacao.index') }}" class="{{ $nav('capacitacao.*') }}"><x-icone nome="cargos" />Capacitação</a>
@@ -87,6 +89,9 @@
             @can('orgaos.gerenciar')
                 <a href="{{ route('orgaos.index') }}" class="{{ $nav('orgaos.*') }}"><x-icone nome="predio" />Órgãos</a>
                 <a href="{{ route('configuracoes.index') }}" class="{{ $nav('configuracoes.*') }}"><x-icone nome="engrenagem" />Valores da lei</a>
+            @endcan
+            @can('parametros.gerenciar')
+                <a href="{{ route('parametros.index') }}" class="{{ $nav('parametros.*') }}"><x-icone nome="engrenagem" />Parâmetros e permissões</a>
             @endcan
             @can('modelos.gerenciar')
                 <a href="{{ route('modelos.index') }}" class="{{ $nav('modelos.*') }}"><x-icone nome="pasta" />Modelos de documentos</a>

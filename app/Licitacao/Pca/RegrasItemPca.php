@@ -4,6 +4,7 @@ namespace App\Licitacao\Pca;
 
 use App\Licitacao\Enums\CategoriaProcesso;
 use App\Rules\CodigoDeCatalogo;
+use App\Rules\DescricaoNaoVaga;
 use Illuminate\Validation\Rule;
 
 /**
@@ -19,7 +20,7 @@ final class RegrasItemPca
             'material_servico' => ['required', Rule::in(['M', 'S'])],
             'categoria' => ['required', Rule::enum(CategoriaProcesso::class)],
             'codigo_catalogo' => ['nullable', 'string', 'max:20', 'regex:/^[0-9]+$/', new CodigoDeCatalogo($materialServico)],
-            'descricao' => ['required', 'string', 'max:2000'],
+            'descricao' => ['required', 'string', 'max:2000', new DescricaoNaoVaga],
             'unidade_fornecimento' => ['required', 'string', 'max:30'],
             'quantidade' => ['required', 'numeric', 'gt:0'],
             'valor_unitario_estimado' => ['required', 'numeric', 'gt:0'],

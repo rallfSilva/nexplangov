@@ -1,5 +1,5 @@
 <x-layouts.app titulo="Capacitação">
-    @php($validade = config('nexplangov.capacitacao_validade_meses'))
+    @php($validade = \App\Support\Parametros::valor('capacitacao_validade_meses'))
     <div>
         <h1 class="h1">Capacitação dos agentes</h1>
         <p class="sub">Quem atua em licitações e contratos precisa de qualificação compatível, preferencialmente por escola de governo <span class="lei">art. 7º, II, e art. 173</span>. Um curso conta como atualizado por {{ $validade }} meses.</p>

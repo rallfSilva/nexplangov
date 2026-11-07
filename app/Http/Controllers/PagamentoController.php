@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Licitacao\Contratos\Pagamentos;
+use App\Licitacao\Regras\NotaEmpenho;
 use App\Licitacao\Regras\OrdemCronologica;
 use App\Licitacao\RegraViolada;
+use App\Models\Ata;
 use App\Models\Contrato;
+use App\Models\Empenho;
 use App\Models\Liquidacao;
 use App\Models\Medicao;
 use App\Models\OrdemFornecimento;
@@ -23,7 +26,7 @@ class PagamentoController extends Controller
 
     public function index(Request $request): View
     {
-        $abertos = Liquidacao::with(['fornecedor', 'contrato', 'medicao', 'ordem'])->where('situacao', 'liquidado')->emOrdem()->get();
+        $abertos = Liquidacao::with(['fornecedor', 'contrato', 'medicao', 'ordem', 'empenho'])->where('situacao', 'liquidado')->emOrdem()->get();
         $filas = $abertos->groupBy(fn (Liquidacao $l) => $l->fonte_recurso.'|'.$l->categoria)->sortKeys();
 
         return view('pagamentos.index', [
@@ -63,6 +66,24 @@ class PagamentoController extends Controller
     public function liquidarOrdem(Request $request, OrdemFornecimento $ordem): RedirectResponse
     {
         return $this->tentar(fn () => $this->servico->liquidar($ordem, $this->dadosLiquidacao($request), $request->user()), 'Liquidação registrada. O crédito entrou na ordem cronológica.');
+    }
+
+    /** Nota de empenho ligada ao contrato (art. 92, VIII) ou à ata (Lei 4.320, art. 60). */
+    public function empenharContrato(Request $request, Contrato $contrato): RedirectResponse
+    {
+        return $this->tentar(fn () => $this->servico->empenhar($contrato, $this->dadosEmpenho($request), $request->user()), 'Nota de empenho registrada.');
+    }
+
+    public function empenharAta(Request $request, Ata $ata): RedirectResponse
+    {
+        return $this->tentar(fn () => $this->servico->empenhar($ata, $this->dadosEmpenho($request), $request->user()), 'Nota de empenho registrada.');
+    }
+
+    public function anularEmpenho(Request $request, Empenho $empenho): RedirectResponse
+    {
+        $d = $request->validate(['motivo' => ['required', 'string', 'max:500']]);
+
+        return $this->tentar(fn () => $this->servico->anularEmpenho($empenho, $d['motivo']), 'Saldo do empenho anulado.');
     }
 
     public function pagar(Request $request, Liquidacao $liquidacao): RedirectResponse
@@ -116,7 +137,21 @@ class PagamentoController extends Controller
             'categoria' => ['required', Rule::in(array_keys(OrdemCronologica::CATEGORIAS))], 'fonte_recurso' => ['required', 'string', 'max:120'],
             'nota_fiscal' => ['required', 'string', 'max:60'], 'nota_emitida_em' => ['required', 'date'], 'valor_bruto' => ['required', 'numeric', 'gt:0'],
             'retencoes' => ['nullable', 'numeric', 'gte:0'], 'atesto' => ['required', 'string', 'max:5000'],
+            'empenho_id' => ['nullable', 'integer'], 'pedido_compra' => ['nullable', 'string', 'max:60'],
         ]);
+    }
+
+    /** @return array{numero: string, tipo: string, valor: float, emitido_em: string, natureza_despesa: string, fonte_recurso: string} */
+    private function dadosEmpenho(Request $request): array
+    {
+        $request->merge(['valor' => decimal_br($request->input('valor'))]);
+        $d = $request->validate([
+            'numero' => ['required', 'string', 'max:30'], 'tipo' => ['required', Rule::in(array_keys(NotaEmpenho::TIPOS))], 'valor' => ['required', 'numeric', 'gt:0'],
+            'emitido_em' => ['required', 'date_format:Y-m-d'], 'natureza_despesa' => ['required', 'string', 'max:20'], 'fonte_recurso' => ['required', 'string', 'max:120'],
+        ]);
+        $d['valor'] = (float) $d['valor'];
+
+        return $d;
     }
 
     private function tentar(callable $acao, string $ok): RedirectResponse

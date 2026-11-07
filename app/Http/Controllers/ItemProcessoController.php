@@ -11,6 +11,8 @@ use App\Models\ItemProcesso;
 use App\Models\Processo;
 use App\Rules\Cnpj;
 use App\Rules\CodigoDeCatalogo;
+use App\Rules\DescricaoNaoVaga;
+use App\Support\Parametros;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -27,7 +29,7 @@ class ItemProcessoController extends Controller
             'item_pca_id' => ['nullable', 'integer', Rule::exists('itens_pca', 'id')->where('orgao_id', $processo->orgao_id)],
             'material_servico' => ['required_without:item_pca_id', 'nullable', Rule::in(['M', 'S'])],
             'codigo_catalogo' => ['nullable', 'string', 'max:20', 'regex:/^[0-9]+$/', new CodigoDeCatalogo($request->input('material_servico'))],
-            'descricao' => ['required_without:item_pca_id', 'nullable', 'string', 'max:2000'],
+            'descricao' => ['required_without:item_pca_id', 'nullable', 'string', 'max:2000', new DescricaoNaoVaga],
             'unidade_medida' => ['required_without:item_pca_id', 'nullable', 'string', 'max:30'],
             'quantidade' => ['required', 'numeric', 'gt:0'],
             'tipo_beneficio' => ['required', Rule::in(array_keys(ItemProcesso::BENEFICIOS))],
@@ -62,7 +64,7 @@ class ItemProcessoController extends Controller
         $item->update($request->validate([
             'material_servico' => ['required', Rule::in(['M', 'S'])],
             'codigo_catalogo' => ['nullable', 'string', 'max:20', 'regex:/^[0-9]+$/', new CodigoDeCatalogo($request->input('material_servico'))],
-            'descricao' => ['required', 'string', 'max:2000'],
+            'descricao' => ['required', 'string', 'max:2000', new DescricaoNaoVaga],
             'unidade_medida' => ['required', 'string', 'max:30'],
             'quantidade' => ['required', 'numeric', 'gt:0'],
             'tipo_beneficio' => ['required', Rule::in(array_keys(ItemProcesso::BENEFICIOS))],
@@ -171,7 +173,7 @@ class ItemProcessoController extends Controller
     public function recalcular(ItemProcesso $item): void
     {
         $item->load('cotacoes');
-        $r = (new PesquisaPrecos)->calcular(
+        $r = (new PesquisaPrecos(Parametros::valor('preco_tolerancia_pct', $item->orgao_id) / 100))->calcular(
             $item->cotacoes->map(fn ($c) => ['valor' => $c->valor_unitario, 'fonte' => $c->fonte, 'data' => $c->data_cotacao, 'desconsiderada' => $c->desconsiderada, 'motivo' => $c->motivo_desconsideracao])->values()->all(),
             $item->metodo_preco,
         );

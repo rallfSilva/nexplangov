@@ -12,6 +12,7 @@ use App\Models\ItemProcesso;
 use App\Models\OrdemFornecimento;
 use App\Models\Processo;
 use App\Models\User;
+use App\Support\Parametros;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -58,7 +59,7 @@ class GovernancaController extends Controller
 
         // 6. Capacitação dos agentes (art. 7º, II).
         $agentes = User::role(CapacitacaoController::PERFIS_ALVO)->where('ativo', true)->when($orgaoId, fn ($q) => $q->where('orgao_id', $orgaoId))->pluck('id');
-        $capacitados = Capacitacao::whereIn('user_id', $agentes)->whereDate('concluida_em', '>=', today()->subMonths(config('nexplangov.capacitacao_validade_meses')))->distinct('user_id')->count('user_id');
+        $capacitados = Capacitacao::whereIn('user_id', $agentes)->whereDate('concluida_em', '>=', today()->subMonths(Parametros::valor('capacitacao_validade_meses')))->distinct('user_id')->count('user_id');
 
         $porModalidade = (clone $processos)->selectRaw('modalidade, count(*) as total, sum(valor_estimado) as valor')->groupBy('modalidade')->orderByDesc('valor')->get();
 

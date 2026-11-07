@@ -17,6 +17,9 @@
                     </div>
                 </details>
             @endif
+            @if ($itens->isNotEmpty())
+                <a href="{{ route('pca.consolidacao', $plano) }}" class="btn btn-s"><x-icone nome="liga" />Consolidação e orçamento</a>
+            @endif
             @if ($plano->versao_atual > 0 || $plano->emRevisao())
                 <a href="{{ route('pca.versoes', $plano) }}" class="btn btn-s"><x-icone nome="relogio" />Versões e alterações</a>
             @endif

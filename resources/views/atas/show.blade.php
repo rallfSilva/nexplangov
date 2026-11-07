@@ -50,7 +50,7 @@
 
                         @if ($pode && $ad->situacao === 'solicitada' && $ad->fornecedor_aceite === null)
                             @php($_link = $carona->linkAceite($ad))
-                            <div class="campo" style="margin-top:8px"><label for="link-{{ $ad->id }}">Link para o fornecedor responder (vale {{ config('nexplangov.carona_link_aceite_dias') }} dias; envie por e-mail oficial)</label>
+                            <div class="campo" style="margin-top:8px"><label for="link-{{ $ad->id }}">Link para o fornecedor responder (vale {{ \App\Support\Parametros::valor('carona_link_aceite_dias', $ad->orgao_id) }} dias; envie por e-mail oficial)</label>
                                 <input id="link-{{ $ad->id }}" class="input" value="{{ $_link }}" readonly onclick="this.select()"></div>
                             <details style="margin-top:6px"><summary class="small" style="cursor:pointer;font-weight:600">Ou registre a resposta que o fornecedor enviou por escrito</summary>
                                 <form method="POST" action="{{ route('atas.adesao.aceite', [$ata, $ad]) }}" enctype="multipart/form-data" class="form-grid" style="margin-top:8px">@csrf

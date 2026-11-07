@@ -7,6 +7,7 @@ use App\Http\Controllers\AuditoriaController;
 use App\Http\Controllers\CapacitacaoController;
 use App\Http\Controllers\CaronaController;
 use App\Http\Controllers\CatalogoController;
+use App\Http\Controllers\CatalogoOrgaoController;
 use App\Http\Controllers\CicloContratoController;
 use App\Http\Controllers\ConfiguracaoController;
 use App\Http\Controllers\ContratoController;
@@ -34,13 +35,18 @@ use App\Http\Controllers\OrdemController;
 use App\Http\Controllers\OrgaoController;
 use App\Http\Controllers\PagamentoController;
 use App\Http\Controllers\PainelController;
+use App\Http\Controllers\ParametroController;
+use App\Http\Controllers\PcaConsolidacaoController;
 use App\Http\Controllers\PcaController;
 use App\Http\Controllers\PcaImportacaoController;
 use App\Http\Controllers\PedidoExternoController;
 use App\Http\Controllers\PncpController;
 use App\Http\Controllers\PrecosComprasGovController;
 use App\Http\Controllers\ProcessoController;
+use App\Http\Controllers\RecomendacaoIaController;
+use App\Http\Controllers\RelatorioGestaoController;
 use App\Http\Controllers\RequisicaoController;
+use App\Http\Controllers\RiscoProcessoController;
 use App\Http\Controllers\SancaoController;
 use App\Http\Controllers\SegurancaController;
 use App\Http\Controllers\TramiteController;
@@ -106,14 +112,37 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::post('/configuracoes/valores', [ConfiguracaoController::class, 'salvarValor'])->name('configuracoes.valores');
         });
 
+        // Parâmetros do órgão e permissões extras (11.2, 11.4 e 11.5)
+        Route::middleware('can:parametros.gerenciar')->group(function () {
+            Route::get('/parametros', [ParametroController::class, 'index'])->name('parametros.index');
+            Route::put('/parametros/{chave}', [ParametroController::class, 'salvar'])->where('chave', '[a-z_]+')->name('parametros.salvar');
+            Route::delete('/parametros/{chave}', [ParametroController::class, 'restaurar'])->where('chave', '[a-z_]+')->name('parametros.restaurar');
+            Route::post('/parametros/permissoes', [ParametroController::class, 'conceder'])->name('parametros.conceder');
+            Route::post('/parametros/permissoes/{concessao}/revogar', [ParametroController::class, 'revogar'])->name('parametros.revogar');
+        });
+
         // Catálogo CATMAT/CATSER e painel master
         Route::middleware('can:catalogo.ver')->group(function () {
             Route::get('/catalogo', [CatalogoController::class, 'index'])->name('catalogo.index');
             Route::get('/catalogo/buscar', [CatalogoController::class, 'buscar'])->middleware('throttle:60,1')->name('catalogo.buscar');
+            Route::get('/catalogo/orgao', [CatalogoOrgaoController::class, 'index'])->name('catalogo.orgao.index');
+            Route::get('/catalogo/orgao/buscar', [CatalogoOrgaoController::class, 'buscar'])->middleware('throttle:60,1')->name('catalogo.orgao.buscar');
+            Route::get('/catalogo/orgao/{item}/imagem', [CatalogoOrgaoController::class, 'imagem'])->name('catalogo.orgao.imagem');
         });
+        Route::middleware('can:catalogo.gerenciar')->group(function () {
+            Route::get('/catalogo/orgao/novo', [CatalogoOrgaoController::class, 'create'])->name('catalogo.orgao.create');
+            Route::post('/catalogo/orgao', [CatalogoOrgaoController::class, 'store'])->name('catalogo.orgao.store');
+            Route::get('/catalogo/orgao/{item}/editar', [CatalogoOrgaoController::class, 'edit'])->name('catalogo.orgao.edit');
+            Route::put('/catalogo/orgao/{item}', [CatalogoOrgaoController::class, 'update'])->name('catalogo.orgao.update');
+            Route::patch('/catalogo/orgao/{item}/ativo', [CatalogoOrgaoController::class, 'alternar'])->name('catalogo.orgao.ativo');
+        });
+        Route::post('/catalogo/importar', [CatalogoOrgaoController::class, 'importarNacional'])->middleware(['can:orgaos.gerenciar', 'throttle:6,1'])->name('catalogo.importar');
         Route::get('/capacitacao', [CapacitacaoController::class, 'index'])->middleware('can:capacitacao.ver')->name('capacitacao.index');
         Route::post('/capacitacao', [CapacitacaoController::class, 'store'])->middleware('can:capacitacao.ver')->name('capacitacao.store');
         Route::get('/governanca', GovernancaController::class)->middleware('can:governanca.ver')->name('governanca');
+        Route::get('/paineis', [RelatorioGestaoController::class, 'index'])->middleware('can:governanca.ver')->name('relatorios.gestao');
+        Route::get('/paineis/{relatorio}.{formato}', [RelatorioGestaoController::class, 'exportar'])->middleware(['can:governanca.ver', 'throttle:20,1'])
+            ->whereIn('relatorio', array_keys(RelatorioGestaoController::RELATORIOS))->whereIn('formato', ['pdf', 'csv', 'txt', 'xlsx'])->name('relatorios.exportar');
         Route::middleware('can:exportacoes.gerar')->group(function () {
             Route::get('/integracoes', [IntegracaoController::class, 'index'])->name('integracoes.index');
             Route::post('/integracoes/tce', [IntegracaoController::class, 'tce'])->middleware('throttle:6,1')->name('integracoes.tce');
@@ -130,9 +159,12 @@ Route::middleware(['auth', 'ativo'])->group(function () {
         // PCA (art. 12, VII)
         Route::get('/pca', [PcaController::class, 'index'])->middleware('can:pca.ver')->name('pca.index');
         Route::get('/pca/{plano}', [PcaController::class, 'show'])->middleware('can:pca.ver')->name('pca.show');
+        Route::get('/pca/{plano}/consolidacao', [PcaConsolidacaoController::class, 'show'])->middleware('can:pca.ver')->name('pca.consolidacao');
         Route::middleware('can:pca.gerenciar')->group(function () {
             Route::post('/pca', [PcaController::class, 'store'])->name('pca.store');
             Route::post('/pca/{plano}/itens', [PcaController::class, 'salvarItem'])->name('pca.itens.store');
+            Route::post('/pca/{plano}/dotacoes', [PcaConsolidacaoController::class, 'salvarDotacao'])->name('pca.dotacoes.store');
+            Route::delete('/pca/{plano}/dotacoes/{dotacao}', [PcaConsolidacaoController::class, 'excluirDotacao'])->name('pca.dotacoes.destroy');
             Route::put('/pca/{plano}/itens/{item}', [PcaController::class, 'salvarItem'])->name('pca.itens.update');
             Route::delete('/pca/{plano}/itens/{item}', [PcaController::class, 'excluirItem'])->name('pca.itens.destroy');
             Route::post('/pca/{plano}/enviar-aprovacao', [PcaController::class, 'enviarAprovacao'])->name('pca.enviar');
@@ -203,6 +235,19 @@ Route::middleware(['auth', 'ativo'])->group(function () {
         Route::get('/processos/{processo}/documentos/{tipo}', [DocumentoProcessoController::class, 'edit'])->middleware('can:processos.ver')->name('documentos.edit');
         Route::post('/processos/{processo}/documentos/{tipo}', [DocumentoProcessoController::class, 'salvar'])->middleware('can:processos.ver')->name('documentos.salvar');
         Route::post('/processos/{processo}/documentos/{tipo}/decidir', [DocumentoProcessoController::class, 'decidir'])->middleware('can:processos.ver')->name('documentos.decidir');
+        Route::middleware('can:processos.gerenciar')->group(function () {
+            Route::post('/processos/{processo}/riscos', [RiscoProcessoController::class, 'store'])->name('processos.riscos.store');
+            Route::put('/processos/{processo}/riscos/{risco}', [RiscoProcessoController::class, 'update'])->whereNumber('risco')->name('processos.riscos.update');
+            Route::delete('/processos/{processo}/riscos/{risco}', [RiscoProcessoController::class, 'destroy'])->whereNumber('risco')->name('processos.riscos.destroy');
+            Route::post('/processos/{processo}/riscos/ia', [RiscoProcessoController::class, 'sugerir'])->middleware(['can:ia.usar', 'throttle:6,1'])->name('processos.riscos.ia');
+            Route::post('/processos/{processo}/riscos/ia/aceitar', [RiscoProcessoController::class, 'aceitar'])->name('processos.riscos.aceitar');
+            Route::post('/processos/{processo}/riscos/peca', [RiscoProcessoController::class, 'peca'])->name('processos.riscos.peca');
+        });
+        Route::middleware(['can:ia.usar', 'throttle:6,1'])->group(function () {
+            Route::post('/pca/{plano}/ia', [RecomendacaoIaController::class, 'pca'])->middleware('can:pca.ver')->name('ia.pca');
+            Route::post('/processos/{processo}/precos/ia', [RecomendacaoIaController::class, 'precos'])->middleware('can:processos.ver')->name('ia.precos');
+            Route::post('/contratos/{contrato}/ia', [RecomendacaoIaController::class, 'contrato'])->middleware('can:contratos.ver')->name('ia.contrato');
+        });
         Route::post('/processos/{processo}/documentos/{tipo}/ia', IaController::class)->middleware(['can:ia.usar', 'throttle:12,1'])->name('documentos.ia');
         Route::post('/processos/{processo}/documentos/{tipo}/assinar', [DocumentoProcessoController::class, 'assinar'])->middleware(['can:processos.ver', 'throttle:10,1'])->name('documentos.assinar');
         Route::get('/processos/{processo}/documentos/{tipo}/folha', [DocumentoProcessoController::class, 'folha'])->middleware('can:processos.ver')->name('documentos.folha');
@@ -325,6 +370,9 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::post('/contratos/{contrato}/medicoes/{medicao}/decidir', [PagamentoController::class, 'decidirMedicao'])->name('medicoes.decidir');
         });
         Route::middleware('can:pagamentos.gerenciar')->group(function () {
+            Route::post('/contratos/{contrato}/empenhos', [PagamentoController::class, 'empenharContrato'])->name('empenhos.contrato');
+            Route::post('/atas/{ata}/empenhos', [PagamentoController::class, 'empenharAta'])->name('empenhos.ata');
+            Route::post('/empenhos/{empenho}/anular', [PagamentoController::class, 'anularEmpenho'])->name('empenhos.anular');
             Route::post('/medicoes/{medicao}/liquidar', [PagamentoController::class, 'liquidarMedicao'])->name('medicoes.liquidar');
             Route::post('/ordens/{ordem}/liquidar', [PagamentoController::class, 'liquidarOrdem'])->name('ordens.liquidar');
             Route::post('/pagamentos/{liquidacao}/pagar', [PagamentoController::class, 'pagar'])->name('pagamentos.pagar');

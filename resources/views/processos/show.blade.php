@@ -8,7 +8,7 @@
     $pos = array_search($sit, $fluxo, true);
     $cumpridos = collect($checklist)->where('cumprido', true)->count();
     $podeInstruir = auth()->user()->can('processos.gerenciar') && $processo->editavel();
-    $abas = ['resumo' => 'Resumo', 'instrucao' => 'Instrução ('.$cumpridos.'/'.count($checklist).')', 'itens' => 'Itens e preços', 'resultado' => 'Resultado', 'historico' => 'Histórico', 'pncp' => 'PNCP', 'autos' => 'Autos', 'tramitacao' => 'Tramitação', 'anotacoes' => 'Anotações internas'.($totalAnotacoes ? ' ('.$totalAnotacoes.')' : '')];
+    $abas = ['resumo' => 'Resumo', 'instrucao' => 'Instrução ('.$cumpridos.'/'.count($checklist).')', 'itens' => 'Itens e preços', 'resultado' => 'Resultado', 'historico' => 'Histórico', 'pncp' => 'PNCP', 'riscos' => 'Riscos', 'autos' => 'Autos', 'tramitacao' => 'Tramitação', 'anotacoes' => 'Anotações internas'.($totalAnotacoes ? ' ('.$totalAnotacoes.')' : '')];
 @endphp
 <x-layouts.app :titulo="'Processo '.$processo->identificacao()">
     <div class="row">
@@ -169,6 +169,9 @@
     @endif
 
     @if ($aba === 'itens')
+        @if ($processo->itens->isNotEmpty())
+            @include('ia._recomendacao', ['rota' => route('ia.precos', $processo), 'titulo' => 'Fontes que faltam, cotações discrepantes ou vencidas e método da pesquisa de preços (art. 23)'])
+        @endif
         @foreach ($processo->itens as $item)
             @php($r = $precos[$item->id])
             <section class="card" id="item-{{ $item->id }}">
@@ -530,6 +533,10 @@
                 @endforelse
             </div>
         </section>
+    @endif
+
+    @if ($aba === 'riscos')
+        @include('processos._riscos')
     @endif
 
     @if ($aba === 'anotacoes')

@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use LogicException;
 
 /** Crédito liquidado à espera de pagamento na ordem cronológica (art. 141). */
-#[Fillable(['orgao_id', 'fornecedor_id', 'contrato_id', 'medicao_id', 'ordem_id', 'categoria', 'fonte_recurso', 'nota_fiscal', 'nota_emitida_em', 'valor_bruto', 'retencoes', 'valor_liquido',
+#[Fillable(['orgao_id', 'fornecedor_id', 'contrato_id', 'medicao_id', 'ordem_id', 'empenho_id', 'pedido_compra', 'categoria', 'fonte_recurso', 'nota_fiscal', 'nota_emitida_em', 'valor_bruto', 'retencoes', 'valor_liquido',
     'atesto', 'liquidado_em', 'liquidado_por', 'vencimento', 'situacao', 'pago_em', 'ordem_bancaria', 'pago_por', 'motivo_cancelamento',
     'quebra_hipotese', 'quebra_justificativa', 'quebra_autorizada_por', 'quebra_autorizada_em', 'comunicado_controle_em', 'comunicado_tribunal_em'])]
 class Liquidacao extends Model
@@ -52,6 +52,11 @@ class Liquidacao extends Model
     public function ordem(): BelongsTo
     {
         return $this->belongsTo(OrdemFornecimento::class, 'ordem_id');
+    }
+
+    public function empenho(): BelongsTo
+    {
+        return $this->belongsTo(Empenho::class);
     }
 
     /** A mesma fila: mesma fonte de recursos e mesma categoria do art. 141. */
