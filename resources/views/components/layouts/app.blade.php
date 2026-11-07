@@ -78,6 +78,7 @@
             @endcan
             @can('governanca.ver')
                 <a href="{{ route('governanca') }}" class="{{ $nav('governanca') }}"><x-icone nome="balanca" />Governança</a>
+                <a href="{{ route('relatorios.gestao') }}" class="{{ $nav('relatorios.*') }}"><x-icone nome="painel" />Painéis gerenciais</a>
             @endcan
             @can('capacitacao.ver')
                 <a href="{{ route('capacitacao.index') }}" class="{{ $nav('capacitacao.*') }}"><x-icone nome="cargos" />Capacitação</a>

@@ -43,6 +43,7 @@ use App\Http\Controllers\PncpController;
 use App\Http\Controllers\PrecosComprasGovController;
 use App\Http\Controllers\ProcessoController;
 use App\Http\Controllers\RecomendacaoIaController;
+use App\Http\Controllers\RelatorioGestaoController;
 use App\Http\Controllers\RequisicaoController;
 use App\Http\Controllers\RiscoProcessoController;
 use App\Http\Controllers\SancaoController;
@@ -129,6 +130,9 @@ Route::middleware(['auth', 'ativo'])->group(function () {
         Route::get('/capacitacao', [CapacitacaoController::class, 'index'])->middleware('can:capacitacao.ver')->name('capacitacao.index');
         Route::post('/capacitacao', [CapacitacaoController::class, 'store'])->middleware('can:capacitacao.ver')->name('capacitacao.store');
         Route::get('/governanca', GovernancaController::class)->middleware('can:governanca.ver')->name('governanca');
+        Route::get('/paineis', [RelatorioGestaoController::class, 'index'])->middleware('can:governanca.ver')->name('relatorios.gestao');
+        Route::get('/paineis/{relatorio}.{formato}', [RelatorioGestaoController::class, 'exportar'])->middleware(['can:governanca.ver', 'throttle:20,1'])
+            ->whereIn('relatorio', array_keys(RelatorioGestaoController::RELATORIOS))->whereIn('formato', ['pdf', 'csv', 'txt', 'xlsx'])->name('relatorios.exportar');
         Route::middleware('can:exportacoes.gerar')->group(function () {
             Route::get('/integracoes', [IntegracaoController::class, 'index'])->name('integracoes.index');
             Route::post('/integracoes/tce', [IntegracaoController::class, 'tce'])->middleware('throttle:6,1')->name('integracoes.tce');
