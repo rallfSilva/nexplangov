@@ -530,7 +530,7 @@ function carregar() {
     S = semente(); salvar();
 }
 const usuario = () => S.usuarios.find(u => u.id === S.sessao) || null;
-const pode = p => { const u = usuario(); if (!u) return false; const ps = PERFIS[u.perfil].perms; return ps.includes('*') || ps.includes(p); };
+const pode = p => { const u = usuario(); if (!u) return false; const ps = PERFIS[u.perfil].perms; return ps.includes('*') || ps.includes(p) || (S.concessoes || []).some(c => c.userId === u.id && c.perm === p && !c.revogadaEm); };
 const nomeUsuario = id => (S.usuarios.find(u => u.id === id) || {}).nome || '—';
 const fornecedor = id => S.fornecedores.find(f => f.id === id);
 const processo = id => S.processos.find(p => p.id === id);
@@ -1040,7 +1040,7 @@ function telaPca(anoSel) {
         pl.situacao === 'rascunho' && pode('pca.aprovar') ? `<button class="btn btn-t" data-acao="pca-aprovar" data-ano="${ano}">${ico('ok', 16)}Aprovar o plano</button>` : '',
         pl.situacao === 'aprovado' && !pl.pncp && pode('pncp.enviar') ? `<button class="btn btn-s" data-acao="pca-pncp" data-ano="${ano}">${ico('enviar', 16)}Enviar ao PNCP</button>` : '',
     ].join('');
-    return cab('Plano de Contratações Anual', `Planejamento do exercício, por natureza de despesa ${lei('art. 12, VII')}`, bot) +
+    return cab('Plano de Contratações Anual', `Planejamento do exercício, por natureza de despesa ${lei('art. 12, VII')}`, bot + `<a class="btn btn-s" href="#/pca-consolidacao">${ico('organograma', 16)}Consolidação e orçamento</a>`) +
     `<div class="abas" role="tablist">${anos.map(a => `<a href="#/pca/${a}" class="${a === ano ? 'on' : ''}" role="tab" aria-selected="${a === ano}">PCA ${a}</a>`).join('')}</div>
     <div class="kpis">
       <div class="card kpi"><span class="lbl">Valor total</span><span class="val valor">${reais(total)}</span><span class="foot">${pl.itens.length} itens</span></div>
@@ -1075,12 +1075,13 @@ function telaProcesso(id, aba = 'instrucao') {
     const idx = etapas.indexOf(p.situacao);
     const encerradoSem = ['deserto', 'fracassado', 'revogado', 'anulado'].includes(p.situacao);
     const stepper = `<div class="etapas" aria-label="Etapas do processo">${etapas.map((e, i) => `<div class="etapa ${i < idx || p.situacao === 'contratado' ? 'feita' : i === idx ? 'atual' : ''}"><span class="bola">${i < idx || p.situacao === 'contratado' ? ico('ok', 14) : i + 1}</span>${esc(SITUACOES[e][0])}</div>`).join('')}</div>`;
-    const abas = [['instrucao', 'Instrução'], ['itens', 'Itens e pesquisa de preços'], ['tramitacao', 'Tramitação'], ['autos', 'Autos'], ['unidades', 'Unidades e remessas'], ['anotacoes', 'Anotações internas'], ['historico', 'Linha do tempo'], ['pncp', 'PNCP']];
+    const abas = [['instrucao', 'Instrução'], ['itens', 'Itens e pesquisa de preços'], ['tramitacao', 'Tramitação'], ['autos', 'Autos'], ['unidades', 'Unidades e remessas'], ['riscos', 'Riscos'], ['anotacoes', 'Anotações internas'], ['historico', 'Linha do tempo'], ['pncp', 'PNCP']];
     let corpo = '';
     if (aba === 'instrucao') corpo = abaInstrucao(p);
     if (aba === 'autos') corpo = abaAutos(p);
     if (aba === 'unidades') corpo = abaUnidades(p);
     if (aba === 'anotacoes') corpo = abaAnotacoes(p);
+    if (aba === 'riscos') corpo = abaRiscos(p);
     if (aba === 'itens') corpo = abaItens(p);
     if (aba === 'tramitacao') corpo = abaTramitacao(p);
     if (aba === 'historico') corpo = `<section class="card"><h2>Linha do tempo</h2><div class="tempo">${p.eventos.slice().reverse().map(e => `<div class="ev"><span class="ponto"></span><div><b>${e.de ? esc(SITUACOES[e.de][0]) + ' → ' : ''}${esc(SITUACOES[e.para][0])}</b><div class="small muted">${dataBR(e.em)} · ${esc(nomeUsuario(e.por))}</div>${e.obs ? `<div class="small" style="margin-top:4px">${esc(e.obs)}</div>` : ''}</div></div>`).join('')}</div></section>`;
@@ -1158,7 +1159,7 @@ function telaContratos() {
     ${S.contratos.map(c => { const d = diasParaVencer(c); return `<tr class="linha-link" data-href="#/contratos/${c.id}"><td><a href="#/contratos/${c.id}"><b>${esc(c.numero)}</b></a><div class="small muted">${esc(c.objeto)}</div></td><td>${esc(fornecedor(c.fornecedorId).nome)}</td><td>${dataBR(c.inicio)} a ${dataBR(fimVigencia(c))}</td><td class="num valor">${reais(valorTotal(c))}</td><td>${d < 0 ? badge('Encerrado', 'b-mute') : d <= 60 ? badge(`Vence em ${d} dias`, 'b-warn') : badge('Vigente', 'b-ok')}</td></tr>`; }).join('')}
     </tbody></table></div></section>`;
 }
-function telaContrato(id) { const c0 = contrato(id); return telaContratoBase(id) + (c0 ? secaoOcorrencias(c0) : ''); }
+function telaContrato(id) { const c0 = contrato(id); return telaContratoBase(id) + (c0 ? secaoEmpenhos(c0) + secaoOcorrencias(c0) + recomendacaoIa('contrato', c0) : ''); }
 function telaContratoBase(id) {
     const c = contrato(id); if (!c) return vazio('Contrato não encontrado');
     const vIA = valorAtualizado(c), pA = acrescimos(c) / vIA * 100, pS = supressoes(c) / vIA * 100, limA = c.reforma ? 50 : 25;
@@ -1279,7 +1280,7 @@ const ACOES = {
     entrar: d => { S.sessao = d.id; auditar('Entrada no sistema', 'Sessão', 'demonstração'); salvar(); ir('painel'); toast(`Você entrou como ${nomeUsuario(d.id)}.`); },
     sair: () => { auditar('Saída do sistema', 'Sessão'); S.sessao = null; salvar(); location.hash = '#/'; render(); },
     reiniciar: () => abrirModal('Reiniciar a demonstração?', `<p>Isso apaga o que você fez aqui e volta aos dados fictícios iniciais.</p><div class="form-acoes"><button class="btn btn-s" data-acao="fechar-modal">Cancelar</button><button class="btn btn-d" data-acao="reiniciar-ok">${ico('reiniciar', 16)}Reiniciar</button></div>`),
-    'reiniciar-ok': () => { const s = S.sessao; S = semente(); S.sessao = s; garantirNovidades(); salvar(); fecharModal(); atualizar(); toast('Demonstração reiniciada.'); },
+    'reiniciar-ok': () => { const s = S.sessao; S = semente(); S.sessao = s; garantirNovidades(); garantirOnda4(); salvar(); fecharModal(); atualizar(); toast('Demonstração reiniciada.'); },
 
     'pca-item': d => {
         if (!pode('pca.gerenciar')) return naoPode();
@@ -2329,6 +2330,305 @@ Object.assign(TELAS_EXTRA, { meus: [() => telaMeus(), 'processos.ver'], assinatu
 NAV[0][1].push(['funcionalidades', 'O que o sistema faz', 'lista', 'painel.ver'], ['meus', 'Meus processos', 'pasta', 'processos.ver'], ['assinaturas', 'Assinaturas pendentes', 'editar', 'processos.ver']);
 NAV[2][1].splice(1, 0, ['fluxos', 'Fluxos por secretaria', 'organograma', 'processos.ver']);
 
+
+/* ---------------- onda 4: catálogo do órgão, consolidação do PCA, riscos, painéis, parâmetros e empenho ---------------- */
+const TERMOS_VAGOS = ['diversos', 'diversas', 'conforme tr', 'conforme termo', 'conforme especificação', 'etc', 'similar', 'similares', 'outros', 'vários', 'genérico', 'a definir', 'material de consumo', 'itens variados'];
+const normalizar4 = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+const palavras4 = s => new Set(normalizar4(s).split(' ').filter(w => w.length > 2));
+const semelhanca4 = (a, b) => { const A = palavras4(a), B = palavras4(b); if (!A.size || !B.size) return 0; let i = 0; A.forEach(w => { if (B.has(w)) i++; }); return i / (A.size + B.size - i); };
+const termosVagos4 = d => { const n = ' ' + normalizar4(d) + ' '; return TERMOS_VAGOS.filter(t => n.includes(' ' + normalizar4(t) + ' ')); };
+const ALOCACOES = { contratante: 'Contratante', contratada: 'Contratada', compartilhado: 'Compartilhado' };
+const nivelRisco = r => Number(r.prob) * Number(r.impacto);
+const classeRisco = n => n >= 15 ? ['Alto', 'b-err'] : n >= 10 ? ['Médio', 'b-warn'] : ['Baixo', 'b-ok'];
+const TIPOS_EMPENHO = { ordinario: 'Ordinário', estimativo: 'Estimativo', global: 'Global' };
+const PARAMETROS = {
+    pagamento_prazo_dias: ['Prazo para pagar depois da liquidação', 'Pagamentos', 30, 1, 30, 'dias', 'art. 92, V, e art. 141'],
+    alertas_vigencia: ['Avisos antes do fim da vigência do contrato', 'Contratos', '120, 90, 60, 30, 15, 7', 1, 365, 'dias antes', 'art. 107', 'lista'],
+    irp_prazo_minimo_dias_uteis: ['Prazo mínimo de manifestação na IRP', 'Registro de preços', 8, 1, 30, 'dias úteis', 'art. 86'],
+    carona_prazo_contratacao_dias: ['Prazo do aderente para contratar depois da autorização', 'Registro de preços', 90, 1, 90, 'dias', 'art. 86, § 2º'],
+    preco_tolerancia_pct: ['Tolerância para preço destoante na pesquisa', 'Pesquisa de preços', 50, 10, 90, '% da mediana', 'art. 23'],
+    ceis_validade_horas: ['Validade da consulta ao CEIS e ao CNEP', 'Fornecedores', 24, 1, 72, 'horas', 'art. 161'],
+    capacitacao_validade_meses: ['Validade da capacitação dos agentes', 'Governança', 24, 6, 60, 'meses', 'art. 7º, II, e art. 173'],
+    ia_limite_diario: ['Usos da NexMind IA por servidor por dia', 'Governança', 30, 0, 200, 'usos', 'controle de custo'],
+};
+const NAO_CONCEDIVEIS = ['processos.parecer', 'processos.autorizar', 'pca.aprovar', 'usuarios.gerenciar', 'parametros.gerenciar'];
+const INCOMPATIVEIS = [
+    ['processos.parecer', 'processos.gerenciar', 'Quem instrui o processo não emite o parecer jurídico sobre ele (art. 7º, § 1º, e art. 53).'],
+    ['processos.autorizar', 'processos.gerenciar', 'Quem instrui o processo não o autoriza nem homologa (art. 7º, § 1º, e art. 71).'],
+    ['pca.aprovar', 'pca.gerenciar', 'Quem monta o PCA não o aprova (art. 7º, § 1º, e art. 12, VII).'],
+];
+const PERMS_CONCEDIVEIS = { 'contratos.ver': 'Consultar contratos', 'contratos.gerenciar': 'Gerir contratos, medições e termos', 'processos.ver': 'Consultar processos', 'processos.gerenciar': 'Instruir processos', 'fornecedores.ver': 'Consultar fornecedores', 'fornecedores.gerenciar': 'Cadastrar fornecedores', 'pca.ver': 'Consultar o PCA', 'pca.gerenciar': 'Montar o PCA', 'demandas.criar': 'Registrar demandas', 'pncp.enviar': 'Enviar ao PNCP', 'catalogo.gerenciar': 'Manter o catálogo do órgão', 'pagamentos.gerenciar': 'Empenhar e liquidar' };
+PERFIS['administrador-orgao'].perms.push('parametros.gerenciar', 'catalogo.gerenciar', 'governanca.ver');
+PERFIS['planejamento'].perms.push('catalogo.gerenciar');
+PERFIS['agente-contratacao'].perms.push('catalogo.gerenciar');
+PERFIS['gestor-contrato'].perms.push('pagamentos.gerenciar');
+PERFIS['autoridade'].perms.push('governanca.ver');
+const permsDe = u => PERFIS[u.perfil].perms.concat((S.concessoes || []).filter(c => c.userId === u.id && !c.revogadaEm).map(c => c.perm));
+const valorParam = k => (S.parametros && S.parametros[k] ? S.parametros[k].valor : PARAMETROS[k][2]);
+
+function garantirOnda4() {
+    if (S.onda4) return;
+    const H = hoje(), ano = Number(H.slice(0, 4));
+    S.catOrgao = [
+        { id: uid(), tipo: 'M', codigo: '461543', descricao: 'Papel sulfite A4 branco 75 g/m², resma com 500 folhas', unidade: 'resma', natureza: '3.3.90.30', atributos: [['Gramatura', '75 g/m²'], ['Cor', 'branca'], ['Formato', 'A4 (210 × 297 mm)']], ativo: true },
+        { id: uid(), tipo: 'M', codigo: '472013', descricao: 'Notebook 14 polegadas, 16 GB de RAM, SSD 512 GB, garantia de 36 meses', unidade: 'unidade', natureza: '4.4.90.52', atributos: [['Memória', '16 GB'], ['Armazenamento', 'SSD 512 GB'], ['Garantia', '36 meses on-site']], ativo: true },
+        { id: uid(), tipo: 'S', codigo: '3239', descricao: 'Manutenção preventiva e corretiva de ar-condicionado split', unidade: 'mês', natureza: '3.3.90.39', atributos: [['Frequência', 'mensal'], ['Atendimento', 'até 24 horas']], ativo: true },
+    ];
+    S.dotacoes = [
+        { id: uid(), ano, natureza: '3.3.90.30', programa: '12.361.0002.2010', fonte: '1500 · Recursos livres', valor: 150000 },
+        { id: uid(), ano, natureza: '4.4.90.52', programa: '12.361.0002.1005', fonte: '1550 · Salário-educação', valor: 450000 },
+        { id: uid(), ano, natureza: '3.3.90.37', programa: '04.122.0001.2001', fonte: '1500 · Recursos livres', valor: 900000 },
+        { id: uid(), ano, natureza: '3.3.90.39', programa: '04.122.0001.2001', fonte: '1500 · Recursos livres', valor: 80000 },
+    ];
+    S.compras12 = [
+        { natureza: '3.3.90.39', objeto: 'Manutenção de ar-condicionado do prédio sede', valor: 24800, data: somaDias(-230, H) },
+        { natureza: '3.3.90.39', objeto: 'Manutenção de ar-condicionado das escolas', valor: 21900, data: somaDias(-150, H) },
+        { natureza: '3.3.90.39', objeto: 'Manutenção de ar-condicionado da saúde', valor: 19700, data: somaDias(-60, H) },
+        { natureza: '3.3.90.30', objeto: 'Material de limpeza para o almoxarifado', valor: 18500, data: somaDias(-90, H) },
+    ];
+    S.parametros = {};
+    S.concessoes = [];
+    S.processos.forEach(p => { p.riscos = p.riscos || []; });
+    const p1 = processo('p1');
+    if (p1 && !p1.riscos.length) p1.riscos.push({ id: uid(), descricao: 'Atraso na entrega dos notebooks por falta de estoque do fabricante', prob: 3, impacto: 4, alocacao: 'contratada', tratamento: 'Multa por atraso no TR e entrega parcelada por escola.', origem: 'servidor' });
+    S.contratos.forEach(c => { c.empenhos = c.empenhos || []; c.liquidacoesNe = c.liquidacoesNe || []; });
+    const c1 = contrato('c1');
+    if (c1 && !c1.empenhos.length) c1.empenhos.push({ id: uid(), numero: `${ano}NE000214`, exercicio: ano, tipo: 'global', emitido: `${ano}-01-05`, natureza: '3.3.90.37', fonte: '1500 · Recursos livres', valor: 400000, anulado: 0 });
+    S.onda4 = true;
+}
+
+/* ---- catálogo do órgão (7.1, 7.2, 11.3) ---- */
+function telaCatalogoOrgao() {
+    const bot = pode('catalogo.gerenciar') ? `<button class="btn btn-p" data-acao="cat-orgao-novo">${ico('mais', 16)}Novo item</button>` : '';
+    return cab('Catálogo do órgão', `Descrição padronizada, atributos e imagem de cada item ${lei('art. 19, II, e art. 40, § 1º, I')}`, bot) +
+    `<section class="card"><p class="hint">Descrição vaga ("diversos", "conforme TR", "etc.") é recusada aqui, no PCA e nos itens do processo. Item igual é bloqueado, e item parecido só entra com a confirmação de que é diferente.</p></section>
+    <section class="card card-flush"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Item</th><th>Código</th><th>Unidade</th><th>Atributos</th><th class="acoes"><span class="sr">Ações</span></th></tr></thead><tbody>
+    ${S.catOrgao.map(i => `<tr><td><b>${esc(i.descricao)}</b><div class="small muted">${i.tipo === 'M' ? 'Material' : 'Serviço'} · natureza ${esc(i.natureza)}</div>${i.ativo ? '' : `<div>${badge('inativo', 'b-mute')} <span class="small muted">${esc(i.motivo)}</span></div>`}</td><td><span class="sigla">${esc(i.codigo || '—')}</span></td><td>${esc(i.unidade)}</td>
+      <td class="small">${i.atributos.map(([n, v]) => `<div>${esc(n)}: <b>${esc(v)}</b></div>`).join('')}</td>
+      <td class="acoes">${pode('catalogo.gerenciar') ? `<button class="btn btn-s btn-sm" data-acao="cat-orgao-ativo" data-id="${i.id}">${i.ativo ? 'Inativar' : 'Reativar'}</button>` : ''}</td></tr>`).join('')}
+    </tbody></table></div></section>`;
+}
+
+/* ---- consolidação do PCA (2.3, 4.5) ---- */
+function telaPcaConsolidacao() {
+    const ano = Number(hoje().slice(0, 4)), pl = S.pca.find(p => p.ano === ano) || S.pca[0];
+    const grupos = [];
+    pl.itens.forEach((a, i) => pl.itens.slice(i + 1).forEach(b => { const s = semelhanca4(a.descricao, b.descricao); if (a.natureza === b.natureza && s >= 0.2) grupos.push([a, b, s]); }));
+    const lim = (S.limites[ano] || S.limites[2026]).outros * (S.orgao.dobro ? 2 : 1);
+    const porNat = {}; S.compras12.forEach(c => { (porNat[c.natureza] = porNat[c.natureza] || []).push(c); });
+    const alertas = Object.entries(porNat).map(([n, L]) => ({ n, L, soma: L.reduce((s, c) => s + c.valor, 0) })).filter(x => x.L.length >= 3 || x.soma > lim);
+    const nats = [...new Set(pl.itens.map(i => i.natureza))];
+    const cob = nats.map(n => { const prev = pl.itens.filter(i => i.natureza === n).reduce((s, i) => s + i.valor, 0), dot = S.dotacoes.filter(d => d.ano === pl.ano && d.natureza === n).reduce((s, d) => s + d.valor, 0); return { n, prev, dot, sit: !dot ? ['Sem dotação', 'b-err'] : dot >= prev ? ['Coberto', 'b-ok'] : ['Insuficiente', 'b-warn'] }; });
+    const tri = [1, 2, 3, 4].map(t => pl.itens.filter(i => i.trimestre === t).reduce((s, i) => s + i.valor, 0)), maxT = Math.max(...tri, 1);
+    const bot = pode('pca.gerenciar') ? `<button class="btn btn-p" data-acao="dotacao-nova" data-ano="${pl.ano}">${ico('mais', 16)}Dotação orçamentária</button>` : '';
+    return `<div><a href="#/pca" class="small" style="font-weight:600;display:inline-flex;gap:4px;align-items:center">${ico('voltar', 16)}PCA</a></div>` +
+    cab(`Consolidação e orçamento do PCA ${pl.ano}`, `Agrupamento, fracionamento e cronograma com a dotação ${lei('art. 12, VII, e art. 40, V, b')}`, bot) +
+    `<section class="card"><h2>Sugestões de agrupamento</h2><p class="hint">Itens da mesma natureza com descrição parecida podem virar um só processo, com ganho de escala ${lei('art. 40, V, b')}</p>
+      ${grupos.length ? `<div class="list">${grupos.map(([a, b, s]) => `<div class="li"><div style="flex:1"><b>${esc(a.descricao)}</b> + <b>${esc(b.descricao)}</b><div class="small muted">natureza ${a.natureza} · semelhança ${Math.round(s * 100)}% · ${reais(a.valor + b.valor)}</div></div></div>`).join('')}</div>` : vazio('Nenhum agrupamento sugerido', 'Os itens do plano já estão consolidados.')}</section>
+    <section class="card"><h2>Compras recorrentes por dispensa (12 meses)</h2><p class="hint">Três compras ou mais do mesmo objeto, ou soma acima do limite de ${reais(lim)}, indicam fracionamento ${lei('art. 75, II, e § 1º')}</p>
+      ${alertas.length ? alertas.map(x => `<div class="flash flash-erro" role="alert">${ico('alerta')}<div><b>${esc(x.n)} · ${esc(NATUREZAS[x.n] || '')}</b>: ${x.L.length} compras somam ${reais(x.soma)}. Planeje uma contratação única no PCA.<ul style="margin:6px 0 0;padding-left:18px">${x.L.map(c => `<li>${dataBR(c.data)} · ${esc(c.objeto)} · ${reais(c.valor)}</li>`).join('')}</ul></div></div>`).join('') : vazio('Sem alerta', '')}</section>
+    <div class="g2"><section class="card"><h2>Cronograma por trimestre</h2><div class="list">${tri.map((v, i) => `<div class="li" style="display:block"><div class="row"><b>${i + 1}º trimestre</b><b class="valor">${reais(v)}</b></div>${barra(v / maxT * 100, i + 1 + 'º trimestre')}</div>`).join('')}</div></section>
+    <section class="card card-flush"><h2 style="padding:16px 16px 0">Cobertura orçamentária por natureza</h2><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Natureza</th><th class="num">Previsto no PCA</th><th class="num">Dotação</th><th>Situação</th></tr></thead><tbody>
+      ${cob.map(c => `<tr><td><span class="sigla">${c.n}</span></td><td class="num valor">${reais(c.prev)}</td><td class="num valor">${reais(c.dot)}</td><td>${badge(c.sit[0], c.sit[1])}</td></tr>`).join('')}</tbody></table></div></section></div>
+    ${recomendacaoIa('pca', pl)}`;
+}
+
+/* ---- recomendações da NexMind IA (T2) ---- */
+function recomendacaoIa(etapa, alvo) {
+    const r = (S.recomendacoes || {})[etapa + (alvo.id || alvo.ano)];
+    return `<section class="card"><div class="row"><h2 style="margin:0">${ico('liga', 18)} Recomendações da NexMind IA</h2>${pode('pca.gerenciar') || pode('processos.gerenciar') || pode('contratos.gerenciar') ? `<button class="btn btn-s btn-sm" data-acao="ia-recomendar" data-etapa="${etapa}" data-alvo="${alvo.id || alvo.ano}">Pedir recomendações</button>` : ''}</div>
+      ${r ? `<ul style="margin:10px 0 0;padding-left:18px">${r.map(x => `<li>${esc(x)}</li>`).join('')}</ul><p class="small muted">Sugestão da IA: confira antes de usar. Nada é alterado sem a sua decisão.</p>` : '<p class="hint">A IA lê o plano, a pesquisa de preços ou o contrato e sugere melhorias. Nesta demonstração, as respostas são simuladas.</p>'}</section>`;
+}
+const RECOMENDACOES = {
+    pca: ['Junte "Material de expediente" e itens de papelaria das secretarias num registro de preços com IRP (art. 82).', 'A natureza 3.3.90.39 tem compras recorrentes por dispensa: preveja uma contratação anual de manutenção.', 'O 1º trimestre concentra a maior parte do valor; confira se o cronograma cabe na equipe de licitações.'],
+    contrato: ['A vigência termina em menos de 60 dias: abra a prorrogação ou a nova contratação (art. 107).', 'Confira o saldo de empenho antes da próxima medição (Lei 4.320, art. 60).', 'Registre no livro de ocorrências as visitas do fiscal do mês (art. 117).'],
+};
+
+/* ---- matriz de riscos (3.2) ---- */
+function abaRiscos(p) {
+    p.riscos = p.riscos || [];
+    const pod = pode('processos.gerenciar'), obrig = ['obra', 'servico'].includes(p.categoria) && valorProcesso(p) >= 239624058.14;
+    const sug = (S.riscosIa || {})[p.id];
+    return `<section class="card"><div class="row"><div><h2 style="margin:0">Matriz de riscos</h2><p class="hint">Probabilidade × impacto (1 a 5). Nível 10 ou mais exige tratamento ${lei('art. 6º, XXVII, art. 18, X, e art. 22')}${obrig ? ' · <b>obrigatória neste processo (grande vulto)</b>' : ''}</p></div>
+      <div class="btns">${pod ? `<button class="btn btn-s btn-sm" data-acao="risco-ia" data-p="${p.id}">${ico('liga', 15)}Sugerir com a NexMind IA</button><button class="btn btn-p btn-sm" data-acao="risco-novo" data-p="${p.id}">${ico('mais', 15)}Risco</button>` : ''}</div></div>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Risco</th><th>P × I</th><th>Nível</th><th>Alocação</th><th>Tratamento</th><th class="acoes"><span class="sr">Ações</span></th></tr></thead><tbody>
+      ${p.riscos.length ? p.riscos.map(r => { const n = nivelRisco(r), c = classeRisco(n); return `<tr><td><b>${esc(r.descricao)}</b>${r.origem === 'ia' ? ' ' + badge('sugerido pela IA', 'b-info') : ''}</td><td>${r.prob} × ${r.impacto}</td><td>${badge(n + ' · ' + c[0], c[1])}</td><td>${esc(ALOCACOES[r.alocacao])}</td><td class="small">${esc(r.tratamento || '—')}</td><td class="acoes">${pod ? `<button class="btn btn-g btn-sm" data-acao="risco-remover" data-p="${p.id}" data-id="${r.id}">Excluir</button>` : ''}</td></tr>`; }).join('') : `<tr><td colspan="6">${vazio('Nenhum risco registrado', 'Registre os riscos ou peça sugestões à IA.')}</td></tr>`}
+      </tbody></table></div>
+      ${p.riscos.length && pod ? `<div class="btns" style="margin-top:10px"><button class="btn btn-s btn-sm" data-acao="risco-peca" data-p="${p.id}">${ico('editar', 15)}Gerar a peça "Mapa de riscos"</button></div>` : ''}</section>
+    ${sug ? `<section class="card"><h2>Sugestões da NexMind IA</h2><form data-form="riscos-aceitar" data-p="${p.id}"><div class="list">${sug.map((r, i) => `<label class="li" style="cursor:pointer"><input type="checkbox" name="r${i}" value="${i}" checked> <div style="flex:1"><b>${esc(r.descricao)}</b><div class="small muted">${r.prob} × ${r.impacto} · ${esc(ALOCACOES[r.alocacao])} · ${esc(r.tratamento)}</div></div></label>`).join('')}</div><div class="form-acoes"><button class="btn btn-p" type="submit">${ico('ok', 16)}Incluir os escolhidos</button></div></form><p class="small muted">Sugestão da IA: confira antes de incluir.</p></section>` : ''}`;
+}
+
+/* ---- painéis gerenciais (10.1 a 10.3) ---- */
+const UF_MUN = { 'Vale Verde': 'RR', 'Boa Vista': 'RR', 'Manaus': 'AM' };
+function dadosPaineis() {
+    const ano = Number(hoje().slice(0, 4));
+    const porUn = {};
+    S.processos.forEach(p => { const u = p.unidadeOrigem || 'SEMAD'; const x = porUn[u] = porUn[u] || { unidade: u, processos: 0, andamento: 0, valor: 0, contratos: 0, valorContratos: 0 }; x.processos++; if (!['contratado', 'deserto', 'fracassado', 'revogado', 'anulado'].includes(p.situacao)) x.andamento++; x.valor += valorProcesso(p); });
+    S.contratos.forEach(c => { const p = processo(c.processoId); const u = (p && p.unidadeOrigem) || 'SEMAD'; const x = porUn[u] = porUn[u] || { unidade: u, processos: 0, andamento: 0, valor: 0, contratos: 0, valorContratos: 0 }; x.contratos++; x.valorContratos += c.valorInicial; });
+    const total = Object.values(porUn).reduce((s, x) => s + x.valor, 0) || 1;
+    const sec = Object.values(porUn).sort((a, b) => b.valor - a.valor).map(x => Object.assign(x, { part: x.valor / total * 100 }));
+    const ct = S.contratos.map(c => ({ c, f: fornecedor(c.fornecedorId) }));
+    const vT = ct.reduce((s, x) => s + x.c.valorInicial, 0) || 1;
+    const porte = {}; ct.forEach(({ c, f }) => { porte[f.porte] = (porte[f.porte] || 0) + c.valorInicial; });
+    const fom = { local: 0, regional: 0, fora: 0 }; ct.forEach(({ c, f }) => { const k = f.municipio === 'Vale Verde' ? 'local' : UF_MUN[f.municipio] === 'RR' ? 'regional' : 'fora'; fom[k] += c.valorInicial; });
+    return { ano, sec, porte, fom, vT };
+}
+function telaPaineis() {
+    const D = dadosPaineis();
+    const meEpp = ((D.porte.ME || 0) + (D.porte.EPP || 0)) / D.vT * 100;
+    const exp = r => ['pdf', 'csv', 'txt', 'xlsx'].map(f => `<button class="btn btn-g btn-sm" data-acao="painel-exportar" data-r="${r}" data-f="${f}">${f.toUpperCase()}</button>`).join('');
+    return cab('Painéis gerenciais', `Contratações por secretaria, perfil dos fornecedores e fomento local ${lei('art. 11, parágrafo único, e art. 4º')}`) +
+    `<div class="kpis"><div class="card kpi"><span class="lbl">Contratado</span><span class="val valor">${reais(D.vT)}</span><span class="foot">${S.contratos.length} contratos</span></div>
+      <div class="card kpi"><span class="lbl">ME e EPP</span><span class="val">${num(meEpp, 1)}%</span><span class="foot">do valor contratado</span></div>
+      <div class="card kpi"><span class="lbl">Fornecedor local</span><span class="val">${num(D.fom.local / D.vT * 100, 1)}%</span><span class="foot">Vale Verde/RR</span></div></div>
+    <section class="card card-flush"><div class="row" style="padding:16px 16px 0"><h2 style="margin:0">Por secretaria</h2><div class="btns">${exp('secretarias')}</div></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Secretaria</th><th class="num">Processos</th><th class="num">Em andamento</th><th class="num">Valor estimado</th><th class="num">Participação</th><th class="num">Contratos</th></tr></thead><tbody>
+      ${D.sec.map(x => `<tr><td><b>${esc(x.unidade)}</b><div class="small muted">${esc(UNIDADES[x.unidade] || '')}</div></td><td class="num">${x.processos}</td><td class="num">${x.andamento}</td><td class="num valor">${reais(x.valor)}</td><td class="num">${num(x.part, 1)}%</td><td class="num">${x.contratos} · ${reais(x.valorContratos)}</td></tr>`).join('')}</tbody></table></div></section>
+    <div class="g2"><section class="card"><div class="row"><h2 style="margin:0">Perfil dos fornecedores</h2><div class="btns">${exp('fornecedores')}</div></div><div class="list">${Object.entries(D.porte).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="li" style="display:block"><div class="row"><b>${esc(k)}</b><b class="valor">${reais(v)}</b></div>${barra(v / D.vT * 100, k)}</div>`).join('')}</div></section>
+    <section class="card"><div class="row"><h2 style="margin:0">Fomento local e regional</h2><div class="btns">${exp('fomento')}</div></div><div class="list">${[['local', 'Mesmo município do órgão'], ['regional', 'Outros municípios de RR'], ['fora', 'Fora do estado']].map(([k, r]) => `<div class="li" style="display:block"><div class="row"><b>${r}</b><b class="valor">${reais(D.fom[k])}</b></div>${barra(D.fom[k] / D.vT * 100, r)}</div>`).join('')}</div></section></div>`;
+}
+function exportarPainel(r, f) {
+    const D = dadosPaineis();
+    const tab = r === 'secretarias' ? [['Secretaria', 'Processos', 'Em andamento', 'Valor estimado', 'Contratos'], ...D.sec.map(x => [x.unidade, x.processos, x.andamento, x.valor, x.contratos])]
+        : r === 'fornecedores' ? [['Porte', 'Valor contratado'], ...Object.entries(D.porte)] : [['Faixa', 'Valor'], ...Object.entries(D.fom)];
+    const fmt = v => typeof v === 'number' ? v.toLocaleString('pt-BR', { minimumFractionDigits: v % 1 ? 2 : 0 }) : /^[=+\-@]/.test(String(v)) ? "'" + v : String(v);
+    let conteudo, tipo;
+    if (f === 'csv' || f === 'xlsx') { conteudo = '﻿' + tab.map(l => l.map(c => `"${fmt(c).replace(/"/g, '""')}"`).join(';')).join('\n'); tipo = 'text/csv'; }
+    else if (f === 'txt') { const w = tab[0].map((_, i) => Math.max(...tab.map(l => fmt(l[i]).length)) + 2); conteudo = `${r} · ${D.ano}\n\n` + tab.map(l => l.map((c, i) => fmt(c).padEnd(w[i])).join('').trimEnd()).join('\n'); tipo = 'text/plain'; }
+    else { const w = window.open('', '_blank'); if (!w) return toast('Permita pop-ups para ver o PDF.', 'erro'); w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(r)}</title><style>body{font:11pt Arial;margin:30px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #c9d6de;padding:4px 6px}th{background:#D1ECFF}</style></head><body><button onclick="print()">Imprimir ou salvar em PDF</button><h1 style="color:#1E5470">${esc(r)} · ${D.ano}</h1><table>${tab.map((l, i) => `<tr>${l.map(c => i ? `<td>${esc(fmt(c))}</td>` : `<th>${esc(c)}</th>`).join('')}</tr>`).join('')}</table></body></html>`); w.document.close(); return; }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([conteudo], { type: tipo })); a.download = `${r}-${D.ano}.${f === 'xlsx' ? 'csv' : f}`; a.click();
+    toast(f === 'xlsx' ? 'Na demonstração, o XLSX sai como CSV. No sistema instalado, é uma planilha do Excel.' : 'Arquivo gerado.');
+}
+
+/* ---- parâmetros e permissões (11.2, 11.4, 11.5) ---- */
+function telaParametros() {
+    const grupos = {}; Object.entries(PARAMETROS).forEach(([k, d]) => (grupos[d[1]] = grupos[d[1]] || []).push([k, d]));
+    return cab('Parâmetros e permissões', `Prazos e regras do órgão, dentro dos limites da lei, e permissões extras sem acumular funções ${lei('art. 7º, § 1º')}`) +
+    Object.entries(grupos).map(([g, L]) => `<section class="card card-flush"><h2 style="padding:16px 16px 0">${esc(g)}</h2><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Parâmetro</th><th>Em uso</th><th class="acoes"><span class="sr">Ações</span></th></tr></thead><tbody>
+      ${L.map(([k, d]) => { const aj = S.parametros[k]; return `<tr><td><b>${esc(d[0])}</b><div class="small muted">De ${d[3]} a ${d[4]} ${esc(d[5])} · ${lei(d[6])}</div></td><td><b>${esc(valorParam(k))}</b> <span class="small muted">${esc(d[5])}</span>${aj ? `<div class="small">${badge('ajustado pelo órgão', 'b-info')} padrão: ${esc(d[2])}</div><div class="small muted">${esc(aj.justificativa)}</div>` : '<div class="small muted">padrão do sistema</div>'}</td>
+        <td class="acoes"><button class="btn btn-s btn-sm" data-acao="param-editar" data-k="${k}">Ajustar</button>${aj ? `<button class="btn btn-g btn-sm" data-acao="param-restaurar" data-k="${k}">Voltar ao padrão</button>` : ''}</td></tr>`; }).join('')}</tbody></table></div></section>`).join('') +
+    `<section class="card"><div class="row"><div><h2 style="margin:0">Permissões extras</h2><p class="hint">Para férias ou acúmulo pontual. Parecer, autorização e aprovação do PCA só vêm do perfil ${lei('art. 53 e art. 71')}. O auditor só recebe permissões de consulta ${lei('art. 169')}.</p></div><button class="btn btn-p btn-sm" data-acao="concessao-nova">${ico('mais', 15)}Conceder</button></div>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Servidor</th><th>Permissão</th><th>Justificativa</th><th class="acoes"><span class="sr">Ações</span></th></tr></thead><tbody>
+      ${S.concessoes.filter(c => !c.revogadaEm).map(c => `<tr><td>${esc(nomeUsuario(c.userId))}</td><td>${esc(PERMS_CONCEDIVEIS[c.perm] || c.perm)}</td><td class="small">${esc(c.justificativa)}<div class="muted">por ${esc(nomeUsuario(c.por))} em ${dataBR(c.em)}</div></td><td class="acoes"><button class="btn btn-s btn-sm" data-acao="concessao-revogar" data-id="${c.id}">Revogar</button></td></tr>`).join('') || `<tr><td colspan="4">${vazio('Nenhuma permissão extra vigente', 'Cada servidor tem só as permissões do seu perfil.')}</td></tr>`}
+      </tbody></table></div></section>`;
+}
+function motivosConcessao(u, perm, just) {
+    if (NAO_CONCEDIVEIS.includes(perm)) return ['Esta permissão só vem do perfil do servidor: é atribuição pessoal ou de administração do sistema.'];
+    const atuais = permsDe(u);
+    if (atuais.includes('*') || atuais.includes(perm)) return ['O servidor já tem esta permissão.'];
+    if (u.perfil === 'auditor' && !perm.endsWith('.ver')) return ['O auditor só recebe permissões de consulta: quem fiscaliza não executa (art. 7º, § 1º, e art. 169).'];
+    const m = INCOMPATIVEIS.filter(([a, b]) => (perm === a && atuais.includes(b)) || (perm === b && atuais.includes(a))).map(x => x[2]);
+    if ((just || '').trim().length < 20) m.push('Justifique a concessão (mínimo 20 caracteres): ela fica na trilha de auditoria.');
+    return m;
+}
+
+/* ---- notas de empenho (6.4) ---- */
+const saldoNe = (c, e) => Math.round((e.valor - e.anulado - c.liquidacoesNe.filter(l => l.empenhoId === e.id).reduce((s, l) => s + l.valor, 0)) * 100) / 100;
+function secaoEmpenhos(c) {
+    c.empenhos = c.empenhos || []; c.liquidacoesNe = c.liquidacoesNe || [];
+    const pod = pode('pagamentos.gerenciar');
+    return `<section class="card"><div class="row"><div><h2 style="margin:0">Notas de empenho e liquidação</h2><p class="hint">Sem empenho prévio não há despesa. A liquidação usa um empenho do mesmo credor, da mesma fonte e com saldo ${lei('Lei 4.320, arts. 58 a 63; Lei 14.133, art. 92, VIII, e art. 141')}</p></div>
+      ${pod ? `<div class="btns"><button class="btn btn-s btn-sm" data-acao="empenho-novo" data-c="${c.id}">${ico('mais', 15)}Nota de empenho</button><button class="btn btn-p btn-sm" data-acao="liquidar-ne" data-c="${c.id}">${ico('cifrao', 15)}Liquidar</button></div>` : ''}</div>
+      <div class="tbl-wrap"><table class="tbl small"><thead><tr><th>Empenho</th><th>Modalidade</th><th>Natureza · fonte</th><th class="num">Empenhado</th><th class="num">Saldo</th><th class="acoes"><span class="sr">Ações</span></th></tr></thead><tbody>
+      ${c.empenhos.map(e => { const s = saldoNe(c, e); return `<tr><td><b>${esc(e.numero)}/${e.exercicio}</b><div class="muted">${dataBR(e.emitido)}</div></td><td>${esc(TIPOS_EMPENHO[e.tipo])}</td><td>${esc(e.natureza)}<div class="muted">${esc(e.fonte)}</div></td><td class="num valor">${reais(e.valor)}${e.anulado ? `<div class="muted">anulado ${reais(e.anulado)}</div>` : ''}</td><td class="num valor">${reais(s)}</td><td class="acoes">${pod && s > 0 ? `<button class="btn btn-g btn-sm" data-acao="empenho-anular" data-c="${c.id}" data-id="${e.id}">Anular saldo</button>` : ''}</td></tr>`; }).join('') || `<tr><td colspan="6">${vazio('Nenhum empenho', 'Registre a nota de empenho antes de liquidar.')}</td></tr>`}
+      </tbody></table></div>
+      ${c.liquidacoesNe.length ? `<h3 style="margin:12px 0 4px;font-size:15px">Liquidações</h3><div class="list">${c.liquidacoesNe.map(l => `<div class="li"><div style="flex:1"><b>NF ${esc(l.nf)}</b> · ${reais(l.valor)} · NE ${esc((c.empenhos.find(e => e.id === l.empenhoId) || {}).numero || '')}${l.pedido ? ' · pedido ' + esc(l.pedido) : ''}<div class="small muted">${dataBR(l.em)} · vence em ${dataBR(l.vencimento)} (prazo de ${l.prazo} dias)</div></div></div>`).join('')}</div>` : ''}</section>`;
+}
+
+Object.assign(ACOES, {
+    'cat-orgao-novo': () => { if (!pode('catalogo.gerenciar')) return naoPode(); abrirModal('Novo item do catálogo do órgão', `<form data-form="cat-orgao" class="form-grid">${campo('tipo', 'Tipo', sel('tipo', { M: 'Material', S: 'Serviço' }))}${campo('codigo', 'Código CATMAT/CATSER', inp('codigo', '', 'maxlength="20"'))}${campo('descricao', 'Descrição padronizada', inp('descricao', '', 'required'), 'O que é, material ou característica principal e medida.', 'full')}${campo('unidade', 'Unidade de fornecimento', inp('unidade', '', 'required'))}${campo('natureza', 'Natureza da despesa', inp('natureza', '3.3.90.30'))}${campo('atributos', 'Atributos', inp('atributos', '', 'placeholder="Cor: azul; Tamanho: M"'), 'Nome: valor, separados por ponto e vírgula.', 'full')}<div class="campo full"><label><input type="checkbox" name="diferente" value="1"> Confirmo que é diferente dos itens parecidos já cadastrados</label></div>${acoesForm()}</form>`); },
+    'cat-orgao-ativo': d => { const i = S.catOrgao.find(x => x.id === d.id); if (!i) return; if (!i.ativo) { i.ativo = true; i.motivo = ''; auditar('Item do catálogo reativado', i.descricao); atualizar(); return toast('Item reativado.'); } abrirModal('Inativar item', `<form data-form="cat-orgao-inativar" data-id="${i.id}">${campo('motivo', 'Motivo (mínimo 10 caracteres)', inp('motivo', '', 'required minlength="10"'))}${acoesForm('Inativar')}</form>`); },
+    'dotacao-nova': d => { if (!pode('pca.gerenciar')) return naoPode(); abrirModal('Dotação orçamentária', `<form data-form="dotacao" data-ano="${d.ano}" class="form-grid">${campo('natureza', 'Natureza da despesa', inp('natureza', '3.3.90.39', 'required'))}${campo('programa', 'Programa de trabalho', inp('programa', '04.122.0001.2001', 'required'))}${campo('fonte', 'Fonte', inp('fonte', '1500 · Recursos livres', 'required'))}${campo('valor', 'Valor (R$)', inp('valor', '', 'required inputmode="decimal"'))}${acoesForm()}</form>`); },
+    'ia-recomendar': d => { S.recomendacoes = S.recomendacoes || {}; S.recomendacoes[d.etapa + d.alvo] = RECOMENDACOES[d.etapa] || RECOMENDACOES.pca; auditar('Recomendação da NexMind IA', d.etapa); atualizar(); toast('A IA respondeu. Confira as sugestões.'); },
+    'risco-novo': d => { if (!pode('processos.gerenciar')) return naoPode(); const e = { 1: '1', 2: '2', 3: '3', 4: '4', 5: '5' }; abrirModal('Novo risco', `<form data-form="risco" data-p="${d.p}" class="form-grid">${campo('descricao', 'Risco', inp('descricao', '', 'required'), '', 'full')}${campo('prob', 'Probabilidade (1 a 5)', sel('prob', e, '3'))}${campo('impacto', 'Impacto (1 a 5)', sel('impacto', e, '3'))}${campo('alocacao', 'Alocação', sel('alocacao', ALOCACOES))}${campo('tratamento', 'Tratamento', txt('tratamento', ''), 'Obrigatório a partir do nível 10.', 'full')}${acoesForm()}</form>`); },
+    'risco-remover': d => { const p = processo(d.p); p.riscos = p.riscos.filter(r => r.id !== d.id); auditar('Risco excluído', p.numero); atualizar(); },
+    'risco-ia': d => { S.riscosIa = S.riscosIa || {}; S.riscosIa[d.p] = [
+        { descricao: 'Preço da proposta vencedora inexequível', prob: 2, impacto: 4, alocacao: 'contratante', tratamento: 'Exigir comprovação de exequibilidade (art. 59, § 4º).' },
+        { descricao: 'Equipamento entregue fora da especificação', prob: 3, impacto: 3, alocacao: 'contratada', tratamento: 'Recebimento provisório com teste por amostragem (art. 140).' },
+        { descricao: 'Variação cambial no preço dos componentes', prob: 3, impacto: 4, alocacao: 'compartilhado', tratamento: 'Cláusula de reequilíbrio com índice definido (art. 124, II, d).' },
+    ]; auditar('Riscos sugeridos pela NexMind IA', processo(d.p).numero); atualizar(); toast('A IA sugeriu 3 riscos. Escolha quais incluir.'); },
+    'risco-peca': d => { const p = processo(d.p), doc = p.docs.mapa_riscos; if (!doc) return toast('Este processo não usa a peça "Mapa de riscos".', 'erro'); doc.campos = Object.assign({}, doc.campos, { riscos: p.riscos.map(r => `${r.descricao} (P${r.prob} × I${r.impacto} = ${nivelRisco(r)}; ${ALOCACOES[r.alocacao]})`).join('\n'), tratamento: p.riscos.map(r => `${r.descricao}: ${r.tratamento || 'aceito'}`).join('\n') }); auditar('Mapa de riscos gerado da matriz', p.numero); atualizar(); abrirDoc(p.id, 'mapa_riscos'); },
+    'painel-exportar': d => exportarPainel(d.r, d.f),
+    'param-editar': d => { const p = PARAMETROS[d.k]; abrirModal(esc(p[0]), `<form data-form="parametro" data-k="${d.k}">${campo('valor', `Valor (${p[3]} a ${p[4]} ${esc(p[5])})`, inp('valor', valorParam(d.k), 'required'), p[7] === 'lista' ? 'Até 8 marcos, separados por vírgula.' : '')}${campo('justificativa', 'Justificativa (mínimo 15 caracteres)', txt('justificativa', '', 'required minlength="15"'))}${acoesForm()}</form>`); },
+    'param-restaurar': d => { delete S.parametros[d.k]; auditar('Parâmetro voltou ao padrão', PARAMETROS[d.k][0]); atualizar(); toast('Parâmetro voltou ao padrão do sistema.'); },
+    'concessao-nova': () => { const us = Object.fromEntries(S.usuarios.filter(u => u.id !== S.sessao && u.perfil !== 'administrador-geral').map(u => [u.id, `${u.nome} · ${PERFIS[u.perfil].rot}`])); const ps = Object.assign({}, PERMS_CONCEDIVEIS, { 'processos.parecer': 'Emitir parecer jurídico (só pelo perfil)' }); abrirModal('Conceder permissão extra', `<form data-form="concessao" class="form-grid">${campo('user', 'Servidor', sel('user', us))}${campo('perm', 'Permissão', sel('perm', ps))}${campo('justificativa', 'Justificativa (mínimo 20 caracteres)', txt('justificativa', ''), '', 'full')}${acoesForm('Conceder')}</form>`); },
+    'concessao-revogar': d => abrirModal('Revogar permissão', `<form data-form="concessao-revogar" data-id="${d.id}">${campo('motivo', 'Motivo (mínimo 10 caracteres)', inp('motivo', '', 'required minlength="10"'))}${acoesForm('Revogar')}</form>`),
+    'empenho-novo': d => { if (!pode('pagamentos.gerenciar')) return naoPode(); abrirModal('Nota de empenho', `<form data-form="empenho" data-c="${d.c}" class="form-grid">${campo('numero', 'Número', inp('numero', hoje().slice(0, 4) + 'NE000' + (300 + Math.floor(Math.random() * 600)), 'required'))}${campo('tipo', 'Modalidade', sel('tipo', TIPOS_EMPENHO, 'global'))}${campo('emitido', 'Emitida em', inp('emitido', hoje(), 'type="date" required'))}${campo('valor', 'Valor (R$)', inp('valor', '', 'required inputmode="decimal"'))}${campo('natureza', 'Natureza', inp('natureza', '3.3.90.39', 'required'))}${campo('fonte', 'Fonte', inp('fonte', '1500 · Recursos livres', 'required'))}${acoesForm('Registrar')}</form>`); },
+    'empenho-anular': d => abrirModal('Anular saldo do empenho', `<form data-form="empenho-anular" data-c="${d.c}" data-id="${d.id}">${campo('motivo', 'Motivo (mínimo 10 caracteres)', inp('motivo', '', 'required minlength="10"'))}${acoesForm('Anular')}</form>`),
+    'liquidar-ne': d => { const c = contrato(d.c); const ops = Object.fromEntries([['', 'Selecione o empenho']].concat(c.empenhos.filter(e => saldoNe(c, e) > 0).map(e => [e.id, `${e.numero}/${e.exercicio} · ${e.fonte} · saldo ${reais(saldoNe(c, e))}`]))); abrirModal('Liquidar contra o empenho', `<form data-form="liquidar-ne" data-c="${d.c}" class="form-grid">${campo('empenho', 'Nota de empenho', sel('empenho', ops), '', 'full')}${campo('fonte', 'Fonte da liquidação', inp('fonte', '1500 · Recursos livres', 'required'))}${campo('pedido', 'Pedido de compra', inp('pedido', ''), 'Opcional.')}${campo('nf', 'Nota fiscal', inp('nf', '', 'required'))}${campo('valor', 'Valor bruto (R$)', inp('valor', '', 'required inputmode="decimal"'))}${acoesForm('Liquidar')}</form>`); },
+});
+const numBr = v => Number(String(v || '').replace(/\./g, '').replace(',', '.'));
+Object.assign(FORMS, {
+    'cat-orgao': (f, el) => {
+        const e = [], d = (f.descricao || '').trim();
+        const v = termosVagos4(d); if (v.length) e.push(`Descrição vaga: troque "${v.join('", "')}" pela característica do item (art. 40, § 1º, I).`);
+        if (d.length < 15) e.push('Descreva o item com pelo menos 15 caracteres.');
+        if (S.catOrgao.some(i => i.tipo === f.tipo && normalizar4(i.descricao) === normalizar4(d))) e.push('Já existe item igual no catálogo do órgão.');
+        const par = S.catOrgao.filter(i => semelhanca4(i.descricao, d) >= 0.75 && normalizar4(i.descricao) !== normalizar4(d));
+        if (par.length && !f.diferente) e.push(`Item parecido: "${par[0].descricao}". Se for diferente, marque a confirmação.`);
+        if (e.length) return erroForm(el, e);
+        const atributos = (f.atributos || '').split(';').map(x => x.split(':').map(y => y.trim())).filter(x => x[0] && x[1]);
+        S.catOrgao.push({ id: uid(), tipo: f.tipo, codigo: f.codigo.trim(), descricao: d, unidade: f.unidade.trim(), natureza: f.natureza.trim(), atributos, ativo: true });
+        auditar('Item do catálogo cadastrado', d); fecharModal(); atualizar(); toast('Item cadastrado no catálogo do órgão.');
+    },
+    'cat-orgao-inativar': (f, el) => { if ((f.motivo || '').trim().length < 10) return erroForm(el, ['Informe o motivo com pelo menos 10 caracteres.']); const i = S.catOrgao.find(x => x.id === el.dataset.id); i.ativo = false; i.motivo = f.motivo.trim(); auditar('Item do catálogo inativado', i.descricao, i.motivo); fecharModal(); atualizar(); toast('Item inativado.'); },
+    'dotacao': (f, el) => { const v = numBr(f.valor); if (!(v > 0)) return erroForm(el, ['Informe um valor maior que zero.']); S.dotacoes.push({ id: uid(), ano: Number(el.dataset.ano), natureza: f.natureza.trim(), programa: f.programa.trim(), fonte: f.fonte.trim(), valor: v }); auditar('Dotação registrada', f.natureza, reais(v)); fecharModal(); atualizar(); toast('Dotação registrada.'); },
+    'risco': (f, el) => { const n = Number(f.prob) * Number(f.impacto), e = []; if ((f.descricao || '').trim().length < 10) e.push('Descreva o risco (mínimo 10 caracteres).'); if (n >= 10 && (f.tratamento || '').trim().length < 10) e.push(`Nível ${n}: informe o tratamento (art. 22).`); if (e.length) return erroForm(el, e); const p = processo(el.dataset.p); p.riscos.push({ id: uid(), descricao: f.descricao.trim(), prob: Number(f.prob), impacto: Number(f.impacto), alocacao: f.alocacao, tratamento: (f.tratamento || '').trim(), origem: 'servidor' }); auditar('Risco registrado', p.numero, f.descricao); fecharModal(); atualizar(); toast('Risco registrado.'); },
+    'riscos-aceitar': (f, el) => { const p = processo(el.dataset.p), sug = S.riscosIa[p.id] || []; const esc_ = [...el.querySelectorAll('input[type=checkbox]:checked')].map(c => sug[Number(c.value)]).filter(Boolean); if (!esc_.length) return erroForm(el, ['Marque ao menos uma sugestão.']); esc_.forEach(r => p.riscos.push(Object.assign({ id: uid(), origem: 'ia' }, r))); delete S.riscosIa[p.id]; auditar('Sugestões de risco aceitas', p.numero, esc_.length + ' riscos'); atualizar(); toast(`${esc_.length} risco(s) incluído(s).`); },
+    'parametro': (f, el) => {
+        const k = el.dataset.k, p = PARAMETROS[k], e = [];
+        const vals = p[7] === 'lista' ? String(f.valor).split(',').map(x => x.trim()).filter(Boolean) : [String(f.valor).trim()];
+        if (!vals.length || vals.length > 8 || vals.some(x => !/^\d+$/.test(x))) e.push(p[7] === 'lista' ? 'Informe de 1 a 8 números inteiros separados por vírgula.' : 'Informe um número inteiro.');
+        else if (vals.some(x => Number(x) < p[3] || Number(x) > p[4])) e.push(`${p[0]}: use de ${p[3]} a ${p[4]} ${p[5]} (${p[6]}).`);
+        if ((f.justificativa || '').trim().length < 15) e.push('Justifique a mudança (mínimo 15 caracteres): ela fica na trilha de auditoria.');
+        if (e.length) return erroForm(el, e);
+        const valor = p[7] === 'lista' ? [...new Set(vals.map(Number))].sort((a, b) => b - a).join(', ') : Number(vals[0]);
+        S.parametros[k] = { valor, justificativa: f.justificativa.trim(), por: S.sessao, em: hoje() };
+        auditar('Parâmetro do órgão alterado', p[0], `${valor} ${p[5]}`); fecharModal(); atualizar(); toast(`${p[0]} atualizado.`);
+    },
+    'concessao': (f, el) => { const u = S.usuarios.find(x => x.id === f.user); const m = motivosConcessao(u, f.perm, f.justificativa); if (m.length) return erroForm(el, m); S.concessoes.push({ id: uid(), userId: u.id, perm: f.perm, justificativa: f.justificativa.trim(), por: S.sessao, em: hoje() }); auditar('Permissão extra concedida', u.nome, f.perm); fecharModal(); atualizar(); toast(`Permissão concedida a ${u.nome}.`); },
+    'concessao-revogar': (f, el) => { if ((f.motivo || '').trim().length < 10) return erroForm(el, ['Informe o motivo da revogação (mínimo 10 caracteres).']); const c = S.concessoes.find(x => x.id === el.dataset.id); c.revogadaEm = hoje(); c.motivo = f.motivo.trim(); auditar('Permissão extra revogada', nomeUsuario(c.userId), c.perm); fecharModal(); atualizar(); toast('Permissão revogada.'); },
+    'empenho': (f, el) => {
+        const c = contrato(el.dataset.c), v = numBr(f.valor), e = [];
+        if (!/^[0-9A-Za-z\/.\- ]{3,30}$/.test(f.numero.trim())) e.push('Informe o número da nota de empenho (3 a 30 caracteres).');
+        if (!(v > 0)) e.push('O valor empenhado precisa ser maior que zero.');
+        if (f.emitido > hoje()) e.push('A nota de empenho não pode ter data futura.');
+        if (!/^\d\.\d\.\d{2}\.\d{2}(\.\d{2})?$/.test(f.natureza.trim())) e.push('Natureza da despesa no formato 3.3.90.39.');
+        const empenhado = c.empenhos.reduce((s, x) => s + x.valor - x.anulado, 0), resta = valorTotal(c) - empenhado;
+        if (v > resta + 0.001) e.push(`O empenho passaria do valor do contrato ainda não empenhado (${reais(resta)}). Formalize o aditivo antes (art. 125).`);
+        if (c.empenhos.some(x => x.numero === f.numero.trim() && x.exercicio === Number(f.emitido.slice(0, 4)))) e.push('Já existe nota de empenho com este número no exercício.');
+        if (e.length) return erroForm(el, e);
+        c.empenhos.push({ id: uid(), numero: f.numero.trim(), exercicio: Number(f.emitido.slice(0, 4)), tipo: f.tipo, emitido: f.emitido, natureza: f.natureza.trim(), fonte: f.fonte.trim(), valor: v, anulado: 0 });
+        auditar('Nota de empenho registrada', `Contrato ${c.numero}`, `${f.numero} · ${reais(v)}`); fecharModal(); atualizar(); toast('Nota de empenho registrada.');
+    },
+    'empenho-anular': (f, el) => { if ((f.motivo || '').trim().length < 10) return erroForm(el, ['Informe o motivo da anulação (mínimo 10 caracteres).']); const c = contrato(el.dataset.c), e = c.empenhos.find(x => x.id === el.dataset.id); const s = saldoNe(c, e); e.anulado += s; e.motivo = f.motivo.trim(); auditar('Saldo de empenho anulado', e.numero, reais(s)); fecharModal(); atualizar(); toast('Saldo do empenho anulado.'); },
+    'liquidar-ne': (f, el) => {
+        const c = contrato(el.dataset.c), e = c.empenhos.find(x => x.id === f.empenho), v = numBr(f.valor), m = [];
+        if (!e) m.push('Escolha a nota de empenho: não há despesa sem prévio empenho (Lei 4.320, art. 60).');
+        else {
+            if (e.fonte.trim().toLowerCase() !== (f.fonte || '').trim().toLowerCase()) m.push(`A fonte da liquidação precisa ser a do empenho (${e.fonte}): cada fonte tem a sua ordem cronológica (art. 141).`);
+            if (v > saldoNe(c, e) + 0.001) m.push(`O valor passa do saldo do empenho (${reais(saldoNe(c, e))}). Reforce o empenho antes (Lei 4.320, art. 59).`);
+        }
+        if (!(v > 0)) m.push('Informe o valor da nota fiscal.');
+        if (m.length) return erroForm(el, m);
+        const prazo = Number(valorParam('pagamento_prazo_dias'));
+        c.liquidacoesNe.push({ id: uid(), empenhoId: e.id, nf: f.nf.trim(), valor: v, pedido: (f.pedido || '').trim(), em: hoje(), prazo, vencimento: somaDias(prazo, hoje()) });
+        auditar('Liquidação registrada', `Contrato ${c.numero}`, `NF ${f.nf} · ${reais(v)} · NE ${e.numero}`); fecharModal(); atualizar(); toast(`Liquidado. O pagamento vence em ${prazo} dias (parâmetro do órgão).`);
+    },
+});
+Object.assign(TELAS_EXTRA, { 'catalogo-orgao': [() => telaCatalogoOrgao(), 'catalogo.ver'], 'pca-consolidacao': [() => telaPcaConsolidacao(), 'pca.ver'], paineis: [() => telaPaineis(), 'governanca.ver'], parametros: [() => telaParametros(), 'parametros.gerenciar'] });
+NAV[1][1].push(['catalogo-orgao', 'Catálogo do órgão', 'planilha', 'catalogo.ver'], ['pca-consolidacao', 'Consolidação do PCA', 'organograma', 'pca.ver']);
+NAV[NAV.length - 1][1].unshift(['paineis', 'Painéis gerenciais', 'painel', 'governanca.ver']);
+NAV[NAV.length - 1][1].push(['parametros', 'Parâmetros e permissões', 'engrenagem', 'parametros.gerenciar']);
+FUNCIONALIDADES.push(['Onda 4: gestão e controle', [
+    ['Catálogo do órgão com atributos, imagem, trava de descrição vaga e de item duplicado', 'art. 19, II, e art. 40, § 1º, I', 'catalogo-orgao'],
+    ['Consolidação do PCA: agrupamento, fracionamento nas dispensas de 12 meses e cronograma com dotação', 'art. 12, VII, e art. 75, § 1º', 'pca-consolidacao'],
+    ['Matriz de riscos com probabilidade, impacto, alocação e sugestões da NexMind IA', 'art. 18, X, e art. 22', 'processos'],
+    ['Recomendações da NexMind IA no PCA, na pesquisa de preços e no contrato', '—', 'pca-consolidacao'],
+    ['Painéis por secretaria, perfil de fornecedores e fomento local, com exportação em PDF, CSV, TXT e XLSX', 'art. 11, parágrafo único, e art. 4º', 'paineis'],
+    ['Parâmetros do órgão dentro de limites e permissões extras sem acumular funções', 'art. 7º, § 1º', 'parametros'],
+    ['Nota de empenho e pedido de compra na liquidação, com saldo e fonte conferidos', 'art. 92, VIII, e art. 141', 'contratos'],
+]]);
+
 /* ---------------- eventos ---------------- */
 document.addEventListener('click', e => {
     const linha = e.target.closest('tr.linha-link');
@@ -2359,7 +2659,7 @@ document.addEventListener('change', e => {
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#modal').hidden) fecharModal(); });
 window.addEventListener('hashchange', () => { fecharModal(); render(); });
 
-carregar(); garantirNovidades(); salvar();
+carregar(); garantirNovidades(); garantirOnda4(); salvar();
 render();
 })();
 
