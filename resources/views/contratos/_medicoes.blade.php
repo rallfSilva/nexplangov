@@ -1,9 +1,12 @@
 @php($geren = auth()->user()->can('contratos.gerenciar'))
 @php($pag = auth()->user()->can('pagamentos.gerenciar'))
 @php($fontes = \App\Models\Liquidacao::distinct()->orderBy('fonte_recurso')->pluck('fonte_recurso'))
+@php($empenhos = $contrato->empenhos)
 @php($catSug = (new \App\Licitacao\Regras\OrdemCronologica)->categoriaSugerida($contrato->categoria))
 <section class="card"><h2>Medições e pagamentos <span class="lei">arts. 140 e 141</span></h2>
     <p class="hint">O fiscal mede o período, o gestor aprova (nunca quem mediu), o setor financeiro liquida com a nota fiscal e o crédito entra na <a href="{{ route('pagamentos.index') }}">ordem cronológica</a>. Medido até agora: {{ reais($contrato->medicoes->whereIn('situacao', ['pendente', 'aprovada'])->sum('valor')) }} de {{ reais($contrato->valorAtualizadoTotal()) }}.</p>
+    <h3 style="margin:14px 0 6px;font-size:15px">Notas de empenho <span class="lei">art. 92, VIII</span></h3>
+    @include('pagamentos._empenhos', ['empenhos' => $empenhos, 'acao' => route('empenhos.contrato', $contrato), 'p' => 'ct'.$contrato->id, 'pode' => $pag])
     @if ($contrato->medicoes->isNotEmpty())
         <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nº</th><th>Período</th><th class="num">Valor</th><th>Situação</th><th></th></tr></thead><tbody>
             @foreach ($contrato->medicoes as $med)
@@ -19,7 +22,7 @@
                     </td></tr>
                 @if ($pag && $med->situacao === 'aprovada' && ! $med->liquidacao)
                     <tr><td colspan="5"><details><summary class="small" style="cursor:pointer;font-weight:600">Liquidar a medição {{ $med->numero }}</summary>
-                        @include('pagamentos._liquidar', ['acao' => route('medicoes.liquidar', $med), 'p' => 'med'.$med->id, 'categoria' => $catSug, 'valor' => $med->valor, 'fontes' => $fontes])</details></td></tr>
+                        @include('pagamentos._liquidar', ['acao' => route('medicoes.liquidar', $med), 'p' => 'med'.$med->id, 'categoria' => $catSug, 'valor' => $med->valor, 'fontes' => $fontes, 'empenhos' => $empenhos])</details></td></tr>
                 @endif
             @endforeach
         </tbody></table></div>

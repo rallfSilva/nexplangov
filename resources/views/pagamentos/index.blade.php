@@ -18,7 +18,7 @@
             <div class="tbl-wrap" style="margin-top:8px"><table class="tbl"><thead><tr><th>Posição</th><th>Credor</th><th>Origem</th><th>Liquidado</th><th>Vence</th><th class="num">Líquido</th><th></th></tr></thead><tbody>
                 @foreach ($fila as $l)
                     <tr><td><b>{{ $loop->iteration }}º</b> <span class="muted small">{{ $l->identificacao() }}</span></td>
-                        <td>{{ $l->fornecedor->razao_social }}<div class="small muted">NF {{ $l->nota_fiscal }}</div></td>
+                        <td>{{ $l->fornecedor->razao_social }}<div class="small muted">NF {{ $l->nota_fiscal }}@if ($l->empenho) · NE {{ $l->empenho->identificacao() }}@endif @if ($l->pedido_compra) · pedido {{ $l->pedido_compra }}@endif</div></td>
                         <td class="small">{{ $l->referencia() }}</td>
                         <td>{{ $l->liquidado_em->format('d/m/Y') }}</td>
                         <td>{{ $l->vencimento->format('d/m/Y') }}@if ($l->atrasoPermiteExtincao())<div class="small" style="color:#9F1D1D;font-weight:600">Atraso acima de 2 meses: o contratado pode pedir a extinção (art. 137, § 2º, IV)</div>@elseif ($l->atrasada())<div class="small" style="color:#9F1D1D">Atrasado</div>@endif</td>
@@ -57,7 +57,11 @@
             @foreach ($ordens as $o)
                 @php($resta = round($o->recebido('definitivo') * (float) $o->valor_unitario - (float) \App\Models\Liquidacao::where('ordem_id', $o->id)->where('situacao', '!=', 'cancelado')->sum('valor_bruto'), 2))
                 <details style="margin:6px 0"><summary style="cursor:pointer"><b>Ordem {{ $o->identificacao() }}</b> · {{ $o->ataItem->ata->fornecedor->razao_social }} · a liquidar {{ reais($resta) }}</summary>
-                    @include('pagamentos._liquidar', ['acao' => route('ordens.liquidar', $o), 'p' => 'of'.$o->id, 'categoria' => 'fornecimento', 'valor' => $resta, 'fontes' => $fontes])</details>
+                    @php($ata = $o->ataItem->ata)
+                    @php($empAta = \App\Models\Empenho::doCredor($ata->fornecedor_id, ataId: $ata->id)->whereNull('contrato_id')->get())
+                    <p class="small muted" style="margin:8px 0 4px">Notas de empenho da ata {{ $ata->identificacao() }}</p>
+                    @include('pagamentos._empenhos', ['empenhos' => $empAta, 'acao' => route('empenhos.ata', $ata), 'p' => 'of'.$o->id, 'pode' => $pag])
+                    @include('pagamentos._liquidar', ['acao' => route('ordens.liquidar', $o), 'p' => 'of'.$o->id, 'categoria' => 'fornecimento', 'valor' => $resta, 'fontes' => $fontes, 'empenhos' => $empAta])</details>
             @endforeach
         </section>
     @endif

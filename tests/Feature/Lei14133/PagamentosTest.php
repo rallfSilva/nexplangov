@@ -4,6 +4,7 @@ namespace Tests\Feature\Lei14133;
 
 use App\Models\Ata;
 use App\Models\Contrato;
+use App\Models\Empenho;
 use App\Models\Liquidacao;
 use App\Models\Medicao;
 use App\Models\OrdemFornecimento;
@@ -52,10 +53,20 @@ class PagamentosTest extends TestCase
         return $m->refresh();
     }
 
-    private function liquidar(Medicao $m, string $fonte = '1500 · Recursos livres', string $valor = '1.000,00'): TestResponse
+    private function empenho(Contrato $c, string $fonte = '1500 · Recursos livres', string $valor = '6.000,00', string $numero = ''): Empenho
     {
+        $this->actingAs($this->u['gestor-contrato'])->post("/contratos/{$c->id}/empenhos", ['numero' => $numero ?: '2026NE'.str_pad((string) (Empenho::count() + 1), 6, '0', STR_PAD_LEFT), 'tipo' => 'global',
+            'emitido_em' => '2026-10-01', 'valor' => $valor, 'natureza_despesa' => '3.3.90.39', 'fonte_recurso' => $fonte])->assertSessionHas('sucesso');
+
+        return Empenho::latest('id')->firstOrFail();
+    }
+
+    private function liquidar(Medicao $m, string $fonte = '1500 · Recursos livres', string $valor = '1.000,00', ?int $empenho = null): TestResponse
+    {
+        $empenho ??= (Empenho::where('contrato_id', $m->contrato_id)->where('fonte_recurso', $fonte)->first() ?? $this->empenho($m->contrato, $fonte))->id;
+
         return $this->actingAs($this->u['gestor-contrato'])->post("/medicoes/{$m->id}/liquidar", [
-            'categoria' => 'servicos', 'fonte_recurso' => $fonte, 'nota_fiscal' => 'NF '.$m->id, 'nota_emitida_em' => '2026-11-01', 'valor_bruto' => $valor, 'retencoes' => '110,00',
+            'empenho_id' => $empenho, 'categoria' => 'servicos', 'fonte_recurso' => $fonte, 'nota_fiscal' => 'NF '.$m->id, 'nota_emitida_em' => '2026-11-01', 'valor_bruto' => $valor, 'retencoes' => '110,00',
             'atesto' => 'Serviço executado conforme o termo de referência, atestado pelo fiscal.',
         ]);
     }
@@ -152,7 +163,8 @@ class PagamentosTest extends TestCase
         $this->actingAs($g)->post("/requisicoes/{$r->id}/ordem", ['prazo_entrega' => '2026-11-13'])->assertSessionHas('sucesso');
         $o = OrdemFornecimento::firstOrFail();
 
-        $dados = ['categoria' => 'fornecimento', 'fonte_recurso' => '1500 · Recursos livres', 'nota_fiscal' => 'NF 77', 'nota_emitida_em' => '2026-11-03', 'valor_bruto' => '200', 'atesto' => 'Papel entregue e conferido no almoxarifado central.'];
+        $this->actingAs($g)->post("/atas/{$ai->ata_id}/empenhos", ['numero' => '2026NE000900', 'tipo' => 'estimativo', 'emitido_em' => '2026-11-03', 'valor' => '1.000,00', 'natureza_despesa' => '3.3.90.30', 'fonte_recurso' => '1500 · Recursos livres'])->assertSessionHas('sucesso');
+        $dados = ['empenho_id' => Empenho::firstOrFail()->id, 'pedido_compra' => '', 'categoria' => 'fornecimento', 'fonte_recurso' => '1500 · Recursos livres', 'nota_fiscal' => 'NF 77', 'nota_emitida_em' => '2026-11-03', 'valor_bruto' => '200', 'atesto' => 'Papel entregue e conferido no almoxarifado central.'];
         $this->actingAs($g)->post("/ordens/{$o->id}/liquidar", $dados)->assertSessionHas('motivos', fn ($m) => str_contains(implode(' ', $m), 'recebimento definitivo'));
 
         $rec = ['quantidade' => '20', 'documento' => 'NF 77', 'data' => '2026-11-03'];
@@ -163,6 +175,36 @@ class PagamentosTest extends TestCase
         $this->actingAs($g)->post("/ordens/{$o->id}/liquidar", ['valor_bruto' => '200,01'] + $dados)->assertSessionHas('motivos');
         $this->actingAs($g)->post("/ordens/{$o->id}/liquidar", $dados)->assertSessionHas('sucesso');
         $this->assertSame($f->id, Liquidacao::firstOrFail()->fornecedor_id);
+        $this->assertSame($o->identificacao(), Liquidacao::firstOrFail()->pedido_compra, 'a ordem de fornecimento é o pedido de compra');
+        $this->assertEquals(800.0, Empenho::firstOrFail()->saldo());
+    }
+
+    public function test_liquidacao_exige_empenho_do_credor_com_saldo(): void
+    {
+        $c = $this->contrato();
+        $g = $this->u['gestor-contrato'];
+        $this->actingAs($g)->post("/contratos/{$c->id}/empenhos", ['numero' => 'NE', 'tipo' => 'global', 'emitido_em' => '2026-12-01', 'valor' => '13.000,00', 'natureza_despesa' => 'x', 'fonte_recurso' => '1500'])
+            ->assertSessionHas('motivos', fn ($m) => count($m) >= 4 && str_contains(implode(' ', $m), 'art. 125'));
+        $e = $this->empenho($c, valor: '1.500,00', numero: '2026NE000777');
+        $this->actingAs($g)->post("/contratos/{$c->id}/empenhos", ['numero' => '2026NE000777', 'tipo' => 'global', 'emitido_em' => '2026-10-02', 'valor' => '10', 'natureza_despesa' => '3.3.90.39', 'fonte_recurso' => '1500'])
+            ->assertSessionHas('motivos', fn ($m) => str_contains(implode(' ', $m), 'Já existe'));
+
+        $m = $this->medirEAprovar($c);
+        $this->actingAs($g)->post("/medicoes/{$m->id}/liquidar", ['empenho_id' => '', 'categoria' => 'servicos', 'fonte_recurso' => '1500 · Recursos livres', 'nota_fiscal' => 'NF 1', 'nota_emitida_em' => '2026-11-01', 'valor_bruto' => '1.000,00', 'atesto' => 'Serviço executado conforme o termo de referência.'])
+            ->assertSessionHas('motivos', fn ($x) => str_contains(implode(' ', $x), 'art. 60'));
+        $outro = $this->empenho($this->contrato('99.000.666/0001-07'));
+        $this->liquidar($m, empenho: $outro->id)->assertSessionHas('motivos', fn ($x) => str_contains(implode(' ', $x), 'outro credor'));
+        $this->liquidar($m, '1700 · Saúde', empenho: $e->id)->assertSessionHas('motivos', fn ($x) => str_contains(implode(' ', $x), 'fonte da liquidação'));
+        $this->liquidar($m, empenho: $e->id)->assertSessionHas('sucesso');
+        $this->assertEquals(500.0, $e->saldo());
+
+        $m2 = $this->medirEAprovar($c);
+        $this->liquidar($m2, empenho: $e->id)->assertSessionHas('motivos', fn ($x) => str_contains(implode(' ', $x), 'saldo do empenho'));
+        $this->actingAs($g)->get("/contratos/{$c->id}")->assertSee('2026NE000777/2026')->assertSee('R$ 500,00');
+
+        $this->actingAs($g)->post("/empenhos/{$e->id}/anular", ['motivo' => 'Serviço encerrado antes do previsto.'])->assertSessionHas('sucesso');
+        $this->assertEquals(0.0, $e->fresh()->saldo());
+        $this->assertFalse($e->fresh()->anulado(), 'o empenho com parte liquidada não fica anulado por inteiro');
     }
 
     public function test_atraso_acima_de_dois_meses_aparece_na_fila(): void

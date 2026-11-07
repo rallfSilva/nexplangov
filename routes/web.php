@@ -370,6 +370,9 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::post('/contratos/{contrato}/medicoes/{medicao}/decidir', [PagamentoController::class, 'decidirMedicao'])->name('medicoes.decidir');
         });
         Route::middleware('can:pagamentos.gerenciar')->group(function () {
+            Route::post('/contratos/{contrato}/empenhos', [PagamentoController::class, 'empenharContrato'])->name('empenhos.contrato');
+            Route::post('/atas/{ata}/empenhos', [PagamentoController::class, 'empenharAta'])->name('empenhos.ata');
+            Route::post('/empenhos/{empenho}/anular', [PagamentoController::class, 'anularEmpenho'])->name('empenhos.anular');
             Route::post('/medicoes/{medicao}/liquidar', [PagamentoController::class, 'liquidarMedicao'])->name('medicoes.liquidar');
             Route::post('/ordens/{ordem}/liquidar', [PagamentoController::class, 'liquidarOrdem'])->name('ordens.liquidar');
             Route::post('/pagamentos/{liquidacao}/pagar', [PagamentoController::class, 'pagar'])->name('pagamentos.pagar');

@@ -71,6 +71,11 @@ class Contrato extends Model
         return $this->hasMany(Medicao::class)->orderBy('numero');
     }
 
+    public function empenhos(): HasMany
+    {
+        return $this->hasMany(Empenho::class)->orderBy('emitido_em')->orderBy('id');
+    }
+
     public function liquidacoes(): HasMany
     {
         return $this->hasMany(Liquidacao::class)->orderBy('id');

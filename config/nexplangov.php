@@ -35,6 +35,8 @@ return [
     'preco_tolerancia_pct' => (int) env('NEXPLANGOV_PRECO_TOLERANCIA', 50),
 
     // Prazo (dias corridos) para pagar depois da liquidação, quando o contrato não fixar outro (art. 92, V).
+    // Lei 4.320, art. 60: sem empenho prévio, não se liquida. Desligar só na implantação, enquanto os empenhos são lançados.
+    'empenho_obrigatorio' => (bool) env('NEXPLANGOV_EMPENHO_OBRIGATORIO', true),
     'pagamento_prazo_dias' => (int) env('NEXPLANGOV_PRAZO_PAGAMENTO', 30),
 
     // Validade (dias) do link enviado ao fornecedor para aceitar ou recusar o fornecimento ao aderente.
