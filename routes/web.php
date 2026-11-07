@@ -35,6 +35,7 @@ use App\Http\Controllers\OrdemController;
 use App\Http\Controllers\OrgaoController;
 use App\Http\Controllers\PagamentoController;
 use App\Http\Controllers\PainelController;
+use App\Http\Controllers\PcaConsolidacaoController;
 use App\Http\Controllers\PcaController;
 use App\Http\Controllers\PcaImportacaoController;
 use App\Http\Controllers\PedidoExternoController;
@@ -142,9 +143,12 @@ Route::middleware(['auth', 'ativo'])->group(function () {
         // PCA (art. 12, VII)
         Route::get('/pca', [PcaController::class, 'index'])->middleware('can:pca.ver')->name('pca.index');
         Route::get('/pca/{plano}', [PcaController::class, 'show'])->middleware('can:pca.ver')->name('pca.show');
+        Route::get('/pca/{plano}/consolidacao', [PcaConsolidacaoController::class, 'show'])->middleware('can:pca.ver')->name('pca.consolidacao');
         Route::middleware('can:pca.gerenciar')->group(function () {
             Route::post('/pca', [PcaController::class, 'store'])->name('pca.store');
             Route::post('/pca/{plano}/itens', [PcaController::class, 'salvarItem'])->name('pca.itens.store');
+            Route::post('/pca/{plano}/dotacoes', [PcaConsolidacaoController::class, 'salvarDotacao'])->name('pca.dotacoes.store');
+            Route::delete('/pca/{plano}/dotacoes/{dotacao}', [PcaConsolidacaoController::class, 'excluirDotacao'])->name('pca.dotacoes.destroy');
             Route::put('/pca/{plano}/itens/{item}', [PcaController::class, 'salvarItem'])->name('pca.itens.update');
             Route::delete('/pca/{plano}/itens/{item}', [PcaController::class, 'excluirItem'])->name('pca.itens.destroy');
             Route::post('/pca/{plano}/enviar-aprovacao', [PcaController::class, 'enviarAprovacao'])->name('pca.enviar');
