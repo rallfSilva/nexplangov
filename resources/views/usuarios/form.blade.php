@@ -35,6 +35,14 @@
                     </select>
                 </x-campo>
             @endif
+            <x-campo nome="unidade_id" rotulo="Unidade de lotação" ajuda="Define em que unidade a pessoa recebe, envia e arquiva processos.">
+                <select id="campo-unidade_id" name="unidade_id" class="input">
+                    <option value="">Sem lotação</option>
+                    @foreach ($unidades as $un)
+                        <option value="{{ $un->id }}" @selected((int) old('unidade_id', $usuario->unidade_id) === $un->id)>{{ $un->sigla }} · {{ $un->nome }}@if ($orgaos->isNotEmpty()) ({{ $un->orgao?->sigla }}) @endif</option>
+                    @endforeach
+                </select>
+            </x-campo>
         </div>
 
         <details style="margin-top:20px">

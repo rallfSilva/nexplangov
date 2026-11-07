@@ -28,7 +28,7 @@
         </div>
     @endforeach
 
-    @foreach (\App\Models\User::whereIn('id', $ordem)->whereNotIn('id', $doc->assinaturas->pluck('user_id'))->get() as $u)
+    @foreach (\App\Models\User::whereIn('id', $ordem)->whereNotIn('id', $doc->assinaturas->pluck('user_id')->filter())->get() as $u)
         <div class="ass pend"><div><b>{{ $u->name }}</b><br>Assinatura pendente</div></div>
     @endforeach
 

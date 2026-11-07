@@ -2,6 +2,7 @@
 
 namespace App\Licitacao\Fluxo;
 
+use App\Licitacao\Regras\EscolhaFluxo;
 use App\Licitacao\Regras\InstrucaoProcesso;
 use App\Licitacao\RegraViolada;
 use App\Licitacao\TiposDocumento;
@@ -9,6 +10,7 @@ use App\Models\DocumentoProcesso;
 use App\Models\EtapaProcesso;
 use App\Models\Fluxo;
 use App\Models\Processo;
+use App\Models\SolicitacaoExterna;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -36,17 +38,16 @@ final class FluxoDocumento
         'concluida' => ['Concluída', 'b-ok'],
     ];
 
-    /** Fluxo mais específico do órgão para o processo: o da categoria, depois o da forma (licitação ou direta), depois o geral. */
+    /** Fluxo padrão mais específico do órgão para o processo: secretaria, modalidade, categoria e forma (EscolhaFluxo). */
     public function fluxoPadraoPara(Processo $p): ?Fluxo
     {
-        $aplicacao = $p->modalidadeEnum()->ehContratacaoDireta() ? 'direta' : 'licitacao';
+        $candidatos = Fluxo::where('orgao_id', $p->orgao_id)->where('ativo', true)->where('padrao', true)->orderBy('id')->get()->values();
+        $i = EscolhaFluxo::escolher(
+            $candidatos->map(fn (Fluxo $f) => ['aplicacao' => $f->aplicacao, 'categoria' => $f->categoria, 'modalidade' => $f->modalidade, 'unidade_id' => $f->unidade_id])->all(),
+            ['direta' => $p->modalidadeEnum()->ehContratacaoDireta(), 'categoria' => $p->categoria, 'modalidade' => $p->modalidade, 'unidade_id' => $p->unidade_id],
+        );
 
-        return Fluxo::where('orgao_id', $p->orgao_id)->where('ativo', true)->where('padrao', true)
-            ->whereIn('aplicacao', ['todos', $aplicacao])
-            ->where(fn ($q) => $q->whereNull('categoria')->orWhere('categoria', $p->categoria))
-            ->get()
-            ->sortByDesc(fn (Fluxo $f) => [($f->categoria === $p->categoria ? 2 : 0) + ($f->aplicacao !== 'todos' ? 1 : 0), (int) $f->padrao])
-            ->first();
+        return $i === null ? null : $candidatos[$i];
     }
 
     /** Congela no processo as etapas do fluxo que valem para a forma de contratação dele. */
@@ -261,6 +262,11 @@ final class FluxoDocumento
         $assinaram = $d->assinaturas()->pluck('user_id')->all();
 
         if (array_diff($this->assinantes($d), $assinaram) !== []) {
+            return false;
+        }
+
+        // Pedido de assinatura a pessoa de fora ainda aberto também segura a conclusão.
+        if (SolicitacaoExterna::where('documento_id', $d->id)->where('tipo', 'assinatura')->whereNull('respondida_em')->whereNull('cancelada_em')->exists()) {
             return false;
         }
 

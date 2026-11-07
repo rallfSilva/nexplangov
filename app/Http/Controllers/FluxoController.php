@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Licitacao\Enums\Modalidade;
 use App\Licitacao\Fluxo\FluxoDocumento;
 use App\Licitacao\TiposDocumento;
 use App\Models\Fluxo;
 use App\Models\FluxoEtapa;
 use App\Models\Processo;
+use App\Models\Unidade;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,7 +21,7 @@ class FluxoController extends Controller
 {
     public function index(): View
     {
-        return view('fluxos.index', ['fluxos' => Fluxo::withCount('etapas')->orderByDesc('padrao')->orderBy('nome')->get()]);
+        return view('fluxos.index', ['fluxos' => Fluxo::with('unidade')->withCount('etapas')->orderByDesc('padrao')->orderBy('nome')->get(), 'siglas' => Unidade::pluck('sigla', 'id')]);
     }
 
     public function create(): View
@@ -82,6 +84,10 @@ class FluxoController extends Controller
             'nome' => ['required', 'string', 'max:120'],
             'descricao' => ['nullable', 'string', 'max:500'],
             'aplicacao' => ['required', Rule::in(array_keys(Fluxo::APLICACOES))],
+            'modalidade' => ['nullable', Rule::in(array_keys(Modalidade::opcoes()))],
+            'unidade_id' => ['nullable', 'integer', Rule::exists('unidades', 'id')->where('orgao_id', $orgaoId)],
+            'roteiro_unidades' => ['nullable', 'array', 'max:10'],
+            'roteiro_unidades.*' => ['nullable', 'integer', Rule::exists('unidades', 'id')->where('orgao_id', $orgaoId)],
             'padrao' => ['nullable', 'boolean'],
             'ativo' => ['nullable', 'boolean'],
             'etapas' => ['array'],
@@ -135,13 +141,29 @@ class FluxoController extends Controller
         }
 
         DB::transaction(function () use ($fluxo, $d, $etapas, $incluidos, $orgaoId) {
+            // Roteiro: unidades na ordem, sem repetir a mesma em sequência.
+            $roteiro = [];
+            foreach (array_filter(array_map('intval', $d['roteiro_unidades'] ?? [])) as $un) {
+                if (end($roteiro) !== $un) {
+                    $roteiro[] = $un;
+                }
+            }
+
             $fluxo->fill([
                 'orgao_id' => $orgaoId, 'nome' => $d['nome'], 'descricao' => $d['descricao'] ?? null, 'aplicacao' => $d['aplicacao'],
+                'modalidade' => isset($d['modalidade']) && $d['modalidade'] !== '' ? (int) $d['modalidade'] : null,
+                'unidade_id' => $d['unidade_id'] ?? null, 'roteiro_unidades' => $roteiro ?: null,
                 'padrao' => (bool) ($d['padrao'] ?? false), 'ativo' => (bool) ($d['ativo'] ?? true),
             ])->save();
 
             if ($fluxo->padrao) {
-                Fluxo::where('id', '!=', $fluxo->id)->where('aplicacao', $fluxo->aplicacao)->update(['padrao' => false]);
+                // Um padrão por combinação de forma, categoria, modalidade e secretaria.
+                $mesmo = fn ($q, string $col, $v) => $v === null ? $q->whereNull($col) : $q->where($col, $v);
+                $q = Fluxo::where('id', '!=', $fluxo->id)->where('aplicacao', $fluxo->aplicacao);
+                $mesmo($q, 'categoria', $fluxo->categoria);
+                $mesmo($q, 'modalidade', $fluxo->modalidade);
+                $mesmo($q, 'unidade_id', $fluxo->unidade_id);
+                $q->update(['padrao' => false]);
             }
 
             $fluxo->etapas()->delete();
@@ -196,6 +218,7 @@ class FluxoController extends Controller
     {
         return [
             'fluxo' => $fluxo, 'porTipo' => $fluxo->exists ? $fluxo->etapas->keyBy('tipo') : collect(), 'tipos' => TiposDocumento::todos(),
+            'unidades' => Unidade::where('ativo', true)->orderBy('sigla')->get(['id', 'sigla', 'nome']),
             'usuarios' => User::where('ativo', true)->whereNotNull('orgao_id')->orderBy('name')->get(['id', 'name']),
         ];
     }

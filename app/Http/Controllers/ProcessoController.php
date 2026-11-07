@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Licitacao\AutosDoProcesso;
 use App\Licitacao\DuplicacaoProcesso;
 use App\Licitacao\Enums\AmparoLegal;
 use App\Licitacao\Enums\CategoriaProcesso;
@@ -10,6 +11,7 @@ use App\Licitacao\Enums\Modalidade;
 use App\Licitacao\Enums\ModoDisputa;
 use App\Licitacao\Enums\SituacaoProcesso;
 use App\Licitacao\Fluxo\FluxoDocumento;
+use App\Licitacao\Regras\EscolhaFluxo;
 use App\Licitacao\Regras\InstrucaoProcesso;
 use App\Licitacao\Regras\LimiteDispensa;
 use App\Licitacao\Regras\PesquisaPrecos;
@@ -17,12 +19,14 @@ use App\Licitacao\Regras\PrevisaoPca;
 use App\Licitacao\RegraViolada;
 use App\Licitacao\TiposDocumento;
 use App\Licitacao\TramitacaoProcesso;
+use App\Licitacao\TramitacaoUnidades;
 use App\Models\AnotacaoProcesso;
 use App\Models\Demanda;
 use App\Models\Fluxo;
 use App\Models\Fornecedor;
 use App\Models\ItemPca;
 use App\Models\Processo;
+use App\Models\SolicitacaoExterna;
 use App\Models\Unidade;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
@@ -112,8 +116,8 @@ class ProcessoController extends Controller
 
     public function show(Request $request, Processo $processo, InstrucaoProcesso $instrucao, TramitacaoProcesso $tramitacao, LimiteDispensa $limite): View
     {
-        $processo->load(['itens.cotacoes', 'itens.vencedor', 'unidade', 'responsavel', 'eventos.usuario', 'enviosPncp', 'contratos', 'demanda', 'itemPca.plano', 'origem']);
-        $aba = in_array($request->query('aba'), ['instrucao', 'itens', 'resultado', 'historico', 'pncp', 'anotacoes'], true) ? $request->query('aba') : 'resumo';
+        $processo->load(['itens.cotacoes', 'itens.vencedor', 'unidade', 'responsavel', 'eventos.usuario', 'enviosPncp', 'contratos', 'demanda', 'itemPca.plano', 'origem', 'unidadeAtual']);
+        $aba = in_array($request->query('aba'), ['instrucao', 'itens', 'resultado', 'historico', 'pncp', 'anotacoes', 'tramitacao', 'autos'], true) ? $request->query('aba') : 'resumo';
         $pesquisa = new PesquisaPrecos;
 
         $precos = $processo->itens->mapWithKeys(fn ($item) => [$item->id => $pesquisa->calcular(
@@ -142,6 +146,14 @@ class ProcessoController extends Controller
             'dispensa' => $dispensa,
             'tipos' => TiposDocumento::todos(),
             'documentos' => $processo->documentos()->orderByDesc('versao')->get()->unique('tipo')->keyBy('tipo'),
+            'tramites' => $aba === 'tramitacao' ? $processo->tramites()->with(['origem', 'destino', 'remetente', 'recebedor', 'cancelador'])->get() : collect(),
+            'periodos' => $aba === 'tramitacao' ? app(TramitacaoUnidades::class)->periodos($processo) : [],
+            'unidadesAtivas' => $aba === 'tramitacao' ? Unidade::where('ativo', true)->orderBy('sigla')->get() : collect(),
+            'autos' => $aba === 'autos' ? app(AutosDoProcesso::class)->montar($processo) : null,
+            'pedidos' => $aba === 'autos' ? SolicitacaoExterna::with(['documento', 'criador'])->where('processo_id', $processo->id)->latest('id')->get() : collect(),
+            'aguardandoAssinatura' => $aba === 'autos' ? $processo->documentos()->where('situacao', 'aguardando_assinatura')->get() : collect(),
+            'sugestaoDestino' => $aba === 'tramitacao' ? EscolhaFluxo::proximaUnidade($processo->fluxo?->roteiro_unidades ?? [], $processo->unidade_atual_id) : null,
+            'remessaPendente' => $processo->remessaPendente(),
             'anotacoes' => $aba === 'anotacoes' ? $processo->anotacoes()->with('autor')->get() : collect(),
             'totalAnotacoes' => $processo->anotacoes()->count(),
             'podeAnotar' => AnotacaoProcesso::podeEscrever($request->user()),

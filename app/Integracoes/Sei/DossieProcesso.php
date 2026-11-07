@@ -6,6 +6,7 @@ use App\Licitacao\Fluxo\Assinaturas;
 use App\Licitacao\TiposDocumento;
 use App\Models\Processo;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use RuntimeException;
 use ZipArchive;
 
@@ -48,6 +49,17 @@ final class DossieProcesso
                 $add($nome, $this->html($p, $def, $d));
             }
             $indice[] = ['arquivo' => $nome, 'rotulo' => $def['rotulo'] ?? $d->tipo, 'base' => $def['base'] ?? '', 'versao' => $d->versao, 'hash' => $d->hashAtual(), 'assinaturas' => $d->assinaturas->count()];
+        }
+
+        // Documentos juntados livremente (os desentranhados ficam de fora).
+        foreach ($p->juntadas()->whereNull('desentranhado_em')->get() as $k => $j) {
+            if (! Storage::disk('local')->exists($j->arquivo_caminho)) {
+                continue;
+            }
+            $ext = preg_replace('/[^a-z0-9]/', '', strtolower(pathinfo($j->arquivo_nome, PATHINFO_EXTENSION))) ?: 'bin';
+            $nome = sprintf('J%02d-%s.%s', $k + 1, Str::slug(Str::limit($j->titulo, 50, '')), $ext);
+            $add($nome, Storage::disk('local')->get($j->arquivo_caminho));
+            $indice[] = ['arquivo' => $nome, 'rotulo' => $j->titulo, 'base' => 'Juntada', 'versao' => 1, 'hash' => $j->arquivo_hash, 'assinaturas' => 0];
         }
 
         $add('00-capa.html', $this->capa($p, $indice));

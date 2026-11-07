@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AnotacaoProcessoController;
+use App\Http\Controllers\AssinaturaLoteController;
 use App\Http\Controllers\AtaController;
 use App\Http\Controllers\AuditoriaController;
 use App\Http\Controllers\CapacitacaoController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\DevolucaoDadosController;
 use App\Http\Controllers\DispensaController;
 use App\Http\Controllers\DocumentoProcessoController;
 use App\Http\Controllers\ExportacaoController;
+use App\Http\Controllers\ExternoController;
 use App\Http\Controllers\FluxoController;
 use App\Http\Controllers\FornecedorController;
 use App\Http\Controllers\GovernancaController;
@@ -22,6 +24,7 @@ use App\Http\Controllers\ImpugnacaoController;
 use App\Http\Controllers\IntegracaoController;
 use App\Http\Controllers\IrpController;
 use App\Http\Controllers\ItemProcessoController;
+use App\Http\Controllers\JuntadaController;
 use App\Http\Controllers\LgpdController;
 use App\Http\Controllers\LicitacaoController;
 use App\Http\Controllers\MasterController;
@@ -33,12 +36,14 @@ use App\Http\Controllers\PagamentoController;
 use App\Http\Controllers\PainelController;
 use App\Http\Controllers\PcaController;
 use App\Http\Controllers\PcaImportacaoController;
+use App\Http\Controllers\PedidoExternoController;
 use App\Http\Controllers\PncpController;
 use App\Http\Controllers\PrecosComprasGovController;
 use App\Http\Controllers\ProcessoController;
 use App\Http\Controllers\RequisicaoController;
 use App\Http\Controllers\SancaoController;
 use App\Http\Controllers\SegurancaController;
+use App\Http\Controllers\TramiteController;
 use App\Http\Controllers\UnidadeController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\ValidacaoAssinaturaController;
@@ -67,6 +72,9 @@ Route::get('/carona/atas/{ata}', [CaronaController::class, 'ata'])->middleware('
 Route::post('/carona/atas/{ata}/pedidos', [CaronaController::class, 'pedir'])->middleware('throttle:5,10')->name('carona.pedir');
 Route::get('/carona/consulta', [CaronaController::class, 'consulta'])->middleware('throttle:30,1')->name('carona.consulta');
 Route::post('/carona/consulta', [CaronaController::class, 'consultar'])->middleware('throttle:10,1')->name('carona.consultar');
+// Pedidos a externos por e-mail (ciência, assinatura, documentos): o link carrega um código aleatório.
+Route::get('/externo/{token}', [ExternoController::class, 'mostrar'])->middleware('throttle:30,1')->where('token', '[A-Za-z0-9]{48}')->name('externo.mostrar');
+Route::post('/externo/{token}', [ExternoController::class, 'responder'])->middleware('throttle:10,10')->where('token', '[A-Za-z0-9]{48}')->name('externo.responder');
 Route::get('/carona/aceite/{adesao}', [CaronaController::class, 'aceite'])->middleware(['signed', 'throttle:30,1'])->name('carona.aceite');
 Route::post('/carona/aceite/{adesao}', [CaronaController::class, 'responderAceite'])->middleware(['signed', 'throttle:5,10'])->name('carona.aceite.responder');
 Route::get('/carona/verificar/{codigo}', [CaronaController::class, 'verificar'])->middleware('throttle:30,1')->where('codigo', '[A-Za-z0-9-]+')->name('carona.verificar');
@@ -172,6 +180,22 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::delete('/processos/{processo}/cotacoes/{cotacao}', [ItemProcessoController::class, 'excluirCotacao'])->name('processos.cotacoes.destroy');
         });
         Route::get('/processos/{processo}', [ProcessoController::class, 'show'])->middleware('can:processos.ver')->name('processos.show');
+        Route::middleware('can:processos.tramitar')->group(function () {
+            Route::get('/meus-processos', [TramiteController::class, 'meus'])->name('tramitacao.meus');
+            Route::post('/processos/{processo}/tramites', [TramiteController::class, 'enviar'])->name('tramitacao.enviar');
+            Route::post('/processos/{processo}/tramites/{tramite}/receber', [TramiteController::class, 'receber'])->name('tramitacao.receber');
+            Route::post('/processos/{processo}/tramites/{tramite}/cancelar', [TramiteController::class, 'cancelar'])->name('tramitacao.cancelar');
+            Route::post('/processos/{processo}/arquivar', [TramiteController::class, 'arquivar'])->name('tramitacao.arquivar');
+            Route::post('/processos/{processo}/desarquivar', [TramiteController::class, 'desarquivar'])->name('tramitacao.desarquivar');
+        });
+        Route::get('/assinaturas/pendentes', [AssinaturaLoteController::class, 'index'])->middleware('can:processos.ver')->name('assinaturas.pendentes');
+        Route::post('/assinaturas/lote', [AssinaturaLoteController::class, 'assinar'])->middleware(['can:processos.ver', 'throttle:10,1'])->name('assinaturas.lote');
+        Route::post('/processos/{processo}/pedidos-externos', [PedidoExternoController::class, 'store'])->middleware(['can:processos.ver', 'throttle:20,1'])->name('processos.pedidos.store');
+        Route::post('/processos/{processo}/pedidos-externos/{pedido}/cancelar', [PedidoExternoController::class, 'cancelar'])->middleware('can:processos.ver')->name('processos.pedidos.cancelar');
+        Route::post('/processos/{processo}/juntadas', [JuntadaController::class, 'store'])->middleware(['can:processos.ver', 'throttle:30,1'])->name('processos.juntadas.store');
+        Route::get('/processos/{processo}/juntadas/{juntada}', [JuntadaController::class, 'arquivo'])->middleware('can:processos.ver')->name('processos.juntadas.arquivo');
+        Route::post('/processos/{processo}/juntadas/{juntada}/desentranhar', [JuntadaController::class, 'desentranhar'])->middleware('can:processos.ver')->name('processos.juntadas.desentranhar');
+        Route::get('/processos/{processo}/autos.pdf', [JuntadaController::class, 'pdf'])->middleware(['can:processos.ver', 'throttle:10,1'])->name('processos.autos.pdf');
         Route::post('/processos/{processo}/anotacoes', [AnotacaoProcessoController::class, 'store'])->middleware('can:processos.ver')->name('processos.anotacoes.store');
         Route::put('/processos/{processo}/anotacoes/{anotacao}', [AnotacaoProcessoController::class, 'update'])->middleware('can:processos.ver')->name('processos.anotacoes.update');
         Route::delete('/processos/{processo}/anotacoes/{anotacao}', [AnotacaoProcessoController::class, 'destroy'])->middleware('can:processos.ver')->name('processos.anotacoes.destroy');

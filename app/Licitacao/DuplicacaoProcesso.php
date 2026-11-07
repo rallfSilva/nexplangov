@@ -30,7 +30,7 @@ final class DuplicacaoProcesso
                 'numero', 'ano', 'numero_compra', 'numero_sei', 'situacao', 'valor_estimado', 'valor_homologado', 'numero_controle_pncp', 'fluxo_id',
                 'abertura_propostas_em', 'encerramento_propostas_em', 'sessao_encerrada_em', 'sessao_encerrada_por', 'ata_sessao_caminho', 'ata_sessao_hash', 'sessao_reaberta_motivo',
                 'gravacao_link', 'gravacao_caminho', 'gravacao_nome', 'gravacao_hash',
-                'origem_id', 'demanda_id', 'created_at', 'updated_at',
+                'origem_id', 'demanda_id', 'unidade_atual_id', 'arquivado_em', 'arquivado_por', 'created_at', 'updated_at',
             ]);
             $novo->fill(['numero' => $numero, 'ano' => $ano, 'responsavel_id' => $u->id]);
             // O item do PCA só vale para o mesmo exercício; em outro ano, a previsão é indicada de novo (art. 12, VII).

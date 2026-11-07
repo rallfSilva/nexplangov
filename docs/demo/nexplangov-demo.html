@@ -1075,9 +1075,12 @@ function telaProcesso(id, aba = 'instrucao') {
     const idx = etapas.indexOf(p.situacao);
     const encerradoSem = ['deserto', 'fracassado', 'revogado', 'anulado'].includes(p.situacao);
     const stepper = `<div class="etapas" aria-label="Etapas do processo">${etapas.map((e, i) => `<div class="etapa ${i < idx || p.situacao === 'contratado' ? 'feita' : i === idx ? 'atual' : ''}"><span class="bola">${i < idx || p.situacao === 'contratado' ? ico('ok', 14) : i + 1}</span>${esc(SITUACOES[e][0])}</div>`).join('')}</div>`;
-    const abas = [['instrucao', 'Instrução'], ['itens', 'Itens e pesquisa de preços'], ['tramitacao', 'Tramitação'], ['historico', 'Linha do tempo'], ['pncp', 'PNCP']];
+    const abas = [['instrucao', 'Instrução'], ['itens', 'Itens e pesquisa de preços'], ['tramitacao', 'Tramitação'], ['autos', 'Autos'], ['unidades', 'Unidades e remessas'], ['anotacoes', 'Anotações internas'], ['historico', 'Linha do tempo'], ['pncp', 'PNCP']];
     let corpo = '';
     if (aba === 'instrucao') corpo = abaInstrucao(p);
+    if (aba === 'autos') corpo = abaAutos(p);
+    if (aba === 'unidades') corpo = abaUnidades(p);
+    if (aba === 'anotacoes') corpo = abaAnotacoes(p);
     if (aba === 'itens') corpo = abaItens(p);
     if (aba === 'tramitacao') corpo = abaTramitacao(p);
     if (aba === 'historico') corpo = `<section class="card"><h2>Linha do tempo</h2><div class="tempo">${p.eventos.slice().reverse().map(e => `<div class="ev"><span class="ponto"></span><div><b>${e.de ? esc(SITUACOES[e.de][0]) + ' → ' : ''}${esc(SITUACOES[e.para][0])}</b><div class="small muted">${dataBR(e.em)} · ${esc(nomeUsuario(e.por))}</div>${e.obs ? `<div class="small" style="margin-top:4px">${esc(e.obs)}</div>` : ''}</div></div>`).join('')}</div></section>`;
@@ -1085,7 +1088,7 @@ function telaProcesso(id, aba = 'instrucao') {
     return `<div><a href="#/processos" class="small" style="font-weight:600;display:inline-flex;gap:4px;align-items:center">${ico('voltar', 16)}Processos</a></div>` +
     cab(`${esc(MODALIDADES[p.modalidade])} ${esc(p.numero)}`, esc(p.objeto), badgeSit(p.situacao)) +
     `<section class="card"><dl class="dados" style="margin:0 0 18px"><div><dt>Amparo legal</dt><dd>${esc((AMPAROS[p.amparo] || {}).rot || '—')}</dd></div><div><dt>Categoria</dt><dd>${esc(CATEGORIAS[p.categoria])}</dd></div><div><dt>Natureza da despesa</dt><dd>${p.natureza} · ${esc(NATUREZAS[p.natureza])}</dd></div><div><dt>Valor estimado</dt><dd class="valor"><b>${reais(valorProcesso(p))}</b></dd></div></dl>${encerradoSem ? `<div class="aviso-lei">Processo encerrado como <b>${esc(SITUACOES[p.situacao][0].toLowerCase())}</b>.</div>` : stepper}</section>
-    <div class="abas" role="tablist">${abas.map(([k, t]) => `<a href="#/processos/${p.id}/${k}" class="${aba === k ? 'on' : ''}" role="tab" aria-selected="${aba === k}">${t}</a>`).join('')}</div>${corpo}`;
+    ${acoesProcessoExtra(p)}<div class="abas" role="tablist">${abas.map(([k, t]) => `<a href="#/processos/${p.id}/${k}" class="${aba === k ? 'on' : ''}" role="tab" aria-selected="${aba === k}">${t}</a>`).join('')}</div>${corpo}`;
 }
 function abaInstrucao(p) {
     const L = checklist(p);
@@ -1155,14 +1158,15 @@ function telaContratos() {
     ${S.contratos.map(c => { const d = diasParaVencer(c); return `<tr class="linha-link" data-href="#/contratos/${c.id}"><td><a href="#/contratos/${c.id}"><b>${esc(c.numero)}</b></a><div class="small muted">${esc(c.objeto)}</div></td><td>${esc(fornecedor(c.fornecedorId).nome)}</td><td>${dataBR(c.inicio)} a ${dataBR(fimVigencia(c))}</td><td class="num valor">${reais(valorTotal(c))}</td><td>${d < 0 ? badge('Encerrado', 'b-mute') : d <= 60 ? badge(`Vence em ${d} dias`, 'b-warn') : badge('Vigente', 'b-ok')}</td></tr>`; }).join('')}
     </tbody></table></div></section>`;
 }
-function telaContrato(id) {
+function telaContrato(id) { const c0 = contrato(id); return telaContratoBase(id) + (c0 ? secaoOcorrencias(c0) : ''); }
+function telaContratoBase(id) {
     const c = contrato(id); if (!c) return vazio('Contrato não encontrado');
     const vIA = valorAtualizado(c), pA = acrescimos(c) / vIA * 100, pS = supressoes(c) / vIA * 100, limA = c.reforma ? 50 : 25;
     const d = diasParaVencer(c), anos = mesesEntre(c.inicio, fimVigencia(c)) / 12;
     const f = fornecedor(c.fornecedorId);
     const bot = pode('contratos.gerenciar') ? `<button class="btn btn-p" data-acao="termo-novo" data-c="${c.id}">${ico('mais', 16)}Novo termo</button>` : '';
     return `<div><a href="#/contratos" class="small" style="font-weight:600;display:inline-flex;gap:4px;align-items:center">${ico('voltar', 16)}Contratos</a></div>` +
-    cab(`Contrato ${esc(c.numero)}`, esc(c.objeto), bot) +
+    cab(`Contrato ${esc(c.numero)}`, esc(c.objeto), bot) + bannerEficacia(c) +
     `<div class="kpis">
       <div class="card kpi"><span class="lbl">Valor atual</span><span class="val valor">${reais(valorTotal(c))}</span><span class="foot">Inicial ${reais(c.valorInicial)}</span></div>
       <div class="card kpi"><span class="lbl">Vigência</span><span class="val" style="font-size:24px">${d < 0 ? 'Encerrado' : d + ' dias'}</span><span class="foot">até ${dataBR(fimVigencia(c))} · ${num(anos, 1)} de ${c.continuo ? '10' : '—'} anos ${c.continuo ? lei('art. 107') : ''}</span></div>
@@ -1185,7 +1189,7 @@ function telaFornecedores() {
     const bot = pode('fornecedores.gerenciar') ? `<button class="btn btn-p" data-acao="fornecedor-novo">${ico('mais', 16)}Novo fornecedor</button>` : '';
     return cab('Fornecedores', `CNPJ validado, CPF cifrado e sanções que bloqueiam a contratação ${lei('art. 156')}`, bot) +
     `<section class="card card-flush"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Fornecedor</th><th>Documento</th><th>Porte</th><th>Situação</th><th class="acoes"></th></tr></thead><tbody>
-    ${S.fornecedores.map(f => { const imp = impedido(f); const s = (f.sancoes || []).filter(x => TIPOS_SANCAO[x.tipo].impede && x.fim >= hoje())[0]; return `<tr><td><b>${esc(f.nome)}</b><div class="small muted">${esc(f.municipio)}</div></td><td>${f.tipo === 'pf' ? `<span title="No banco: ${esc(f.documentoCifrado)}">${esc(f.documentoMascarado)}</span> ${badge('CPF cifrado', 'b-info')}` : esc(f.documento)}</td><td>${esc(f.porte)}</td><td>${imp ? `${badge('Impedido', 'b-err')}<div class="small muted">até ${dataBR(s.fim)} · ${esc(TIPOS_SANCAO[s.tipo].base)}</div>` : badge('Apto', 'b-ok')}</td><td class="acoes">${f.tipo === 'pf' ? `<button class="btn btn-g btn-sm" data-acao="ver-cifrado" data-f="${f.id}">${ico('olho', 16)}Como fica no banco</button>` : ''}${pode('fornecedores.gerenciar') ? `<button class="btn btn-s btn-sm" data-acao="sancao-nova" data-f="${f.id}">Registrar sanção</button>` : ''}</td></tr>`; }).join('')}
+    ${S.fornecedores.map(f => { const imp = impedido(f); const s = (f.sancoes || []).filter(x => TIPOS_SANCAO[x.tipo].impede && x.fim >= hoje())[0]; return `<tr><td><b>${esc(f.nome)}</b><div class="small muted">${esc(f.municipio)}</div></td><td>${f.tipo === 'pf' ? `<span title="No banco: ${esc(f.documentoCifrado)}">${esc(f.documentoMascarado)}</span> ${badge('CPF cifrado', 'b-info')}` : esc(f.documento)}</td><td>${esc(f.porte)}</td><td>${imp ? `${badge('Impedido', 'b-err')}<div class="small muted">até ${dataBR(s.fim)} · ${esc(TIPOS_SANCAO[s.tipo].base)}</div>` : badge('Apto', 'b-ok')}${resumoCeis(f)}</td><td class="acoes">${botaoCeis(f)}${f.tipo === 'pf' ? `<button class="btn btn-g btn-sm" data-acao="ver-cifrado" data-f="${f.id}">${ico('olho', 16)}Como fica no banco</button>` : ''}${pode('fornecedores.gerenciar') ? `<button class="btn btn-s btn-sm" data-acao="sancao-nova" data-f="${f.id}">Registrar sanção</button>` : ''}</td></tr>`; }).join('')}
     </tbody></table></div></section>`;
 }
 
@@ -1275,7 +1279,7 @@ const ACOES = {
     entrar: d => { S.sessao = d.id; auditar('Entrada no sistema', 'Sessão', 'demonstração'); salvar(); ir('painel'); toast(`Você entrou como ${nomeUsuario(d.id)}.`); },
     sair: () => { auditar('Saída do sistema', 'Sessão'); S.sessao = null; salvar(); location.hash = '#/'; render(); },
     reiniciar: () => abrirModal('Reiniciar a demonstração?', `<p>Isso apaga o que você fez aqui e volta aos dados fictícios iniciais.</p><div class="form-acoes"><button class="btn btn-s" data-acao="fechar-modal">Cancelar</button><button class="btn btn-d" data-acao="reiniciar-ok">${ico('reiniciar', 16)}Reiniciar</button></div>`),
-    'reiniciar-ok': () => { const s = S.sessao; S = semente(); S.sessao = s; fecharModal(); atualizar(); toast('Demonstração reiniciada.'); },
+    'reiniciar-ok': () => { const s = S.sessao; S = semente(); S.sessao = s; garantirNovidades(); salvar(); fecharModal(); atualizar(); toast('Demonstração reiniciada.'); },
 
     'pca-item': d => {
         if (!pode('pca.gerenciar')) return naoPode();
@@ -1861,6 +1865,470 @@ function baixar(nome, conteudo, tipo) {
 }
 const TELAS_EXTRA = { atas: [() => telaAtas(), 'atas.ver'], ordens: [() => telaOrdens(), 'atas.ver'], catalogo: [() => telaCatalogo(), 'catalogo.ver'], governanca: [() => telaGovernanca(), 'governanca.ver'], capacitacao: [() => telaCapacitacao(), 'capacitacao.ver'], integracoes: [() => telaIntegracoes(), 'exportacoes.gerar'] };
 
+/* ---------------- novidades: ondas 1 e 2 ---------------- */
+
+/* ---------------- ondas 1 e 2: tramitação, autos, assinaturas, externos, eficácia, CEIS e mais ---------------- */
+const UNIDADES = { GAB: 'Gabinete do Prefeito', SEMAD: 'Secretaria de Administração', DLC: 'Departamento de Licitações', PGM: 'Procuradoria-Geral do Município', SEMED: 'Secretaria de Educação', SEMUS: 'Secretaria de Saúde', CGM: 'Controladoria-Geral' };
+const LOTACAO = { u1: 'SEMAD', u2: 'GAB', u3: 'DLC', u4: 'SEMAD', u5: 'PGM', u6: 'SEMAD', u7: 'SEMAD', u8: 'SEMED', u9: 'CGM' };
+const TIPOS_JUNTADA = { certidao: 'Certidão', oficio: 'Ofício ou memorando', declaracao: 'Declaração', comprovante: 'Comprovante', proposta: 'Proposta ou orçamento', despacho: 'Despacho', documento_externo: 'Documento enviado por externo', outro: 'Outro documento' };
+const TIPOS_PEDIDO = { notificacao: 'Notificação com ciência', assinatura: 'Assinatura de peça', documentos: 'Envio de documentos' };
+const TIPOS_OCORRENCIA = { ocorrencia: 'Ocorrência', determinacao: 'Determinação para regularizar', comunicacao_superior: 'Comunicação a superior (art. 117, § 2º)', retificacao: 'Retificação de registro anterior' };
+const FASES_AUTOS = { instrucao: 'Fase preparatória', juridico: 'Análise jurídica', autorizacao: 'Autorização', contratacao: 'Contratação', juntada: 'Documentos juntados' };
+const agora = () => new Date().toISOString();
+const lotacaoDe = u => u ? (S.lotacao || LOTACAO)[u.id] || null : null;
+const ehAdmin = () => { const u = usuario(); return !!u && ['administrador-geral', 'administrador-orgao'].includes(u.perfil); };
+const atuaEm = sigla => ehAdmin() || lotacaoDe(usuario()) === sigla;
+const podeTramitar = () => { const u = usuario(); return !!u && u.perfil !== 'requisitante'; };
+const podeEscrever = () => ['processos.gerenciar', 'processos.parecer', 'processos.autorizar'].some(pode);
+const siglaUn = s => s ? `<span title="${esc(UNIDADES[s] || s)}">${esc(s)}</span>` : '—';
+const pendenteRemessa = p => (p.tramites || []).find(t => t.tipo === 'remessa' && !t.recebidoEm && !t.canceladoEm);
+const diasUteisSoma = (base, n) => { const d = dt(base); let k = 0; while (k < n) { d.setDate(d.getDate() + 1); if (d.getDay() !== 0 && d.getDay() !== 6) k++; } return iso(d); };
+
+function garantirNovidades() {
+    if (S.novidades === 2) return;
+    const H = hoje(), ano = Number(H.slice(0, 4));
+    S.lotacao = S.lotacao || Object.assign({}, LOTACAO);
+    const origem = { p1: 'SEMED', p2: 'SEMAD', p3: 'SEMAD', p4: 'SEMED' };
+    S.processos.forEach(p => {
+        p.unidadeOrigem = p.unidadeOrigem || origem[p.id] || 'SEMAD';
+        p.unidadeAtual = p.unidadeAtual || 'SEMAD';
+        p.tramites = p.tramites || []; p.juntadas = p.juntadas || []; p.anotacoes = p.anotacoes || []; p.pedidos = p.pedidos || [];
+        if (p.previsaoPca === undefined) p.previsaoPca = p.id === 'p1' ? `Item 2 do PCA ${ano}` : p.id === 'p4' ? `Item 1 do PCA ${ano}` : 'Fora do plano, com justificativa: contratação emergencial de manutenção.';
+    });
+    const p1 = processo('p1'), p3 = processo('p3'), p4 = processo('p4');
+    if (p1 && !p1.tramites.length) {
+        p1.tramites.push({ id: uid(), tipo: 'remessa', de: 'SEMED', para: 'SEMAD', despacho: 'Encaminho o DFD 001 para a abertura do processo de compra.', por: 'u8', em: somaDias(-50, H) + 'T09:00:00', recebidoPor: 'u4', recebidoEm: somaDias(-49, H) + 'T10:30:00' });
+        p1.juntadas.push({ id: uid(), tipo: 'oficio', titulo: 'Ofício 045/' + ano + ' da SEMED com a lista de laboratórios', arquivo: 'oficio-045-semed.pdf', tamanho: 182400, paginas: 2, hash: sha256('oficio-045-semed'), por: 'u4', em: somaDias(-40, H) + 'T14:00:00' });
+        p1.anotacoes.push({ id: uid(), por: 'u4', em: somaDias(-10, H) + 'T16:20:00', texto: 'Conferir com a SEMED se os 40 notebooks incluem a escola nova antes de mandar ao jurídico.' });
+    }
+    if (p4 && !p4.tramites.length) {
+        p4.unidadeOrigem = 'SEMED';
+        p4.tramites.push({ id: uid(), tipo: 'remessa', de: 'SEMAD', para: 'DLC', despacho: 'Para a condução do pregão.', por: 'u4', em: somaDias(-30, H) + 'T08:00:00', recebidoPor: 'u3', recebidoEm: somaDias(-30, H) + 'T11:00:00' });
+        p4.tramites.push({ id: uid(), tipo: 'remessa', de: 'DLC', para: 'SEMAD', despacho: 'Pregão homologado. Encaminho para a formalização do contrato.', por: 'u3', em: somaDias(-1, H) + 'T15:00:00' });
+        p4.unidadeAtual = 'DLC';
+    }
+    if (p3 && !p3.tramites.length) {
+        p3.tramites.push({ id: uid(), tipo: 'arquivamento', de: 'SEMAD', despacho: 'Contrato assinado e publicado no PNCP. Arquivo a licitação; a execução segue no contrato 021.', por: 'u4', em: somaDias(-200, H) + 'T10:00:00' });
+        p3.arquivadoEm = somaDias(-200, H);
+    }
+    S.contratos.forEach(c => {
+        c.ocorrencias = c.ocorrencias || [];
+        c.assinatura = c.assinatura || c.inicio;
+        if (c.id === 'c1' && !c.designacao) {
+            c.designacao = { ato: `Portaria nº 112/${ano - 1}`, em: somaDias(-318, H), por: 'u2' };
+            registrarOcorrencia(c, { tipo: 'ocorrencia', descricao: 'Equipe reduzida no prédio da SEMED: 2 de 4 serventes presentes.', providencias: 'Contratada notificada para recompor a equipe em 24 horas.', por: 'u7', em: somaDias(-35, H) + 'T09:10:00' });
+            registrarOcorrencia(c, { tipo: 'determinacao', descricao: 'Recompor a equipe da SEMED e apresentar a folha de ponto do mês.', prazo: somaDias(-30, H), por: 'u7', em: somaDias(-34, H) + 'T08:00:00' });
+        }
+    });
+    S.assinaturasPend = S.assinaturasPend || [
+        { id: uid(), processoId: 'p1', peca: 'dfd', versao: 2, para: ['u4', 'u2'], feitas: {} },
+        { id: uid(), processoId: 'p4', peca: 'minuta_contrato', versao: 1, para: ['u2', 'u5'], feitas: {} },
+        { id: uid(), processoId: 'p4', peca: 'termo_referencia', versao: 1, para: ['u4', 'u2'], feitas: {} },
+    ];
+    S.fluxosSec = S.fluxosSec || [
+        { id: uid(), nome: 'Pregão eletrônico (geral)', modalidade: 6, unidade: '', roteiro: ['SEMAD', 'DLC', 'PGM', 'GAB', 'DLC'] },
+        { id: uid(), nome: 'Saúde: compras por pregão', modalidade: 6, unidade: 'SEMUS', roteiro: ['SEMUS', 'SEMAD', 'DLC', 'PGM', 'GAB'] },
+        { id: uid(), nome: 'Contratação direta (geral)', modalidade: 8, unidade: '', roteiro: ['SEMAD', 'PGM', 'GAB'] },
+    ];
+    S.prazosDfd = S.prazosDfd || { [ano + 1]: `${ano}-08-31` };
+    S.novidades = 2;
+}
+
+/* Livro de ocorrências: cada registro leva o hash do anterior (art. 117, § 1º). */
+function registrarOcorrencia(c, o) {
+    const ant = c.ocorrencias.length ? c.ocorrencias[c.ocorrencias.length - 1].hash : '0'.repeat(64);
+    const r = Object.assign({ id: uid(), numero: c.ocorrencias.length + 1, hashAnterior: ant }, o);
+    r.hash = sha256(JSON.stringify([r.numero, r.tipo, r.descricao, r.providencias || '', r.prazo || '', r.por, r.em, ant]));
+    c.ocorrencias.push(r);
+    return r;
+}
+const livroIntegro = c => { let ant = '0'.repeat(64); return c.ocorrencias.every(r => { const ok = r.hashAnterior === ant && r.hash === sha256(JSON.stringify([r.numero, r.tipo, r.descricao, r.providencias || '', r.prazo || '', r.por, r.em, ant])); ant = r.hash; return ok; }); };
+
+/* Eficácia do contrato (art. 94): publicar no PNCP em 20 dias úteis (licitação) ou 10 (contratação direta). */
+function eficacia(c) {
+    const p = c.processoId ? processo(c.processoId) : null;
+    const direta = !p || ehDireta(p.modalidade);
+    const limite = diasUteisSoma(c.assinatura || c.inicio, direta ? 10 : 20);
+    if (c.pncp) return { ok: true, limite, base: direta ? 'art. 94, II' : 'art. 94, I' };
+    return { ok: false, limite, vencido: hoje() > limite, base: direta ? 'art. 94, II' : 'art. 94, I' };
+}
+function bannerEficacia(c) {
+    const e = eficacia(c);
+    if (e.ok) return `<div class="aviso-lei">${ico('ok', 16)} Contrato divulgado no PNCP: eficaz ${lei(e.base)}.</div>`;
+    return `<div class="aviso-lei" style="border-color:#E8A5A5;background:#FDF1F1"><b>${e.vencido ? 'Prazo de divulgação vencido.' : 'Contrato ainda sem eficácia.'}</b> A divulgação no PNCP é condição de eficácia ${lei(e.base)}: prazo até ${dataBR(e.limite)} (dias úteis). Até lá, o sistema não deixa registrar medição, liquidar nem pagar. Envie pela fila do PNCP.</div>`;
+}
+
+/* ---- ocorrências e designação no contrato ---- */
+function secaoOcorrencias(c) {
+    const pode_ = [c.gestor, c.fiscal].includes(S.sessao) || pode('contratos.gerenciar');
+    const linhas = c.ocorrencias.slice().reverse().map(o => `<div class="ev"><span class="ponto"></span><div><b>${o.numero}. ${esc(TIPOS_OCORRENCIA[o.tipo])}</b><div class="small muted">${dataHoraBR(o.em)} · ${esc(nomeUsuario(o.por))}${o.prazo ? ' · prazo ' + dataBR(o.prazo) : ''}</div><div class="small" style="margin-top:4px">${esc(o.descricao)}</div>${o.providencias ? `<div class="small muted">Providências: ${esc(o.providencias)}</div>` : ''}<div class="small muted" style="font-family:monospace">${o.hash.slice(0, 16)}…</div></div></div>`).join('');
+    const desig = c.designacao ? `${esc(c.designacao.ato)} de ${dataBR(c.designacao.em)}, por ${esc(nomeUsuario(c.designacao.por))}` : 'Não registrada';
+    return `<section class="card"><div class="row"><div><h2>Designação e livro de ocorrências</h2><p class="hint">Gestor e fiscal designados formalmente e registro de tudo o que acontece na execução ${lei('art. 117, §§ 1º e 2º')}. Os registros não se alteram nem se apagam: correção é por retificação.</p></div>
+      <div class="btns">${pode('processos.autorizar') ? `<button class="btn btn-s btn-sm" data-acao="designar" data-c="${c.id}">Registrar designação</button>` : ''}${c.designacao ? `<button class="btn btn-g btn-sm" data-acao="portaria" data-c="${c.id}">${ico('download', 16)}Portaria</button>` : ''}${pode_ ? `<button class="btn btn-p btn-sm" data-acao="ocorrencia-nova" data-c="${c.id}">${ico('mais', 16)}Registrar ocorrência</button>` : ''}</div></div>
+      <dl class="dados"><div><dt>Ato de designação</dt><dd>${desig}</dd></div><div><dt>Encadeamento</dt><dd>${c.ocorrencias.length ? (livroIntegro(c) ? badge('Íntegro', 'b-ok') : badge('Não confere', 'b-err')) : '—'}</dd></div></dl>
+      <div class="tempo" style="margin-top:12px">${linhas || '<p class="muted">Nenhuma ocorrência registrada.</p>'}</div></section>`;
+}
+
+/* ---- CEIS e CNEP (art. 161) ---- */
+function botaoCeis(f) { return pode('fornecedores.ver') ? `<button class="btn btn-g btn-sm" data-acao="ceis" data-f="${f.id}">${ico('busca', 16)}CEIS/CNEP</button>` : ''; }
+function resumoCeis(f) {
+    if (!f.ceis) return '';
+    return `<div class="small muted">CEIS/CNEP em ${dataHoraBR(f.ceis.em)}: ${f.ceis.registros.length ? `<b style="color:#9F1D1D">${f.ceis.registros.length} sanção(ões)</b>` : 'nada consta'}</div>`;
+}
+
+/* ---- fluxo e roteiro ---- */
+function fluxoDo(p) {
+    const pontos = f => (f.modalidade && Number(f.modalidade) !== Number(p.modalidade)) || (f.unidade && f.unidade !== p.unidadeOrigem) ? -1 : (f.unidade ? 8 : 0) + (f.modalidade ? 4 : 0);
+    return (S.fluxosSec || []).map(f => [f, pontos(f)]).filter(x => x[1] >= 0).sort((a, b) => b[1] - a[1]).map(x => x[0])[0] || null;
+}
+function proximaDoRoteiro(p) {
+    const f = fluxoDo(p); if (!f || !f.roteiro.length) return null;
+    const i = f.roteiro.indexOf(p.unidadeAtual);
+    return i < 0 ? (f.roteiro[0] !== p.unidadeAtual ? f.roteiro[0] : f.roteiro[1] || null) : f.roteiro[i + 1] || null;
+}
+
+/* ---- abas novas do processo ---- */
+function abaUnidades(p) {
+    const pend = pendenteRemessa(p), arq = !!p.arquivadoEm, minha = atuaEm(p.unidadeAtual);
+    const situ = arq ? badge(`Arquivado em ${dataBR(p.arquivadoEm)}`, 'b-mute') : pend ? badge(`Em trânsito para ${pend.para}`, 'b-warn') : badge('Na unidade', 'b-ok');
+    let acoes = '';
+    if (podeTramitar()) {
+        if (pend) {
+            if (atuaEm(pend.para)) acoes += `<button class="btn btn-p btn-sm" data-acao="tram-receber" data-p="${p.id}">Receber na ${esc(pend.para)}</button>`;
+            if (pend.por === S.sessao || atuaEm(pend.de)) acoes += `<button class="btn btn-s btn-sm" data-acao="tram-cancelar" data-p="${p.id}">Cancelar remessa</button>`;
+        } else if (arq) {
+            if (minha) acoes += `<button class="btn btn-s btn-sm" data-acao="tram-desarquivar" data-p="${p.id}">Desarquivar</button>`;
+        } else if (minha) {
+            acoes += `<button class="btn btn-p btn-sm" data-acao="tram-enviar" data-p="${p.id}">${ico('enviar', 16)}Enviar a outra unidade</button>`;
+            if (ENCERRADOS.includes(p.situacao)) acoes += `<button class="btn btn-s btn-sm" data-acao="tram-arquivar" data-p="${p.id}">Arquivar</button>`;
+        }
+    }
+    const aviso = !podeTramitar() ? 'Seu perfil não tramita processos.' : (!pend && !arq && !minha) ? `O processo está na ${esc(p.unidadeAtual)}. Só quem está lotado lá envia ou arquiva. Troque de usuário no topo para testar.` : '';
+    // Permanência: da abertura (ou recebimento) até a saída de cada unidade; trânsito do envio ao recebimento.
+    const per = []; let un = (p.tramites.find(t => t.tipo === 'remessa' && !t.canceladoEm) || {}).de || p.unidadeAtual, ini = p.criado + 'T08:00:00', resp = null;
+    for (const t of p.tramites.filter(t => t.tipo === 'remessa' && !t.canceladoEm)) {
+        per.push({ un, ini, fim: t.em, resp }); per.push({ un: null, ini: t.em, fim: t.recebidoEm || null });
+        if (!t.recebidoEm) { un = null; break; }
+        un = t.para; ini = t.recebidoEm; resp = t.recebidoPor;
+    }
+    if (un) per.push({ un, ini, fim: null, resp });
+    const dias = (a, b) => num((new Date(b || agora()) - new Date(a)) / 86400000, 1);
+    const hist = p.tramites.slice().reverse().map(t => `<div class="ev"><span class="ponto"></span><div><b>${t.tipo === 'remessa' ? `${esc(t.de)} → ${esc(t.para)}` : t.tipo === 'arquivamento' ? `Arquivamento em ${esc(t.de)}` : `Desarquivamento em ${esc(t.de)}`}</b> ${t.tipo === 'remessa' ? (t.canceladoEm ? badge('Cancelada', 'b-mute') : t.recebidoEm ? badge('Recebido', 'b-ok') : badge('Aguardando recebimento', 'b-warn')) : ''}<div class="small muted">${esc(nomeUsuario(t.por))} · ${dataHoraBR(t.em)}${t.recebidoEm ? ` · recebido por ${esc(nomeUsuario(t.recebidoPor))} em ${dataHoraBR(t.recebidoEm)}` : ''}${t.canceladoEm ? ` · cancelada em ${dataHoraBR(t.canceladoEm)}: ${esc(t.motivo)}` : ''}</div>${t.despacho ? `<div class="small" style="margin-top:4px">${esc(t.despacho)}</div>` : ''}</div></div>`).join('');
+    const f = fluxoDo(p);
+    return `<div class="g2"><section class="card"><h2>Onde o processo está</h2><dl class="dados"><div><dt>Unidade atual</dt><dd>${siglaUn(p.unidadeAtual)} · ${esc(UNIDADES[p.unidadeAtual] || '')}</dd></div><div><dt>Situação dos autos</dt><dd>${situ}</dd></div><div><dt>Unidade de origem</dt><dd>${siglaUn(p.unidadeOrigem)}</dd></div><div><dt>Fluxo aplicado</dt><dd>${f ? esc(f.nome) + `<div class="small muted">Roteiro: ${f.roteiro.map(esc).join(' → ')}</div>` : '—'}</dd></div></dl>
+        ${acoes ? `<div class="btns" style="margin-top:14px">${acoes}</div>` : ''}${aviso ? `<p class="small muted" style="margin-top:12px">${aviso}</p>` : ''}
+        <p class="small muted" style="margin-top:10px">A remessa não muda a fase do processo (aba Tramitação): registra onde os autos estão e com quem ${lei('art. 12, I')}.</p></section>
+      <section class="card"><h2>Tempo de permanência</h2><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Onde</th><th>Desde</th><th>Até</th><th>Responsável</th><th class="num">Dias</th></tr></thead><tbody>${per.map(x => `<tr><td>${x.un ? siglaUn(x.un) : badge('Em trânsito', 'b-warn')}</td><td>${dataHoraBR(x.ini)}</td><td>${x.fim ? dataHoraBR(x.fim) : 'agora'}</td><td>${x.resp ? esc(nomeUsuario(x.resp)) : '—'}</td><td class="num">${dias(x.ini, x.fim)}</td></tr>`).join('')}</tbody></table></div></section></div>
+      <section class="card"><h2>Histórico de remessas</h2><div class="tempo">${hist || '<p class="muted">O processo ainda não saiu da unidade de origem.</p>'}</div></section>`;
+}
+
+function autosDo(p) {
+    const fase = k => k === 'parecer_juridico' ? 'juridico' : k === 'autorizacao' ? 'autorizacao' : 'instrucao';
+    const L = [];
+    Object.entries(p.docs || {}).forEach(([k, d]) => { if (d.situacao === 'concluido') L.push({ tipo: 'peca', fase: fase(k), titulo: DOCS[k] ? DOCS[k].rot : k, base: DOCS[k] ? DOCS[k].base : '', em: d.em + (d.em.length === 10 ? 'T12:00:00' : ''), autor: nomeUsuario(d.por), detalhe: `versão ${d.versao}`, ref: k }); });
+    S.contratos.filter(c => c.processoId === p.id).forEach(c => L.push({ tipo: 'contrato', fase: 'contratacao', titulo: `Contrato ${c.numero}`, base: 'art. 89', em: (c.assinatura || c.inicio) + 'T12:00:00', autor: '', detalhe: fornecedor(c.fornecedorId).nome, ref: c.id }));
+    p.juntadas.forEach(j => L.push({ tipo: 'juntada', fase: 'juntada', titulo: j.titulo, base: TIPOS_JUNTADA[j.tipo], em: j.em, autor: j.externo ? j.externo + ' (externo)' : nomeUsuario(j.por), detalhe: `${j.arquivo}${j.paginas ? ' · ' + j.paginas + ' pág.' : ''}`, ref: j.id, j }));
+    L.sort((a, b) => a.em < b.em ? -1 : a.em > b.em ? 1 : 0).forEach((d, i) => d.numero = i + 1);
+    return L;
+}
+function abaAutos(p) {
+    const L = autosDo(p);
+    const arvore = Object.entries(FASES_AUTOS).map(([k, rot]) => {
+        const docs = L.filter(d => d.fase === k); if (!docs.length) return '';
+        return `<details open style="margin-top:12px"><summary style="cursor:pointer;font-weight:700;color:#1E5470">${rot} ${badge(String(docs.length), 'b-mute')}</summary><div class="list" style="margin:8px 0 0 14px">${docs.map(d => {
+            const des = d.j && d.j.desentranhadoEm;
+            const podeDes = d.j && !des && (d.j.por === S.sessao || pode('processos.autorizar'));
+            return `<div class="li" ${des ? 'style="opacity:.6"' : ''}><b class="valor" style="min-width:2.2em">${d.numero}</b><div style="flex:1;min-width:0">${des ? `<s>${esc(d.titulo)}</s>` : esc(d.titulo)}<div class="meta">${esc(d.base)} · ${dataHoraBR(d.em)}${d.autor ? ' · ' + esc(d.autor) : ''} · ${esc(d.detalhe)}</div>${des ? `<div class="small"><span class="b b-err">desentranhado</span> ${esc(d.j.motivoDes)}</div>` : ''}</div>${podeDes ? `<button class="btn btn-g btn-sm" data-acao="desentranhar" data-p="${p.id}" data-j="${d.j.id}">Desentranhar</button>` : ''}</div>`;
+        }).join('')}</div></details>`;
+    }).join('');
+    const ped = p.pedidos.slice().reverse().map(s => {
+        const st = s.canceladoEm ? badge('Cancelado', 'b-mute') : s.respondidoEm ? badge(s.tipo === 'notificacao' ? 'Ciente' : s.tipo === 'assinatura' ? 'Assinado' : 'Documentos recebidos', 'b-ok') : hoje() > s.prazo ? badge('Prazo vencido', 'b-err') : badge('Aguardando resposta', 'b-warn');
+        const ab = !s.canceladoEm && !s.respondidoEm && hoje() <= s.prazo;
+        return `<div class="li"><div style="flex:1;min-width:0"><b>${esc(TIPOS_PEDIDO[s.tipo])}</b> · ${esc(s.nome)}${s.peca ? ' · ' + esc(DOCS[s.peca].rot) : ''}<div class="meta">${esc(s.email)} · enviado ${dataHoraBR(s.em)} · prazo ${dataBR(s.prazo)}${s.resposta ? ' · ' + esc(s.resposta) : ''}</div></div>${st}${ab ? `<button class="btn btn-s btn-sm" data-acao="externo-abrir" data-p="${p.id}" data-s="${s.id}">${ico('olho', 16)}Abrir como a pessoa de fora</button>${podeEscrever() ? `<button class="btn btn-g btn-sm" data-acao="externo-cancelar" data-p="${p.id}" data-s="${s.id}">Cancelar</button>` : ''}` : ''}</div>`;
+    }).join('');
+    return `<section class="card"><div class="row"><div><h2>Árvore do processo</h2><p class="hint">Todos os documentos dos autos, numerados pela ordem de entrada e agrupados por fase ${lei('art. 12, I')}</p></div><div class="btns">${podeEscrever() ? `<button class="btn btn-s btn-sm" data-acao="juntar" data-p="${p.id}">${ico('mais', 16)}Juntar documento</button>` : ''}<button class="btn btn-p btn-sm" data-acao="autos-pdf" data-p="${p.id}">${ico('download', 16)}PDF único dos autos</button></div></div>${arvore || '<p class="muted" style="margin-top:12px">Nenhum documento concluído ou juntado ainda.</p>'}
+      <p class="small muted" style="margin-top:12px">Documento juntado não se altera nem se apaga; sai dos autos só por desentranhamento com motivo, e o registro fica.</p></section>
+      <section class="card"><div class="row"><div><h2>Pedidos a pessoas de fora do órgão</h2><p class="hint">Notificação com ciência, assinatura de peça ou envio de documentos, por e-mail com link pessoal e prazo. Os documentos recebidos entram nos autos.</p></div>${podeEscrever() ? `<button class="btn btn-s btn-sm" data-acao="externo-novo" data-p="${p.id}">${ico('email', 16)}Novo pedido por e-mail</button>` : ''}</div><div class="list" style="margin-top:10px">${ped || '<p class="muted">Nenhum pedido enviado.</p>'}</div></section>`;
+}
+function abaAnotacoes(p) {
+    const L = p.anotacoes.slice().reverse().map(n => `<div class="ev"><span class="ponto"></span><div style="flex:1"><b>${esc(nomeUsuario(n.por))}</b> <span class="small muted">${dataHoraBR(n.em)}</span><div class="small" style="margin-top:4px;white-space:pre-line">${esc(n.texto)}</div>${n.por === S.sessao ? `<button class="btn btn-g btn-sm" style="margin-top:6px" data-acao="anotacao-excluir" data-p="${p.id}" data-n="${n.id}">${ico('lixeira', 14)}Excluir</button>` : ''}</div></div>`).join('');
+    return `<section class="card"><h2>Anotações internas</h2><p class="hint">Rascunho de trabalho entre os servidores. Não compõe os autos: não entra no checklist, no dossiê, no PDF único nem no PNCP. Só o autor altera.</p>
+      ${podeEscrever() ? `<form data-form="anotacao" data-p="${p.id}" style="margin-top:12px">${campo('texto', 'Nova anotação', txt('texto', '', 'rows="3" maxlength="5000" required placeholder="Ex.: conferir a quantidade do item 1 com o requisitante."'))}<button class="btn btn-p btn-sm" type="submit">Anotar</button></form>` : ''}
+      <div class="tempo" style="margin-top:14px">${L || '<p class="muted">Nenhuma anotação.</p>'}</div></section>`;
+}
+function acoesProcessoExtra(p) {
+    const bts = [];
+    if (pode('processos.gerenciar')) bts.push(`<button class="btn btn-s btn-sm" data-acao="duplicar" data-p="${p.id}">Duplicar processo</button>`);
+    const pend = pendenteRemessa(p);
+    const onde = p.arquivadoEm ? badge(`Arquivado em ${p.unidadeAtual}`, 'b-mute') : pend ? badge(`Em trânsito para ${pend.para}`, 'b-warn') : `Está em ${siglaUn(p.unidadeAtual)}`;
+    return `<div class="row" style="margin:-4px 0 12px"><div class="small">${onde} · <a href="#/processos/${p.id}/unidades">ver remessas</a>${p.origemId ? ` · duplicado de <a href="#/processos/${p.origemId}">${esc(processo(p.origemId).numero)}</a>` : ''}</div><div class="btns">${bts.join('')}</div></div>`;
+}
+
+/* ---- telas novas ---- */
+function telaMeus() {
+    const u = usuario(), minha = lotacaoDe(u), adm = ehAdmin();
+    const alvo = s => adm ? true : s === minha;
+    const receber = []; S.processos.forEach(p => { const t = pendenteRemessa(p); if (t && alvo(t.para)) receber.push([p, t]); });
+    const na = S.processos.filter(p => alvo(p.unidadeAtual) && !p.arquivadoEm && !pendenteRemessa(p));
+    const arq = S.processos.filter(p => alvo(p.unidadeAtual) && p.arquivadoEm);
+    const desde = p => { const r = p.tramites.filter(t => t.tipo === 'remessa' && t.recebidoEm).pop(); return r ? r.recebidoEm : p.criado + 'T08:00:00'; };
+    return cab('Meus processos', adm ? 'Administração: todas as unidades.' : minha ? `Caixa de trabalho da ${esc(minha)} · ${esc(UNIDADES[minha])}` : 'Você ainda não tem unidade de lotação.') +
+    `<section class="card card-flush"><div style="padding:18px 20px 0"><h2>A receber ${badge(String(receber.length), receber.length ? 'b-warn' : 'b-mute')}</h2><p class="hint">Enviados para a unidade e ainda não recebidos.</p></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Processo</th><th>De</th><th>Para</th><th>Enviado</th><th>Despacho</th><th class="acoes"></th></tr></thead><tbody>
+      ${receber.map(([p, t]) => `<tr><td><a href="#/processos/${p.id}/unidades"><b>${esc(p.numero)}</b></a><div class="small muted">${esc(p.objeto.slice(0, 70))}</div></td><td>${siglaUn(t.de)}</td><td>${siglaUn(t.para)}</td><td>${dataHoraBR(t.em)}<div class="small muted">${esc(nomeUsuario(t.por))}</div></td><td class="small">${esc(t.despacho)}</td><td class="acoes"><button class="btn btn-p btn-sm" data-acao="tram-receber" data-p="${p.id}">Receber</button></td></tr>`).join('') || '<tr><td colspan="6" class="muted">Nada aguardando recebimento.</td></tr>'}
+    </tbody></table></div></section>
+    <section class="card card-flush"><div style="padding:18px 20px 0"><h2>Na unidade ${badge(String(na.length), 'b-info')}</h2></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Processo</th><th>Fase</th><th>Unidade</th><th class="num">Dias na unidade</th></tr></thead><tbody>
+      ${na.map(p => `<tr class="linha-link" data-href="#/processos/${p.id}/unidades"><td><b>${esc(p.numero)}</b><div class="small muted">${esc(p.objeto.slice(0, 70))}</div></td><td>${badgeSit(p.situacao)}</td><td>${siglaUn(p.unidadeAtual)}</td><td class="num">${Math.max(0, Math.floor((Date.now() - new Date(desde(p))) / 86400000))}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Nenhum processo na unidade.</td></tr>'}
+    </tbody></table></div></section>
+    <section class="card"><h2>Arquivados</h2><div class="list">${arq.map(p => `<div class="li"><a href="#/processos/${p.id}/unidades"><b>${esc(p.numero)}</b></a><span class="small muted">${siglaUn(p.unidadeAtual)} · arquivado em ${dataBR(p.arquivadoEm)}</span><span class="r">${badgeSit(p.situacao)}</span></div>`).join('') || '<p class="muted">Nenhum processo arquivado.</p>'}</div></section>`;
+}
+function telaAssinaturas() {
+    const L = S.assinaturasPend.filter(a => a.para.includes(S.sessao) && !a.feitas[S.sessao]);
+    return cab('Assinaturas pendentes', 'Marque as peças e confirme a senha uma vez. Cada peça recebe o próprio código de validação.') +
+    `<form data-form="assinar-lote" class="card card-flush"><div class="tbl-wrap"><table class="tbl"><thead><tr><th style="width:44px"><span class="sr">Marcar</span></th><th>Processo</th><th>Peça</th><th>Versão</th><th>Signatários</th></tr></thead><tbody>
+      ${L.map(a => { const p = processo(a.processoId); return `<tr><td><input type="checkbox" name="a_${a.id}" value="1" checked aria-label="Assinar ${esc(DOCS[a.peca].rot)}"></td><td><a href="#/processos/${p.id}/autos"><b>${esc(p.numero)}</b></a><div class="small muted">${esc(p.objeto.slice(0, 60))}</div></td><td>${esc(DOCS[a.peca].rot)}</td><td>${a.versao}</td><td class="small">${a.para.map(id => `${esc(nomeUsuario(id))} ${a.feitas[id] ? badge('assinou', 'b-ok') : badge('pendente', 'b-warn')}`).join('<br>')}</td></tr>`; }).join('') || '<tr><td colspan="5" class="muted">Nenhuma peça aguardando a sua assinatura. Troque de usuário no topo (por exemplo, a autoridade) para ver as pendentes dele.</td></tr>'}
+    </tbody></table></div>${L.length ? `<div class="btns" style="padding:16px 20px;align-items:flex-end">${campo('senha', 'Sua senha', inp('senha', '', 'type="password" required autocomplete="off"'), 'Na demonstração, qualquer senha com 4 ou mais caracteres.')}<button type="submit" class="btn btn-p">Assinar as marcadas</button></div>` : ''}</form>`;
+}
+function telaFluxosSec() {
+    const linhas = S.fluxosSec.map(f => `<tr><td><b>${esc(f.nome)}</b></td><td>${f.modalidade ? esc(MODALIDADES[f.modalidade]) : 'Todas'}</td><td>${f.unidade ? siglaUn(f.unidade) : 'Todas'}</td><td class="small">${f.roteiro.map(esc).join(' → ')}</td><td class="acoes">${pode('processos.gerenciar') ? `<button class="btn btn-g btn-sm" data-acao="fluxo-excluir" data-f="${f.id}">${ico('lixeira', 14)}</button>` : ''}</td></tr>`).join('');
+    return cab('Fluxos por tipo de processo e secretaria', `O processo recebe o fluxo mais específico: secretaria, depois modalidade ${lei('arts. 7º e 8º')}`, pode('processos.gerenciar') ? `<button class="btn btn-p" data-acao="fluxo-novo">${ico('mais', 16)}Novo fluxo</button>` : '') +
+    `<section class="card card-flush"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Fluxo</th><th>Modalidade</th><th>Secretaria</th><th>Roteiro de unidades</th><th class="acoes"></th></tr></thead><tbody>${linhas || '<tr><td colspan="5" class="muted">Nenhum fluxo.</td></tr>'}</tbody></table></div></section>
+    <div class="aviso-lei">No sistema instalado, cada fluxo define também as peças, dependências, prazos, revisor, aprovador e signatários. O roteiro sugere a próxima unidade em cada remessa; quem envia pode escolher outra.</div>`;
+}
+const FUNCIONALIDADES = [
+    ['Planejamento', [
+        ['Plano de Contratações Anual (PCA) com aprovação, publicação no PNCP, importação de planilha e versões com revisão justificada', 'art. 12, VII e § 1º', 'pca'],
+        ['DFD com quantidade, valor e data obrigatórios, demandas vinculadas e prazo de envio por exercício com exceções justificadas', 'art. 12, VII, e art. 18', 'demandas'],
+        ['Trava do PCA: o processo só abre vinculado a item do plano aprovado ou com justificativa', 'art. 12, VII, e art. 18, § 1º, II', 'processos'],
+        ['IRP: intenção de registro de preços com prazo de manifestação dos participantes', 'art. 86', null],
+    ]],
+    ['Instrução do processo', [
+        ['Checklist da fase preparatória e da contratação direta, com ETP, mapa de riscos, TR, minutas e parecer', 'arts. 18, 53 e 72', 'processos'],
+        ['Pesquisa de preços com fontes do art. 23, descarte de cotação vencida, média, mediana e menor preço, e busca no Compras.gov.br', 'art. 23', 'processos'],
+        ['Limite de dispensa por valor somado no ano por natureza, com valores do decreto vigente', 'art. 75, § 1º, e art. 182', 'dispensa'],
+        ['Fluxos de documentos por tipo de processo e por secretaria, com roteiro de unidades', 'arts. 7º e 8º', 'fluxos'],
+        ['Biblioteca de modelos de peças com versões e campos dinâmicos, e NexMind IA para redigir e revisar', 'art. 19, IV', null],
+        ['Duplicar processo e anotações internas que não entram nos autos', '—', 'processos'],
+    ]],
+    ['Tramitação e autos', [
+        ['Remessa entre unidades, recebimento, cancelamento antes do recebimento, arquivamento e desarquivamento', 'art. 12, I', 'meus'],
+        ['"Meus processos" por unidade e tempo de permanência em cada unidade, com o responsável', '—', 'meus'],
+        ['Juntada livre de documentos, desentranhamento com motivo e árvore numerada do processo', 'art. 12, I, e art. 6º, LVIII', 'processos'],
+        ['PDF único dos autos, paginado "fl. N de T" e pesquisável, e dossiê para o SEI', '—', 'processos'],
+        ['Assinatura eletrônica com selo, QR Code e validação pública; assinatura em lote', '—', 'assinaturas'],
+        ['Pedidos por e-mail a externos: ciência, assinatura de peça e envio de documentos', 'art. 5º', 'processos'],
+    ]],
+    ['Seleção do fornecedor', [
+        ['NexLicita: propostas, lances, julgamento, habilitação e adjudicação, sessão pública com ata e gravação', 'arts. 17, 33 e 71', null],
+        ['Impugnações, pedidos de esclarecimento e recursos com efeito suspensivo', 'arts. 164 a 168', null],
+        ['Consulta automática ao CEIS e ao CNEP antes de adjudicar, contratar e emitir ordem', 'art. 161', 'fornecedores'],
+        ['Processo sancionador com defesa, decisão e registro da sanção', 'arts. 155 a 163', 'fornecedores'],
+    ]],
+    ['Contratos e atas', [
+        ['Contratos com aditivos e apostilamentos dentro dos limites, vigência e alertas de vencimento', 'arts. 105 a 125', 'contratos'],
+        ['Eficácia do contrato: prazo de divulgação no PNCP, alerta e bloqueio de medição, liquidação e pagamento', 'art. 94', 'contratos'],
+        ['Designação formal de gestor e fiscal com portaria e livro de ocorrências imutável', 'art. 117', 'contratos'],
+        ['Medição, liquidação e ordem cronológica de pagamentos', 'arts. 140 e 141', null],
+        ['Atas de registro de preços, requisições, ordens de fornecimento e carona com aceite do fornecedor', 'arts. 82 a 86', null],
+    ]],
+    ['Transparência, controle e plataforma', [
+        ['Publicação no PNCP pela fila com reenvio automático', 'art. 174', 'pncp'],
+        ['Remessa ao tribunal de contas, exportações em XLSX, DOCX e CSV e pacote de devolução de dados', '—', null],
+        ['Painel de governança, capacitação dos agentes e catálogo CATMAT/CATSER', 'arts. 7º, 11 e 173', null],
+        ['LGPD: CPF cifrado, canal do titular, registro de tratamento; auditoria encadeada por hash', 'LGPD', 'lgpd'],
+    ]],
+];
+function telaFuncionalidades() {
+    return cab('O que o sistema faz', 'Todas as funções do NexPlanGov, com a base legal. As marcadas com "Testar" funcionam nesta demonstração; as demais existem no sistema instalado.') +
+    FUNCIONALIDADES.map(([g, itens]) => `<section class="card"><h2>${esc(g)}</h2><div class="list">${itens.map(([t, b, r]) => `<div class="li"><span class="marca">${ico('ok', 15)}</span><div style="flex:1;min-width:0">${esc(t)}${b !== '—' ? ' ' + lei(b) : ''}</div>${r ? `<a class="btn btn-s btn-sm" href="#/${r}">Testar</a>` : badge('No sistema instalado', 'b-mute')}</div>`).join('')}</div></section>`).join('');
+}
+
+/* PDF único: página pronta para imprimir ou salvar em PDF, com a folha no rodapé. */
+function pdfAutos(p) {
+    const L = autosDo(p).filter(d => !(d.j && d.j.desentranhadoEm));
+    const corpo = L.map(d => {
+        let c = '';
+        if (d.tipo === 'peca') { const doc = p.docs[d.ref]; c = Object.entries(DOCS[d.ref].campos).map(([k, [rot]]) => `<h3>${esc(rot)}</h3><p>${esc((doc.campos || {})[k] || 'Não preenchido.')}</p>`).join('') + `<p class="m">SHA-256 da peça: ${esc(doc.hash || sha256(JSON.stringify(doc.campos)))}</p>`; }
+        else if (d.tipo === 'contrato') { const k = contrato(d.ref); c = `<p>Contratada: ${esc(fornecedor(k.fornecedorId).nome)} · Valor inicial: ${reais(k.valorInicial)} · Vigência: ${dataBR(k.inicio)} a ${dataBR(k.fim)}${k.pncp ? ' · PNCP ' + esc(k.pncp) : ''}</p>`; }
+        else c = `<div class="termo"><b>Termo de juntada.</b> Em ${dataHoraBR(d.em)} foi juntado aos autos "${esc(d.titulo)}" (${esc(d.base)}), arquivo ${esc(d.j.arquivo)}, ${num(d.j.tamanho / 1024, 0)} KB${d.j.paginas ? ', ' + d.j.paginas + ' página(s)' : ''}, por ${esc(d.autor)}. SHA-256 ${esc(d.j.hash)}. O arquivo original acompanha o processo eletrônico.</div>`;
+        return `<section class="doc"><h2>${d.numero}. ${esc(d.titulo)}</h2><p class="m">${esc(d.base)} · ${dataHoraBR(d.em)}${d.autor ? ' · ' + esc(d.autor) : ''}</p>${c}</section>`;
+    }).join('');
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Autos do processo ${esc(p.numero)}</title><style>
+      @page { size: A4; margin: 2cm 2cm 2.4cm; @bottom-center { content: "Processo ${esc(p.numero)} · fl. " counter(page) " de " counter(pages); font: 8pt Arial; color: #4a5b68; } }
+      body { font: 11pt/1.5 Arial, sans-serif; color: #1b2a35; max-width: 800px; margin: 24px auto; padding: 0 20px; } h1 { color: #1E5470; font-size: 18pt; } h2 { color: #1E5470; font-size: 13pt; } h3 { font-size: 11pt; margin: 12px 0 2px; }
+      .m { color: #4a5b68; font-size: 9pt; } table { border-collapse: collapse; width: 100%; font-size: 10pt; } td, th { border: 1px solid #c9d6de; padding: 4px 6px; text-align: left; } th { background: #D1ECFF; }
+      .doc { page-break-before: always; } .termo { border: 1px solid #c9d6de; padding: 10px 12px; } .imp { position: fixed; top: 10px; right: 10px; } @media print { .imp { display: none; } }
+    </style></head><body><button class="imp" onclick="print()">Imprimir ou salvar em PDF</button><h1>Autos do processo ${esc(p.numero)}</h1><p><b>${esc(S.orgao.nome)}</b> · CNPJ ${esc(S.orgao.cnpj)}<br><b>Objeto:</b> ${esc(p.objeto)}<br><b>Modalidade:</b> ${esc(MODALIDADES[p.modalidade])} · <b>Fase:</b> ${esc(SITUACOES[p.situacao][0])} · <b>Unidade atual:</b> ${esc(p.unidadeAtual)}</p>
+      <h2>Índice</h2><table><tr><th>Nº</th><th>Data</th><th>Documento</th><th>Responsável</th></tr>${L.map(d => `<tr><td>${d.numero}</td><td>${dataHoraBR(d.em)}</td><td>${esc(d.titulo)}</td><td>${esc(d.autor || '—')}</td></tr>`).join('')}</table>${corpo}
+      <p class="m" style="margin-top:30px">Demonstração com dados fictícios. No sistema instalado, o PDF é gerado no servidor, com "fl. N de T" em cada página e as imagens juntadas dentro do arquivo.</p></body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) return toast('O navegador bloqueou a nova janela. Permita pop-ups para ver o PDF.', 'erro');
+    w.document.write(html); w.document.close();
+}
+
+/* ---- ações e formulários ---- */
+Object.assign(ACOES, {
+    'tram-enviar': d => {
+        const p = processo(d.p), sug = proximaDoRoteiro(p);
+        const ops = Object.fromEntries(Object.entries(UNIDADES).filter(([k]) => k !== p.unidadeAtual).map(([k, v]) => [k, `${k} · ${v}${k === sug ? ' (próxima do roteiro)' : ''}`]));
+        abrirModal('Enviar a outra unidade', `<form data-form="tram-enviar" data-p="${p.id}" class="form-grid">${campo('para', 'Unidade de destino', sel('para', ops, sug || ''), '', 'full')}${campo('despacho', 'Despacho', txt('despacho', '', 'rows="3" required placeholder="Ex.: encaminho para parecer jurídico (art. 53)."'), 'Pelo menos 10 caracteres.', 'full')}<div class="full">${acoesForm('Enviar')}</div></form>`);
+    },
+    'tram-receber': d => {
+        const p = processo(d.p), t = pendenteRemessa(p);
+        if (!t) return;
+        if (!atuaEm(t.para)) return toast(`Só quem está lotado na ${t.para} recebe. Troque de usuário no topo.`, 'erro');
+        t.recebidoPor = S.sessao; t.recebidoEm = agora(); p.unidadeAtual = t.para;
+        auditar('Processo recebido', `Processo ${p.numero}`, `${t.de} → ${t.para}`); atualizar(); toast(`Processo recebido na ${t.para}.`);
+    },
+    'tram-cancelar': d => abrirModal('Cancelar remessa', `<form data-form="tram-cancelar" data-p="${d.p}" class="form-grid">${campo('motivo', 'Motivo', txt('motivo', '', 'rows="2" required'), 'Só antes do recebimento. Pelo menos 10 caracteres.', 'full')}<div class="full">${acoesForm('Cancelar a remessa')}</div></form>`),
+    'tram-arquivar': d => abrirModal('Arquivar na unidade', `<form data-form="tram-arquivar" data-p="${d.p}" class="form-grid">${campo('despacho', 'Despacho de arquivamento', txt('despacho', '', 'rows="2" required'), 'Só processo encerrado. Arquivar não muda a fase.', 'full')}<div class="full">${acoesForm('Arquivar')}</div></form>`),
+    'tram-desarquivar': d => abrirModal('Desarquivar', `<form data-form="tram-desarquivar" data-p="${d.p}" class="form-grid">${campo('motivo', 'Por que o processo volta a tramitar', txt('motivo', '', 'rows="2" required'), 'Pelo menos 15 caracteres.', 'full')}<div class="full">${acoesForm('Desarquivar')}</div></form>`),
+    juntar: d => abrirModal('Juntar documento aos autos', `<form data-form="juntar" data-p="${d.p}" class="form-grid">${campo('tipo', 'Tipo', sel('tipo', TIPOS_JUNTADA, 'certidao'))}${campo('titulo', 'Título', inp('titulo', '', 'required maxlength="200" placeholder="Ex.: Certidão negativa de débitos (fictícia)"'))}${campo('arquivo', 'Arquivo', '<input class="input" id="c-arquivo" name="arquivo" type="file" required accept=".pdf,.docx,.odt,.xlsx,.ods,.png,.jpg,.jpeg">', 'Na demonstração, o arquivo não sai do navegador: só o nome, o tamanho e o SHA-256 ficam registrados.', 'full')}<div class="full">${acoesForm('Juntar')}</div></form>`),
+    desentranhar: d => abrirModal('Desentranhar documento', `<form data-form="desentranhar" data-p="${d.p}" data-j="${d.j}" class="form-grid">${campo('motivo', 'Motivo', txt('motivo', '', 'rows="2" required'), 'Pelo menos 15 caracteres. O registro da juntada continua no histórico.', 'full')}<div class="full">${acoesForm('Desentranhar')}</div></form>`),
+    'autos-pdf': d => { const p = processo(d.p); auditar('PDF único dos autos', `Processo ${p.numero}`); salvar(); pdfAutos(p); },
+    'externo-novo': d => {
+        const p = processo(d.p);
+        const pecas = Object.fromEntries([['', 'Nenhuma'], ...S.assinaturasPend.filter(a => a.processoId === p.id).map(a => [a.peca, DOCS[a.peca].rot])]);
+        abrirModal('Novo pedido por e-mail', `<form data-form="externo-novo" data-p="${p.id}" class="form-grid">${campo('tipo', 'Tipo de pedido', sel('tipo', TIPOS_PEDIDO, 'documentos'))}${campo('peca', 'Peça a assinar (só para assinatura)', sel('peca', pecas, ''))}${campo('nome', 'Nome completo', inp('nome', 'Marina Duarte Teles', 'required'))}${campo('email', 'E-mail', inp('email', 'marina@fornecedora-ficticia.test', 'type="email" required'))}${campo('prazo', 'Prazo', inp('prazo', somaDias(5), 'type="date" required'))}${campo('mensagem', 'Mensagem do e-mail', txt('mensagem', 'Pedimos o envio da certidão de regularidade fiscal atualizada.', 'rows="3" required'), '', 'full')}<div class="full">${acoesForm('Enviar pedido')}</div></form>`);
+    },
+    'externo-cancelar': d => { const p = processo(d.p), s = p.pedidos.find(x => x.id === d.s); s.canceladoEm = agora(); auditar('Pedido externo cancelado', `Processo ${p.numero}`, s.nome); atualizar(); toast('Pedido cancelado. O link deixou de valer.'); },
+    'externo-abrir': d => {
+        const p = processo(d.p), s = p.pedidos.find(x => x.id === d.s);
+        const form = s.tipo === 'assinatura'
+            ? `${campo('nome', 'Seu nome completo, como está no pedido', inp('nome', '', 'required'), `Cadastrado: ${esc(s.nome)}`, 'full')}<label class="full" style="display:flex;gap:8px"><input type="checkbox" name="ciente" value="1" required> Li o documento e o assino eletronicamente.</label>`
+            : s.tipo === 'documentos' ? campo('arquivos', 'Arquivos (até 5)', '<input class="input" id="c-arquivos" name="arquivos" type="file" multiple required>', '', 'full')
+            : `<label class="full" style="display:flex;gap:8px"><input type="checkbox" name="ciente" value="1" required> Declaro que tomei ciência desta notificação.</label>`;
+        abrirModal(`Página do link: ${esc(TIPOS_PEDIDO[s.tipo])}`, `<div class="aviso-lei">Isto é o que ${esc(s.nome)} vê ao abrir o link do e-mail, sem entrar no sistema. O link é pessoal e vale até ${dataBR(s.prazo)}.</div><p><b>${esc(S.orgao.nome)}</b> · processo ${esc(p.numero)}</p><p style="white-space:pre-line">${esc(s.mensagem)}</p>${s.peca ? `<p class="small">Peça: <b>${esc(DOCS[s.peca].rot)}</b></p>` : ''}<form data-form="externo-responder" data-p="${p.id}" data-s="${s.id}" class="form-grid">${form}<div class="full">${acoesForm(s.tipo === 'assinatura' ? 'Assinar' : s.tipo === 'documentos' ? 'Enviar documentos' : 'Registrar ciência')}</div></form>`, true);
+    },
+    'anotacao-excluir': d => { const p = processo(d.p); p.anotacoes = p.anotacoes.filter(n => !(n.id === d.n && n.por === S.sessao)); atualizar(); toast('Anotação excluída.'); },
+    duplicar: d => { const p = processo(d.p); abrirModal('Duplicar processo', `<p class="small">Cria um processo novo na fase preparatória com os dados, os itens, as cotações e as peças do editor como rascunho. Parecer, autorização, habilitação, propostas e resultado não são copiados.</p><form data-form="duplicar" data-p="${p.id}" class="form-grid">${campo('numero', 'Número do novo processo', inp('numero', '', 'required placeholder="Ex.: 020/' + hoje().slice(0, 4) + '"'))}<div class="full">${acoesForm('Duplicar')}</div></form>`); },
+    designar: d => { const c = contrato(d.c); abrirModal('Registrar designação', `<form data-form="designar" data-c="${c.id}" class="form-grid">${campo('ato', 'Ato de designação', inp('ato', `Portaria nº ___/${hoje().slice(0, 4)}`, 'required'))}${campo('em', 'Data', inp('em', hoje(), 'type="date" required'))}<p class="small full">Gestor: ${esc(nomeUsuario(c.gestor))} · Fiscal: ${esc(nomeUsuario(c.fiscal))}. Quem designa não pode ser o gestor nem o fiscal (art. 7º, § 1º).</p><div class="full">${acoesForm('Registrar')}</div></form>`); },
+    portaria: d => { const c = contrato(d.c); abrirModal('Portaria de designação', `<div class="prosa"><p><b>${esc(S.orgao.nome)}</b></p><h3>${esc(c.designacao.ato)}</h3><p>Designa os responsáveis pela gestão e fiscalização do contrato nº ${esc(c.numero)}, celebrado com ${esc(fornecedor(c.fornecedorId).nome)}, com fundamento no art. 117 da Lei nº 14.133/2021.</p><p>Gestor: ${esc(nomeUsuario(c.gestor))}<br>Fiscal: ${esc(nomeUsuario(c.fiscal))}</p><p>Em ${dataBR(c.designacao.em)}. ${esc(nomeUsuario(c.designacao.por))}</p><p class="small muted">No sistema instalado, a portaria sai em PDF.</p></div>`); },
+    'ocorrencia-nova': d => abrirModal('Registrar ocorrência', `<form data-form="ocorrencia" data-c="${d.c}" class="form-grid">${campo('tipo', 'Tipo', sel('tipo', TIPOS_OCORRENCIA, 'ocorrencia'))}${campo('prazo', 'Prazo para regularizar', inp('prazo', '', 'type="date"'))}${campo('descricao', 'O que aconteceu', txt('descricao', '', 'rows="3" required'), 'Pelo menos 10 caracteres.', 'full')}${campo('providencias', 'Providências', txt('providencias', '', 'rows="2"'), '', 'full')}<div class="full">${acoesForm('Registrar')}</div></form>`),
+    ceis: d => {
+        const f = fornecedor(d.f);
+        const regs = (f.sancoes || []).filter(s => s.fim >= hoje()).map(s => ({ cadastro: s.tipo === 'inidoneidade' ? 'CEIS' : 'CEIS', tipo: TIPOS_SANCAO[s.tipo] ? TIPOS_SANCAO[s.tipo].rot || s.tipo : s.tipo, orgao: S.orgao.nome, inicio: s.inicio, fim: s.fim }));
+        f.ceis = { em: agora(), registros: regs, hash: sha256(JSON.stringify(regs)) };
+        auditar('Consulta CEIS/CNEP', f.nome, regs.length ? `${regs.length} sanção(ões)` : 'nada consta'); salvar(); render();
+        abrirModal(`CEIS e CNEP: ${esc(f.nome)}`, `<div class="aviso-lei">Consulta ao Portal da Transparência ${lei('art. 161')}. Na demonstração, o resultado vem das sanções cadastradas aqui; no sistema instalado, da API oficial, com o SHA-256 da resposta guardado.</div>${regs.length ? `<table class="tbl"><thead><tr><th>Cadastro</th><th>Sanção</th><th>Vigência</th></tr></thead><tbody>${regs.map(r => `<tr><td>${r.cadastro}</td><td>${esc(r.tipo)}</td><td>${dataBR(r.inicio)} a ${dataBR(r.fim)}</td></tr>`).join('')}</tbody></table><p class="small" style="margin-top:10px"><b>Sanção impeditiva vigente:</b> o sistema bloqueia adjudicação, contrato e ordem de fornecimento. Impedimento de outro ente admite análise de abrangência pela autoridade; inidoneidade não.</p>` : `<p>${badge('Nada consta', 'b-ok')} Nenhuma sanção vigente no CEIS nem no CNEP.</p>`}`);
+    },
+    'fluxo-novo': () => abrirModal('Novo fluxo', `<form data-form="fluxo-novo" class="form-grid">${campo('nome', 'Nome', inp('nome', '', 'required'), '', 'full')}${campo('modalidade', 'Modalidade', sel('modalidade', Object.assign({ '': 'Todas' }, MODALIDADES), ''))}${campo('unidade', 'Secretaria que abre o processo', sel('unidade', Object.assign({ '': 'Todas' }, UNIDADES), ''))}${campo('roteiro', 'Roteiro de unidades (siglas separadas por vírgula)', inp('roteiro', 'SEMAD, DLC, PGM, GAB'), Object.keys(UNIDADES).join(', '), 'full')}<div class="full">${acoesForm('Salvar')}</div></form>`),
+    'fluxo-excluir': d => { S.fluxosSec = S.fluxosSec.filter(f => f.id !== d.f); atualizar(); },
+});
+Object.assign(FORMS, {
+    'tram-enviar': (f, el) => {
+        const p = processo(el.dataset.p), e = [];
+        if (!atuaEm(p.unidadeAtual)) e.push(`Só quem está lotado na ${p.unidadeAtual} envia o processo.`);
+        if (pendenteRemessa(p)) e.push('Já existe remessa aguardando recebimento.');
+        if (!f.para || f.para === p.unidadeAtual) e.push('Escolha uma unidade diferente da atual.');
+        if ((f.despacho || '').trim().length < 10) e.push('Escreva o despacho com pelo menos 10 caracteres.');
+        if (e.length) return erroForm(el, e);
+        p.tramites.push({ id: uid(), tipo: 'remessa', de: p.unidadeAtual, para: f.para, despacho: f.despacho.trim(), por: S.sessao, em: agora() });
+        auditar('Processo enviado', `Processo ${p.numero}`, `${p.unidadeAtual} → ${f.para}`); fecharModal(); atualizar(); toast(`Enviado para ${f.para}. Aparece em "Meus processos" de lá até ser recebido.`);
+    },
+    'tram-cancelar': (f, el) => {
+        const p = processo(el.dataset.p), t = pendenteRemessa(p);
+        if (!t) return erroForm(el, ['A remessa já foi recebida ou cancelada.']);
+        if ((f.motivo || '').trim().length < 10) return erroForm(el, ['Informe o motivo com pelo menos 10 caracteres.']);
+        t.canceladoEm = agora(); t.motivo = f.motivo.trim(); auditar('Remessa cancelada', `Processo ${p.numero}`, t.motivo); fecharModal(); atualizar(); toast('Remessa cancelada.');
+    },
+    'tram-arquivar': (f, el) => {
+        const p = processo(el.dataset.p);
+        if (!ENCERRADOS.includes(p.situacao)) return erroForm(el, ['Só se arquiva processo encerrado.']);
+        if ((f.despacho || '').trim().length < 10) return erroForm(el, ['Escreva o despacho com pelo menos 10 caracteres.']);
+        p.tramites.push({ id: uid(), tipo: 'arquivamento', de: p.unidadeAtual, despacho: f.despacho.trim(), por: S.sessao, em: agora() }); p.arquivadoEm = hoje();
+        auditar('Processo arquivado', `Processo ${p.numero}`, p.unidadeAtual); fecharModal(); atualizar(); toast('Processo arquivado.');
+    },
+    'tram-desarquivar': (f, el) => {
+        const p = processo(el.dataset.p);
+        if ((f.motivo || '').trim().length < 15) return erroForm(el, ['Explique o motivo com pelo menos 15 caracteres.']);
+        p.tramites.push({ id: uid(), tipo: 'desarquivamento', de: p.unidadeAtual, despacho: f.motivo.trim(), por: S.sessao, em: agora() }); p.arquivadoEm = null;
+        auditar('Processo desarquivado', `Processo ${p.numero}`, f.motivo); fecharModal(); atualizar(); toast('Processo desarquivado.');
+    },
+    juntar: (f, el) => {
+        const p = processo(el.dataset.p), arq = el.querySelector('[name=arquivo]').files[0];
+        if (!arq || !(f.titulo || '').trim()) return erroForm(el, ['Informe o título e escolha o arquivo.']);
+        if (arq.size > 30 * 1024 * 1024) return erroForm(el, ['O arquivo pode ter no máximo 30 MB.']);
+        if (!/\.(pdf|docx|odt|xlsx|ods|png|jpe?g)$/i.test(arq.name)) return erroForm(el, ['Envie PDF, DOCX, ODT, XLSX, ODS, PNG ou JPG.']);
+        const fim = (hash, paginas) => { p.juntadas.push({ id: uid(), tipo: f.tipo, titulo: f.titulo.trim(), arquivo: arq.name, tamanho: arq.size, paginas, hash, por: S.sessao, em: agora() }); auditar('Documento juntado', `Processo ${p.numero}`, f.titulo); fecharModal(); atualizar(); toast('Documento juntado aos autos.'); };
+        if (arq.size > 5 * 1024 * 1024) return fim(sha256(arq.name + arq.size + arq.lastModified), null);
+        const r = new FileReader();
+        r.onload = () => { const t = new Uint8Array(r.result); let s = ''; for (let i = 0; i < t.length; i += 8192) s += String.fromCharCode.apply(null, t.subarray(i, i + 8192)); const pg = /\.pdf$/i.test(arq.name) ? (s.match(/\/Type\s*\/Page(?![a-zA-Z])/g) || []).length || null : null; fim(sha256(s), pg); };
+        r.readAsArrayBuffer(arq);
+    },
+    desentranhar: (f, el) => {
+        const p = processo(el.dataset.p), j = p.juntadas.find(x => x.id === el.dataset.j);
+        if ((f.motivo || '').trim().length < 15) return erroForm(el, ['Explique o motivo com pelo menos 15 caracteres.']);
+        j.desentranhadoEm = agora(); j.motivoDes = f.motivo.trim(); auditar('Documento desentranhado', `Processo ${p.numero}`, j.titulo); fecharModal(); atualizar(); toast('Documento desentranhado. O registro continua no histórico.');
+    },
+    'externo-novo': (f, el) => {
+        const p = processo(el.dataset.p), e = [];
+        if (f.tipo === 'assinatura' && !f.peca) e.push('Escolha a peça a assinar.');
+        if (!f.prazo || f.prazo < hoje() || f.prazo > somaDias(60)) e.push('O prazo vai de hoje a 60 dias.');
+        if ((f.mensagem || '').trim().length < 10) e.push('Escreva a mensagem com pelo menos 10 caracteres.');
+        if (e.length) return erroForm(el, e);
+        p.pedidos.push({ id: uid(), tipo: f.tipo, peca: f.tipo === 'assinatura' ? f.peca : '', nome: f.nome.trim(), email: f.email.trim(), prazo: f.prazo, mensagem: f.mensagem.trim(), em: agora(), por: S.sessao });
+        auditar('Pedido externo enviado', `Processo ${p.numero}`, `${TIPOS_PEDIDO[f.tipo]} a ${f.nome}`); fecharModal(); atualizar(); toast(`E-mail com link pessoal enviado a ${f.nome} (simulado).`);
+    },
+    'externo-responder': (f, el) => {
+        const p = processo(el.dataset.p), s = p.pedidos.find(x => x.id === el.dataset.s);
+        const norm = x => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+        if (s.tipo === 'assinatura') {
+            if (norm(f.nome) !== norm(s.nome)) return erroForm(el, ['Digite o nome completo exatamente como está no pedido.']);
+            const a = S.assinaturasPend.find(x => x.processoId === p.id && x.peca === s.peca);
+            const codigo = sha256(s.id + agora()).slice(0, 12).toUpperCase();
+            if (a) a.feitas['ext:' + s.id] = codigo;
+            s.resposta = 'Assinatura ' + codigo.match(/.{4}/g).join('-');
+        } else if (s.tipo === 'documentos') {
+            const arqs = Array.from(el.querySelector('[name=arquivos]').files).slice(0, 5);
+            arqs.forEach((a, i) => p.juntadas.push({ id: uid(), tipo: 'documento_externo', titulo: `Documento enviado por ${s.nome}${arqs.length > 1 ? ` (${i + 1})` : ''}`, arquivo: a.name, tamanho: a.size, paginas: null, hash: sha256(a.name + a.size + a.lastModified), externo: s.nome, em: agora() }));
+            s.resposta = `${arqs.length} arquivo(s) recebido(s).`;
+        } else s.resposta = 'Ciência registrada pelo link do e-mail.';
+        s.respondidoEm = agora(); auditar('Resposta de externo', `Processo ${p.numero}`, `${s.nome}: ${s.resposta}`); fecharModal(); atualizar(); toast('Resposta registrada. Quem pediu recebe aviso por e-mail.');
+    },
+    anotacao: (f, el) => {
+        const p = processo(el.dataset.p);
+        if (!(f.texto || '').trim()) return;
+        p.anotacoes.push({ id: uid(), por: S.sessao, em: agora(), texto: f.texto.trim() }); atualizar(); toast('Anotação registrada.');
+    },
+    duplicar: (f, el) => {
+        const p = processo(el.dataset.p), n = (f.numero || '').trim();
+        if (!n || S.processos.some(x => x.numero === n)) return erroForm(el, ['Informe um número que ainda não exista.']);
+        const c = JSON.parse(JSON.stringify(p));
+        const NAO = ['parecer_juridico', 'autorizacao', 'habilitacao'];
+        Object.assign(c, { id: uid(), numero: n, ano: Number(hoje().slice(0, 4)), situacao: 'planejamento', criado: hoje(), pncp: null, fornecedorId: null, origemId: p.id, unidadeAtual: lotacaoDe(usuario()) || p.unidadeAtual, tramites: [], juntadas: [], anotacoes: [], pedidos: [], arquivadoEm: null,
+            eventos: [{ em: hoje(), por: S.sessao, de: null, para: 'planejamento', obs: `Duplicado do processo ${p.numero}.` }] });
+        c.docs = Object.fromEntries(Object.entries(p.docs || {}).filter(([k]) => !NAO.includes(k)).map(([k, d]) => [k, Object.assign({}, d, { situacao: 'rascunho', versao: 1, em: hoje(), por: S.sessao })]));
+        S.processos.unshift(c); auditar('Processo duplicado', `Processo ${n}`, `a partir de ${p.numero}`); fecharModal(); salvar(); ir(`processos/${c.id}/instrucao`); toast(`Processo ${n} criado a partir do ${p.numero}. Revise as peças e os preços.`);
+    },
+    designar: (f, el) => {
+        const c = contrato(el.dataset.c);
+        if ([c.gestor, c.fiscal].includes(S.sessao)) return erroForm(el, ['Quem designa não pode ser o gestor nem o fiscal (art. 7º, § 1º).']);
+        if (!(f.ato || '').trim() || /_/.test(f.ato)) return erroForm(el, ['Informe o número do ato.']);
+        c.designacao = { ato: f.ato.trim(), em: f.em, por: S.sessao }; auditar('Designação de gestor e fiscal', `Contrato ${c.numero}`, f.ato); fecharModal(); atualizar(); toast('Designação registrada.');
+    },
+    ocorrencia: (f, el) => {
+        const c = contrato(el.dataset.c);
+        if ((f.descricao || '').trim().length < 10) return erroForm(el, ['Descreva com pelo menos 10 caracteres.']);
+        if (f.tipo === 'determinacao' && !f.prazo) return erroForm(el, ['Determinação precisa de prazo para regularizar.']);
+        registrarOcorrencia(c, { tipo: f.tipo, descricao: f.descricao.trim(), providencias: (f.providencias || '').trim(), prazo: f.prazo || '', por: S.sessao, em: agora() });
+        auditar('Ocorrência registrada', `Contrato ${c.numero}`, TIPOS_OCORRENCIA[f.tipo]); fecharModal(); atualizar(); toast('Ocorrência registrada no livro.');
+    },
+    'assinar-lote': (f, el) => {
+        if ((f.senha || '').length < 4) return toast('Digite a sua senha.', 'erro');
+        let n = 0;
+        S.assinaturasPend.forEach(a => { if (f['a_' + a.id] && a.para.includes(S.sessao) && !a.feitas[S.sessao]) { a.feitas[S.sessao] = sha256(a.id + S.sessao + agora()).slice(0, 12).toUpperCase(); n++; } });
+        auditar('Assinatura em lote', nomeUsuario(S.sessao), `${n} peça(s)`); atualizar(); toast(`${n} peça(s) assinada(s), cada uma com o próprio código de validação.`);
+    },
+    'fluxo-novo': (f, el) => {
+        const roteiro = (f.roteiro || '').split(',').map(x => x.trim().toUpperCase()).filter(x => UNIDADES[x]);
+        if (!(f.nome || '').trim() || !roteiro.length) return erroForm(el, ['Informe o nome e ao menos uma unidade válida no roteiro.']);
+        S.fluxosSec.push({ id: uid(), nome: f.nome.trim(), modalidade: f.modalidade ? Number(f.modalidade) : null, unidade: f.unidade || '', roteiro }); auditar('Fluxo cadastrado', f.nome); fecharModal(); atualizar(); toast('Fluxo salvo.');
+    },
+});
+Object.assign(TELAS_EXTRA, { meus: [() => telaMeus(), 'processos.ver'], assinaturas: [() => telaAssinaturas(), 'processos.ver'], fluxos: [() => telaFluxosSec(), 'processos.ver'], funcionalidades: [() => telaFuncionalidades(), 'painel.ver'] });
+NAV[0][1].push(['funcionalidades', 'O que o sistema faz', 'lista', 'painel.ver'], ['meus', 'Meus processos', 'pasta', 'processos.ver'], ['assinaturas', 'Assinaturas pendentes', 'editar', 'processos.ver']);
+NAV[2][1].splice(1, 0, ['fluxos', 'Fluxos por secretaria', 'organograma', 'processos.ver']);
+
 /* ---------------- eventos ---------------- */
 document.addEventListener('click', e => {
     const linha = e.target.closest('tr.linha-link');
@@ -1891,7 +2359,7 @@ document.addEventListener('change', e => {
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#modal').hidden) fecharModal(); });
 window.addEventListener('hashchange', () => { fecharModal(); render(); });
 
-carregar();
+carregar(); garantirNovidades(); salvar();
 render();
 })();
 
