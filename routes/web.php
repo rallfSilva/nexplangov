@@ -7,6 +7,7 @@ use App\Http\Controllers\AuditoriaController;
 use App\Http\Controllers\CapacitacaoController;
 use App\Http\Controllers\CaronaController;
 use App\Http\Controllers\CatalogoController;
+use App\Http\Controllers\CatalogoOrgaoController;
 use App\Http\Controllers\CicloContratoController;
 use App\Http\Controllers\ConfiguracaoController;
 use App\Http\Controllers\ContratoController;
@@ -110,7 +111,18 @@ Route::middleware(['auth', 'ativo'])->group(function () {
         Route::middleware('can:catalogo.ver')->group(function () {
             Route::get('/catalogo', [CatalogoController::class, 'index'])->name('catalogo.index');
             Route::get('/catalogo/buscar', [CatalogoController::class, 'buscar'])->middleware('throttle:60,1')->name('catalogo.buscar');
+            Route::get('/catalogo/orgao', [CatalogoOrgaoController::class, 'index'])->name('catalogo.orgao.index');
+            Route::get('/catalogo/orgao/buscar', [CatalogoOrgaoController::class, 'buscar'])->middleware('throttle:60,1')->name('catalogo.orgao.buscar');
+            Route::get('/catalogo/orgao/{item}/imagem', [CatalogoOrgaoController::class, 'imagem'])->name('catalogo.orgao.imagem');
         });
+        Route::middleware('can:catalogo.gerenciar')->group(function () {
+            Route::get('/catalogo/orgao/novo', [CatalogoOrgaoController::class, 'create'])->name('catalogo.orgao.create');
+            Route::post('/catalogo/orgao', [CatalogoOrgaoController::class, 'store'])->name('catalogo.orgao.store');
+            Route::get('/catalogo/orgao/{item}/editar', [CatalogoOrgaoController::class, 'edit'])->name('catalogo.orgao.edit');
+            Route::put('/catalogo/orgao/{item}', [CatalogoOrgaoController::class, 'update'])->name('catalogo.orgao.update');
+            Route::patch('/catalogo/orgao/{item}/ativo', [CatalogoOrgaoController::class, 'alternar'])->name('catalogo.orgao.ativo');
+        });
+        Route::post('/catalogo/importar', [CatalogoOrgaoController::class, 'importarNacional'])->middleware(['can:orgaos.gerenciar', 'throttle:6,1'])->name('catalogo.importar');
         Route::get('/capacitacao', [CapacitacaoController::class, 'index'])->middleware('can:capacitacao.ver')->name('capacitacao.index');
         Route::post('/capacitacao', [CapacitacaoController::class, 'store'])->middleware('can:capacitacao.ver')->name('capacitacao.store');
         Route::get('/governanca', GovernancaController::class)->middleware('can:governanca.ver')->name('governanca');

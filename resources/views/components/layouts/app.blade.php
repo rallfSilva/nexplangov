@@ -43,6 +43,7 @@
             @endcan
             @can('catalogo.ver')
                 <a href="{{ route('catalogo.index') }}" class="{{ $nav('catalogo.*') }}"><x-icone nome="busca" />Catálogo CATMAT/CATSER</a>
+                <a href="{{ route('catalogo.orgao.index') }}" class="{{ $nav('catalogo.orgao.*') }}"><x-icone nome="pasta" />Catálogo do órgão</a>
             @endcan
             @can('fornecedores.ver')
                 <a href="{{ route('fornecedores.index') }}" class="{{ $nav('fornecedores.*') }}"><x-icone nome="fornecedor" />Fornecedores</a>
