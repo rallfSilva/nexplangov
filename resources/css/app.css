@@ -271,8 +271,11 @@
     @media (max-width: 860px) {
         .app { flex-direction: column; }
         .side { width: auto; height: auto; position: static; padding: 16px; gap: 12px; }
-        .nav { flex-direction: row; flex-wrap: wrap; }
-        .nav .cap, .side .foot, .nav span.soon { display: none; }
+        .nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 8px; }
+        .nav .cap { grid-column: 1 / -1; padding: 10px 4px 2px; }
+        .nav a { min-height: 44px; padding: 0 10px; gap: 10px; font-size: 13.5px; white-space: normal; line-height: 1.2; background: rgba(255,255,255,.05); }
+        .nav a.on { background: var(--color-azul); }
+        .side .foot, .nav span.soon { display: none; }
         .top, .content, .rodape { padding-left: 16px; padding-right: 16px; }
         .g2 { grid-template-columns: minmax(0, 1fr); }
         .me .who { display: none; }
