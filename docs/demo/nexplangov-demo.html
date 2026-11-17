@@ -2098,53 +2098,6 @@ function telaFluxosSec() {
     `<section class="card card-flush"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Fluxo</th><th>Modalidade</th><th>Secretaria</th><th>Roteiro de unidades</th><th class="acoes"></th></tr></thead><tbody>${linhas || '<tr><td colspan="5" class="muted">Nenhum fluxo.</td></tr>'}</tbody></table></div></section>
     <div class="aviso-lei">No sistema instalado, cada fluxo define também as peças, dependências, prazos, revisor, aprovador e signatários. O roteiro sugere a próxima unidade em cada remessa; quem envia pode escolher outra.</div>`;
 }
-const FUNCIONALIDADES = [
-    ['Planejamento', [
-        ['Plano de Contratações Anual (PCA) com aprovação, publicação no PNCP, importação de planilha e versões com revisão justificada', 'art. 12, VII e § 1º', 'pca'],
-        ['DFD com quantidade, valor e data obrigatórios, demandas vinculadas e prazo de envio por exercício com exceções justificadas', 'art. 12, VII, e art. 18', 'demandas'],
-        ['Trava do PCA: o processo só abre vinculado a item do plano aprovado ou com justificativa', 'art. 12, VII, e art. 18, § 1º, II', 'processos'],
-        ['IRP: intenção de registro de preços com prazo de manifestação dos participantes', 'art. 86', null],
-    ]],
-    ['Instrução do processo', [
-        ['Checklist da fase preparatória e da contratação direta, com ETP, mapa de riscos, TR, minutas e parecer', 'arts. 18, 53 e 72', 'processos'],
-        ['Pesquisa de preços com fontes do art. 23, descarte de cotação vencida, média, mediana e menor preço, e busca no Compras.gov.br', 'art. 23', 'processos'],
-        ['Limite de dispensa por valor somado no ano por natureza, com valores do decreto vigente', 'art. 75, § 1º, e art. 182', 'dispensa'],
-        ['Fluxos de documentos por tipo de processo e por secretaria, com roteiro de unidades', 'arts. 7º e 8º', 'fluxos'],
-        ['Biblioteca de modelos de peças com versões e campos dinâmicos, e NexMind IA para redigir e revisar', 'art. 19, IV', null],
-        ['Duplicar processo e anotações internas que não entram nos autos', '—', 'processos'],
-    ]],
-    ['Tramitação e autos', [
-        ['Remessa entre unidades, recebimento, cancelamento antes do recebimento, arquivamento e desarquivamento', 'art. 12, I', 'meus'],
-        ['"Meus processos" por unidade e tempo de permanência em cada unidade, com o responsável', '—', 'meus'],
-        ['Juntada livre de documentos, desentranhamento com motivo e árvore numerada do processo', 'art. 12, I, e art. 6º, LVIII', 'processos'],
-        ['PDF único dos autos, paginado "fl. N de T" e pesquisável, e dossiê para o SEI', '—', 'processos'],
-        ['Assinatura eletrônica com selo, QR Code e validação pública; assinatura em lote', '—', 'assinaturas'],
-        ['Pedidos por e-mail a externos: ciência, assinatura de peça e envio de documentos', 'art. 5º', 'processos'],
-    ]],
-    ['Seleção do fornecedor', [
-        ['NexLicita: propostas, lances, julgamento, habilitação e adjudicação, sessão pública com ata e gravação', 'arts. 17, 33 e 71', null],
-        ['Impugnações, pedidos de esclarecimento e recursos com efeito suspensivo', 'arts. 164 a 168', null],
-        ['Consulta automática ao CEIS e ao CNEP antes de adjudicar, contratar e emitir ordem', 'art. 161', 'fornecedores'],
-        ['Processo sancionador com defesa, decisão e registro da sanção', 'arts. 155 a 163', 'fornecedores'],
-    ]],
-    ['Contratos e atas', [
-        ['Contratos com aditivos e apostilamentos dentro dos limites, vigência e alertas de vencimento', 'arts. 105 a 125', 'contratos'],
-        ['Eficácia do contrato: prazo de divulgação no PNCP, alerta e bloqueio de medição, liquidação e pagamento', 'art. 94', 'contratos'],
-        ['Designação formal de gestor e fiscal com portaria e livro de ocorrências imutável', 'art. 117', 'contratos'],
-        ['Medição, liquidação e ordem cronológica de pagamentos', 'arts. 140 e 141', null],
-        ['Atas de registro de preços, requisições, ordens de fornecimento e carona com aceite do fornecedor', 'arts. 82 a 86', null],
-    ]],
-    ['Transparência, controle e plataforma', [
-        ['Publicação no PNCP pela fila com reenvio automático', 'art. 174', 'pncp'],
-        ['Remessa ao tribunal de contas, exportações em XLSX, DOCX e CSV e pacote de devolução de dados', '—', null],
-        ['Painel de governança, capacitação dos agentes e catálogo CATMAT/CATSER', 'arts. 7º, 11 e 173', null],
-        ['LGPD: CPF cifrado, canal do titular, registro de tratamento; auditoria encadeada por hash', 'LGPD', 'lgpd'],
-    ]],
-];
-function telaFuncionalidades() {
-    return cab('O que o sistema faz', 'Todas as funções do NexPlanGov, com a base legal. As marcadas com "Testar" funcionam nesta demonstração; as demais existem no sistema instalado.') +
-    FUNCIONALIDADES.map(([g, itens]) => `<section class="card"><h2>${esc(g)}</h2><div class="list">${itens.map(([t, b, r]) => `<div class="li"><span class="marca">${ico('ok', 15)}</span><div style="flex:1;min-width:0">${esc(t)}${b !== '—' ? ' ' + lei(b) : ''}</div>${r ? `<a class="btn btn-s btn-sm" href="#/${r}">Testar</a>` : badge('No sistema instalado', 'b-mute')}</div>`).join('')}</div></section>`).join('');
-}
 
 /* PDF único: página pronta para imprimir ou salvar em PDF, com a folha no rodapé. */
 function pdfAutos(p) {
@@ -2329,8 +2282,8 @@ Object.assign(FORMS, {
         S.fluxosSec.push({ id: uid(), nome: f.nome.trim(), modalidade: f.modalidade ? Number(f.modalidade) : null, unidade: f.unidade || '', roteiro }); auditar('Fluxo cadastrado', f.nome); fecharModal(); atualizar(); toast('Fluxo salvo.');
     },
 });
-Object.assign(TELAS_EXTRA, { meus: [() => telaMeus(), 'processos.ver'], assinaturas: [() => telaAssinaturas(), 'processos.ver'], fluxos: [() => telaFluxosSec(), 'processos.ver'], funcionalidades: [() => telaFuncionalidades(), 'painel.ver'] });
-NAV[0][1].push(['funcionalidades', 'O que o sistema faz', 'lista', 'painel.ver'], ['meus', 'Meus processos', 'pasta', 'processos.ver'], ['assinaturas', 'Assinaturas pendentes', 'editar', 'processos.ver']);
+Object.assign(TELAS_EXTRA, { meus: [() => telaMeus(), 'processos.ver'], assinaturas: [() => telaAssinaturas(), 'processos.ver'], fluxos: [() => telaFluxosSec(), 'processos.ver'] });
+NAV[0][1].push(['meus', 'Meus processos', 'pasta', 'processos.ver'], ['assinaturas', 'Assinaturas pendentes', 'editar', 'processos.ver']);
 NAV[2][1].splice(1, 0, ['fluxos', 'Fluxos por secretaria', 'organograma', 'processos.ver']);
 
 
@@ -2622,15 +2575,6 @@ Object.assign(TELAS_EXTRA, { 'catalogo-orgao': [() => telaCatalogoOrgao(), 'cata
 NAV[1][1].push(['catalogo-orgao', 'Catálogo do órgão', 'planilha', 'catalogo.ver'], ['pca-consolidacao', 'Consolidação do PCA', 'organograma', 'pca.ver']);
 NAV[NAV.length - 1][1].unshift(['paineis', 'Painéis gerenciais', 'painel', 'governanca.ver']);
 NAV[NAV.length - 1][1].push(['parametros', 'Parâmetros e permissões', 'engrenagem', 'parametros.gerenciar']);
-FUNCIONALIDADES.push(['Onda 4: gestão e controle', [
-    ['Catálogo do órgão com atributos, imagem, trava de descrição vaga e de item duplicado', 'art. 19, II, e art. 40, § 1º, I', 'catalogo-orgao'],
-    ['Consolidação do PCA: agrupamento, fracionamento nas dispensas de 12 meses e cronograma com dotação', 'art. 12, VII, e art. 75, § 1º', 'pca-consolidacao'],
-    ['Matriz de riscos com probabilidade, impacto, alocação e sugestões da NexMind IA', 'art. 18, X, e art. 22', 'processos'],
-    ['Recomendações da NexMind IA no PCA, na pesquisa de preços e no contrato', '—', 'pca-consolidacao'],
-    ['Painéis por secretaria, perfil de fornecedores e fomento local, com exportação em PDF, CSV, TXT e XLSX', 'art. 11, parágrafo único, e art. 4º', 'paineis'],
-    ['Parâmetros do órgão dentro de limites e permissões extras sem acumular funções', 'art. 7º, § 1º', 'parametros'],
-    ['Nota de empenho e pedido de compra na liquidação, com saldo e fonte conferidos', 'art. 92, VIII, e art. 141', 'contratos'],
-]]);
 
 /* ---------------- eventos ---------------- */
 document.addEventListener('click', e => {
