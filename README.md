@@ -140,6 +140,8 @@ vendor/bin/pint        # padrão de código
 - [Segurança e LGPD](docs/seguranca-lgpd.md)
 - [Design system](docs/design-system.md)
 - [Integração com o PNCP](docs/integracao-pncp.md)
+- [Deploy numa VPS da Hostinger (Ubuntu, sem Docker)](docs/DEPLOY-HOSTINGER.md)
+- [Pendências para finalizar o sistema](docs/PENDENCIAS.md)
 
 ## Tecnologia
 
