@@ -32,9 +32,13 @@
         @if ($modelo)<div class="aviso-lei">Modelo "{{ $modelo->titulo }}" (v{{ $modelo->versao }}) aplicado na tela. Nada foi salvo ainda.</div>@endif
     @endif
 
+    @if ($edital ?? null)
+        @include('processos._edital-completo')
+    @endif
+
     <form method="POST" action="{{ route('documentos.salvar', [$processo, $tipo]) }}" class="card" enctype="multipart/form-data">
         @csrf
-        @if ($modelo)<input type="hidden" name="modelo_id" value="{{ $modelo->id }}">@endif
+        @if ($modelo)<input type="hidden" name="modelo_id" value="{{ $modelo->id }}">@elseif (old('modelo_id'))<input type="hidden" name="modelo_id" value="{{ old('modelo_id') }}">@endif
         @php($origemAtual = old('origem', $etapa?->origem === 'arquivo' ? 'arquivo' : ($atual?->origem ?? 'formulario')))
         @if ($podeEditar && $etapa?->origem !== 'arquivo')
             <div class="campo full" style="margin-bottom:14px"><label for="origem">Como a peça será feita</label>

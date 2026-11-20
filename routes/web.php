@@ -16,6 +16,7 @@ use App\Http\Controllers\DemandaController;
 use App\Http\Controllers\DevolucaoDadosController;
 use App\Http\Controllers\DispensaController;
 use App\Http\Controllers\DocumentoProcessoController;
+use App\Http\Controllers\EditalCompletoController;
 use App\Http\Controllers\ExportacaoController;
 use App\Http\Controllers\ExternoController;
 use App\Http\Controllers\FluxoController;
@@ -254,6 +255,9 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::post('/processos/{processo}/precos/ia', [RecomendacaoIaController::class, 'precos'])->middleware('can:processos.ver')->name('ia.precos');
             Route::post('/contratos/{contrato}/ia', [RecomendacaoIaController::class, 'contrato'])->middleware('can:contratos.ver')->name('ia.contrato');
         });
+        Route::post('/processos/{processo}/edital/gerar', [EditalCompletoController::class, 'gerar'])->middleware(['can:processos.ver', 'throttle:20,1'])->name('edital.gerar');
+        Route::post('/processos/{processo}/edital/ia', [EditalCompletoController::class, 'propor'])->middleware(['can:processos.ver', 'can:ia.usar', 'throttle:6,1'])->name('edital.ia');
+        Route::get('/processos/{processo}/edital/caderno.pdf', [EditalCompletoController::class, 'caderno'])->middleware(['can:processos.ver', 'throttle:10,1'])->name('edital.caderno');
         Route::post('/processos/{processo}/documentos/{tipo}/ia', IaController::class)->middleware(['can:ia.usar', 'throttle:12,1'])->name('documentos.ia');
         Route::post('/processos/{processo}/documentos/{tipo}/assinar', [DocumentoProcessoController::class, 'assinar'])->middleware(['can:processos.ver', 'throttle:10,1'])->name('documentos.assinar');
         Route::get('/processos/{processo}/documentos/{tipo}/folha', [DocumentoProcessoController::class, 'folha'])->middleware('can:processos.ver')->name('documentos.folha');

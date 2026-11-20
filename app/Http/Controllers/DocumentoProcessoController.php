@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Licitacao\EditalCompleto;
 use App\Licitacao\Fluxo\Assinaturas;
 use App\Licitacao\Fluxo\FluxoDocumento;
 use App\Licitacao\Ia\AssistenteIa;
@@ -26,7 +27,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class DocumentoProcessoController extends Controller
 {
-    public function __construct(private FluxoDocumento $fluxo, private Assinaturas $assinaturas) {}
+    public function __construct(private FluxoDocumento $fluxo, private Assinaturas $assinaturas, private EditalCompleto $editalCompleto) {}
 
     public function edit(Request $request, Processo $processo, string $tipo): View
     {
@@ -54,6 +55,12 @@ class DocumentoProcessoController extends Controller
             'podeDecidir' => $atual ? $this->fluxo->podeDecidir($usuario, $atual) : false,
             'podeAssinar' => $atual ? $this->fluxo->podeAssinar($usuario, $atual) && ! $atual->assinaturas->contains('user_id', $usuario->id) : false,
             'assinantes' => $atual ? User::whereIn('id', $this->fluxo->assinantes($atual))->get()->keyBy('id') : collect(),
+            'edital' => $tipo === 'minuta_edital' && ! $processo->modalidadeEnum()->ehContratacaoDireta() ? [
+                'modelos' => $this->editalCompleto->modelos($processo),
+                'dados' => $this->editalCompleto->dadosIniciais($processo),
+                'engenharia' => $this->editalCompleto->ehEngenharia($processo),
+                'podeIa' => $podeEditar && AssistenteIa::habilitada() && $usuario->can('ia.usar'),
+            ] : null,
         ]);
     }
 
