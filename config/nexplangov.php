@@ -39,6 +39,9 @@ return [
     'empenho_obrigatorio' => (bool) env('NEXPLANGOV_EMPENHO_OBRIGATORIO', true),
     'pagamento_prazo_dias' => (int) env('NEXPLANGOV_PRAZO_PAGAMENTO', 30),
 
+    // Prazo (dias úteis) para o vencedor assinar o contrato depois da convocação, usado no edital gerado (art. 90).
+    'edital_prazo_assinatura_dias' => (int) env('NEXPLANGOV_PRAZO_ASSINATURA', 5),
+
     // Validade (dias) do link enviado ao fornecedor para aceitar ou recusar o fornecimento ao aderente.
     'carona_link_aceite_dias' => 15,
 

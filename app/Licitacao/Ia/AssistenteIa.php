@@ -4,6 +4,7 @@ namespace App\Licitacao\Ia;
 
 use App\Licitacao\Regras\CotacaoAutomatica;
 use App\Licitacao\Regras\MatrizRiscos;
+use App\Licitacao\Regras\MontagemEdital;
 use App\Licitacao\RegraViolada;
 use App\Licitacao\TiposDocumento;
 use App\Models\ItemProcesso;
@@ -90,6 +91,55 @@ final class AssistenteIa
             .'"tratamento" (prevenção ou contingência) e "responsavel" (função, nunca nome de pessoa).';
 
         return MatrizRiscos::lerSugestao($this->chamarSem($p->orgao_id, $p->id, 'mapa_riscos', 'riscos', $pedido, $u));
+    }
+
+    /**
+     * "Gerar edital completo": proposta para os dados do edital que o processo ainda não tem (habilitação, prazo de
+     * assinatura, garantia, regime e visita técnica), a partir do objeto, dos itens, do ETP e do TR. Volta só o que passa
+     * nas regras; o painel mostra a proposta e o servidor decide se usa (art. 25).
+     *
+     * @param  array<string, mixed>  $atuais  o que o servidor já informou no painel
+     * @return array<string, mixed>
+     */
+    public function proporEdital(Processo $p, array $atuais, bool $engenharia, bool $grandeVulto, User $u): array
+    {
+        $this->exigirHabilitada();
+        $linhas = ["Processo {$p->identificacao()}. Objeto: {$p->objeto}", 'Modalidade: '.$p->modalidadeEnum()->rotulo().'. Categoria: '.$p->categoriaEnum()->rotulo().'.'];
+        if ((float) $p->valor_estimado > 0 && ! $p->orcamento_sigiloso) {
+            $linhas[] = 'Valor estimado: R$ '.number_format((float) $p->valor_estimado, 2, ',', '.').'.';
+        }
+        foreach ($p->itens()->limit(30)->get() as $i) {
+            $linhas[] = "Item {$i->numero}: {$i->descricao} ({$i->quantidade} {$i->unidade_medida}).";
+        }
+        foreach ($p->documentos()->whereIn('tipo', ['etp', 'termo_referencia'])->orderByDesc('versao')->get()->unique('tipo') as $d) {
+            $linhas[] = "\nTrechos de ".(TiposDocumento::get($d->tipo)['rotulo'] ?? $d->tipo).':';
+            foreach (($d->conteudo ?? []) as $v) {
+                if (is_string($v) && trim($v) !== '') {
+                    $linhas[] = '- '.Str::limit(trim($v), 1200);
+                }
+            }
+        }
+        $linhas[] = "\nJá informado pelo servidor:";
+        foreach ($atuais as $k => $v) {
+            if (is_scalar($v) && trim((string) $v) !== '') {
+                $linhas[] = "- {$k}: ".Str::limit((string) $v, 600);
+            }
+        }
+        $chaves = '"habilitacao" (texto das exigências de qualificação técnica e econômico-financeira proporcionais ao objeto, arts. 62 a 70, sem exigir o que o TR não justifica), '
+            .'"prazo_assinatura" (inteiro de 1 a 30, em dias úteis, art. 90), "garantia_pct" (número: 0 se não exigir; até 5, ou até 10 com justificativa, arts. 96 a 98'.($grandeVulto ? '; até 30 em obra de grande vulto, art. 99' : '').') e "garantia_justificativa"';
+        if ($engenharia) {
+            $chaves .= ', "regime" (um de: '.implode(', ', array_keys(MontagemEdital::REGIMES)).', art. 46), "visita" ("facultativa" ou "obrigatoria", art. 63, § 2º) e "visita_justificativa"';
+        }
+        $pedido = Anonimizador::limpar(implode("\n", $linhas))
+            ."\n\nProponha os dados do edital que ainda faltam. Responda só com um objeto JSON, sem texto fora dele, com as chaves {$chaves}. "
+            .'Use null na chave em que o contexto não der base para propor. Não invente datas nem valores.';
+
+        return $this->editalRegra()->lerProposta($this->chamarSem($p->orgao_id, $p->id, 'minuta_edital', 'edital', $pedido, $u), $grandeVulto);
+    }
+
+    private function editalRegra(): MontagemEdital
+    {
+        return app(MontagemEdital::class);
     }
 
     /** Recomendações em outras etapas (PCA, pesquisa de preços, gestão do contrato). Texto de apoio, sem decidir nada. */
