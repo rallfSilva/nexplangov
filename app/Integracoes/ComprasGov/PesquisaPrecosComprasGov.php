@@ -17,7 +17,7 @@ use Throwable;
  */
 final class PesquisaPrecosComprasGov
 {
-    /** @return list<array{id: string, valor: float, data: string, orgao: string, uasg: ?string, fornecedor: ?string, cnpj: ?string, unidade: ?string, quantidade: ?float}> */
+    /** @return list<array{id: string, valor: float, data: string, orgao: string, uasg: ?string, fornecedor: ?string, cnpj: ?string, unidade: ?string, quantidade: ?float, descricao: ?string, url: ?string, origem: string}> */
     public function buscar(string $tipo, string $codigo): array
     {
         if (! in_array($tipo, ['M', 'S'], true) || ! ctype_digit($codigo)) {
@@ -95,6 +95,9 @@ final class PesquisaPrecosComprasGov
             'cnpj' => strlen($cnpj) === 14 ? vsprintf('%s%s.%s%s%s.%s%s%s/%s%s%s%s-%s%s', str_split($cnpj)) : null,
             'unidade' => $l['siglaUnidadeFornecimento'] ?? $l['nomeUnidadeFornecimento'] ?? $l['unidadeFornecimento'] ?? null,
             'quantidade' => is_numeric($l['quantidade'] ?? null) ? (float) $l['quantidade'] : null,
+            'descricao' => ($d = $l['descricaoItem'] ?? $l['descricaoDetalhadaItem'] ?? $l['descricao'] ?? null) ? mb_substr((string) $d, 0, 1000) : null,
+            'url' => null,
+            'origem' => 'Compras.gov.br',
         ];
     }
 }

@@ -169,6 +169,7 @@
     @endif
 
     @if ($aba === 'itens')
+        @include('processos._cotacao-ia')
         @if ($processo->itens->isNotEmpty())
             @include('ia._recomendacao', ['rota' => route('ia.precos', $processo), 'titulo' => 'Fontes que faltam, cotações discrepantes ou vencidas e método da pesquisa de preços (art. 23)'])
         @endif
@@ -190,6 +191,17 @@
                     @include('processos._form-item')
                 @endif
                 @foreach ($r['alertas'] as $a)<div class="flash flash-aviso" style="margin-top:12px"><x-icone nome="alerta" style="flex:none" /><div>{{ $a }}</div></div>@endforeach
+                @if ($r['quantidade_validas'] > 0)
+                    <div class="estat">
+                        @foreach (['minimo' => 'Mínimo', 'media' => 'Média', 'mediana' => 'Mediana', 'media_ponderada' => 'Média ponderada'] as $k => $rot)
+                            <div @class(['escolhido' => ['minimo' => 'menor', 'media' => 'media', 'mediana' => 'mediana', 'media_ponderada' => 'ponderada'][$k] === $item->metodo_preco])><b class="valor">{{ reais($r['estatisticas'][$k], 4) }}</b><span>{{ $rot }}</span></div>
+                        @endforeach
+                        @if ($r['coeficiente_variacao'] !== null)<div><b>{{ numero_br($r['coeficiente_variacao']) }}%</b><span>Coeficiente de variação</span></div>@endif
+                    </div>
+                @endif
+                @if ($item->cotacao_ia_situacao && $item->cotacao_ia_situacao !== 'cotado' && $item->cotacao_ia_mensagem)
+                    <div class="flash {{ $item->cotacao_ia_situacao === 'erro' ? 'flash-erro' : 'flash-aviso' }}" style="margin-top:12px"><x-icone nome="ia" style="flex:none" /><div>NexMind IA: {{ $item->cotacao_ia_mensagem }}</div></div>
+                @endif
                 <div class="tbl-wrap" style="margin-top:12px">
                     <table class="tbl">
                         <thead><tr><th>Fonte</th><th>Referência</th><th>Data</th><th class="num">Valor unitário</th><th>Situação</th><th class="acoes"><span class="sr-only">Ações</span></th></tr></thead>
@@ -198,7 +210,11 @@
                                 @php($editando = $podeInstruir && ((int) request('cotacao') === $c->id || old('form_cotacao') === "editar-{$c->id}"))
                                 <tr id="cotacao-{{ $c->id }}">
                                     <td class="small">{{ $c->fonteEnum()->rotulo() }}</td>
-                                    <td>{{ $c->referencia }}@if ($c->documento_fonte)<div class="muted small">{{ $c->documento_fonte }}</div>@endif</td>
+                                    <td>@if ($c->daIa())<span class="b b-info" title="Cotação trazida pela NexMind IA"><x-icone nome="ia" tamanho="12" /> IA</span> @endif{{ $c->referencia }}@if ($c->documento_fonte)<div class="muted small">{{ $c->documento_fonte }}</div>@endif
+                                        @if ($c->descricao_fonte)<div class="muted small">{{ \Illuminate\Support\Str::limit($c->descricao_fonte, 160) }}@if ($c->unidade_fonte) · {{ $c->unidade_fonte }}@endif @if ($c->quantidade) · qtd. {{ numero_br($c->quantidade, 0) }}@endif</div>@endif
+                                        @if ($c->analise_ia)<div class="small" style="color:var(--color-azul)">{{ $c->analise_ia }}</div>@endif
+                                        @if ($c->url_fonte)<a class="small" href="{{ $c->url_fonte }}" target="_blank" rel="noopener noreferrer">Ver no portal</a>@endif
+                                    </td>
                                     <td>{{ $c->data_cotacao->format('d/m/Y') }}</td>
                                     <td class="num valor">{{ reais($c->valor_unitario, 4) }}</td>
                                     <td>@if (isset($r['descartadas'][$i]))<span class="b b-warn" title="{{ $r['descartadas'][$i] }}">Fora do cálculo</span><div class="small muted">{{ $r['descartadas'][$i] }}</div>@else<span class="b b-ok">Válida</span>@endif</td>
@@ -223,6 +239,9 @@
                 </div>
                 @if ($r['coeficiente_variacao'] !== null)<p class="small muted" style="margin-top:8px">Coeficiente de variação das cotações válidas: {{ numero_br($r['coeficiente_variacao']) }}%{{ $r['coeficiente_variacao'] > 25 ? ' (pesquisa dispersa: reveja as fontes)' : '' }}.</p>@endif
 
+                @if ($item->justificativa_precos)
+                    <details style="margin-top:12px"><summary class="small"><b>Justificativa da pesquisa</b> <span class="muted">(proposta da NexMind IA: revise antes de juntar aos autos)</span></summary><p class="small" style="line-height:1.6;white-space:pre-line">{{ $item->justificativa_precos }}</p></details>
+                @endif
                 @if ($podeInstruir)
                     @if ($item->codigo_catalogo)<a class="btn btn-s btn-sm" style="margin-top:12px" href="{{ route('processos.comprasgov', [$processo, $item]) }}"><x-icone nome="busca" tamanho="16" />Buscar preços no Compras.gov.br</a>@endif
                     <details style="margin-top:12px" @if (old('form_cotacao') === "nova-{$item->id}") open @endif>

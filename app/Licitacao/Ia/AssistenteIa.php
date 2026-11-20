@@ -2,9 +2,11 @@
 
 namespace App\Licitacao\Ia;
 
+use App\Licitacao\Regras\CotacaoAutomatica;
 use App\Licitacao\Regras\MatrizRiscos;
 use App\Licitacao\RegraViolada;
 use App\Licitacao\TiposDocumento;
+use App\Models\ItemProcesso;
 use App\Models\Processo;
 use App\Models\User;
 use App\Models\UsoIa;
@@ -102,6 +104,56 @@ final class AssistenteIa
         $pedido = Anonimizador::limpar($contexto)."\n\nFaça recomendações práticas sobre {$foco}. Liste em tópicos curtos, do mais para o menos urgente, citando o artigo em cada ponto. Não reescreva documentos.";
 
         return $this->chamarSem($orgaoId, $processoId, $etapa, 'recomendar', $pedido, $u);
+    }
+
+    /**
+     * Cotação automática, passo 1: entre os itens do catálogo parecidos com a descrição, qual é o código do item
+     * (art. 19, II) e com que palavras procurar compras parecidas no PNCP. Só vale código que está na lista.
+     *
+     * @param  list<array{codigo: string, descricao: string}>  $candidatos
+     * @return array{codigo: ?string, termos: ?string}
+     */
+    public function cotarCatalogo(ItemProcesso $item, array $candidatos, User $u): array
+    {
+        $this->exigirHabilitada();
+        $linhas = ['Item a cotar ('.($item->material_servico === 'S' ? 'serviço, catálogo CATSER' : 'material, catálogo CATMAT')."): {$item->descricao}. Unidade: {$item->unidade_medida}."];
+        $linhas[] = $candidatos === [] ? 'Nenhum item do catálogo foi encontrado.' : 'Itens do catálogo encontrados:';
+        foreach ($candidatos as $c) {
+            $linhas[] = "- {$c['codigo']}: {$c['descricao']}";
+        }
+        $pedido = Anonimizador::limpar(implode("\n", $linhas))
+            ."\n\nResponda só com um objeto JSON, sem texto fora dele, com as chaves \"codigo\" (o código da lista que corresponde ao mesmo objeto do item, ou null se nenhum corresponder) "
+            .'e "termos" (de 2 a 4 palavras, sem marca, para procurar contratações do mesmo objeto no Portal Nacional de Contratações Públicas).';
+
+        return CotacaoAutomatica::lerCatalogo($this->chamarSem($item->orgao_id, $item->processo_id, 'precos', 'catalogo', $pedido, $u), array_column($candidatos, 'codigo'));
+    }
+
+    /**
+     * Cotação automática, passo 2: quais preços encontrados são de objeto equivalente ao item (mesma especificação
+     * essencial e mesma unidade de fornecimento) e a justificativa da pesquisa para os autos (art. 23). A IA não
+     * calcula nem escolhe valores: só diz o que é comparável e por quê.
+     *
+     * @param  list<array{valor: float, data: string, orgao: string, unidade: ?string, quantidade: ?float, descricao: ?string, origem?: string}>  $candidatos
+     * @return array{compativeis: array<int, string>, justificativa: ?string}
+     */
+    public function cotarAvaliar(ItemProcesso $item, array $candidatos, User $u): array
+    {
+        $this->exigirHabilitada();
+        $linhas = ["Item a cotar: {$item->descricao}. Unidade: {$item->unidade_medida}. Quantidade: ".numero_br($item->quantidade, 0).'.', '', 'Preços encontrados em contratações públicas do último ano:'];
+        foreach ($candidatos as $i => $c) {
+            $linhas[] = "[{$i}] ".Str::limit((string) ($c['descricao'] ?? '(sem descrição)'), 300)
+                .' | unidade: '.($c['unidade'] ?? 'não informada')
+                .' | R$ '.number_format((float) $c['valor'], 2, ',', '.')
+                .' | '.($c['origem'] ?? 'Compras.gov.br').', '.$c['orgao'].', '.$c['data'];
+        }
+        $pedido = Anonimizador::limpar(implode("\n", $linhas))
+            ."\n\nAvalie cada preço. É compatível só se o objeto for o mesmo do item, com especificação essencial equivalente e a mesma unidade de fornecimento "
+            .'(caixa com 10 não equivale a unidade, resma não equivale a folha). Marca diferente não torna incompatível. '
+            .'Responda só com um objeto JSON, sem texto fora dele, com as chaves "avaliacoes" (array com um elemento por preço: {"i": índice, "compativel": true ou false, "motivo": frase curta}) '
+            .'e "justificativa" (um parágrafo para os autos explicando os critérios usados para considerar os preços comparáveis e por que os demais foram afastados, '
+            .'citando o art. 23, § 1º, II, da Lei 14.133/2021 e, quando o ente a adotar, a IN SEGES/ME nº 65/2021; não cite valores nem o preço final).';
+
+        return CotacaoAutomatica::lerAvaliacao($this->chamarSem($item->orgao_id, $item->processo_id, 'precos', 'cotar', $pedido, $u), count($candidatos));
     }
 
     /** O mesmo limite diário vale para todo uso da IA. */

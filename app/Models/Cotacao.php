@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['orgao_id', 'item_processo_id', 'fonte', 'referencia', 'documento_fonte', 'valor_unitario', 'data_cotacao', 'desconsiderada', 'motivo_desconsideracao'])]
+#[Fillable(['orgao_id', 'item_processo_id', 'fonte', 'referencia', 'documento_fonte', 'valor_unitario', 'data_cotacao', 'desconsiderada', 'motivo_desconsideracao', 'origem', 'quantidade', 'unidade_fonte', 'descricao_fonte', 'url_fonte', 'analise_ia'])]
 class Cotacao extends Model
 {
     use Auditable, BelongsToOrgao;
@@ -18,12 +18,17 @@ class Cotacao extends Model
 
     protected function casts(): array
     {
-        return ['valor_unitario' => 'decimal:4', 'data_cotacao' => 'date', 'desconsiderada' => 'boolean'];
+        return ['valor_unitario' => 'decimal:4', 'data_cotacao' => 'date', 'desconsiderada' => 'boolean', 'quantidade' => 'decimal:4'];
     }
 
     public function item(): BelongsTo
     {
         return $this->belongsTo(ItemProcesso::class, 'item_processo_id');
+    }
+
+    public function daIa(): bool
+    {
+        return $this->origem === 'ia';
     }
 
     public function fonteEnum(): FontePreco

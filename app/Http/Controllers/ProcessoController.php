@@ -25,6 +25,7 @@ use App\Models\Demanda;
 use App\Models\Fluxo;
 use App\Models\Fornecedor;
 use App\Models\ItemPca;
+use App\Models\LoteCotacaoIa;
 use App\Models\Processo;
 use App\Models\SolicitacaoExterna;
 use App\Models\Unidade;
@@ -122,7 +123,7 @@ class ProcessoController extends Controller
         $pesquisa = new PesquisaPrecos(Parametros::valor('preco_tolerancia_pct', $processo->orgao_id) / 100);
 
         $precos = $processo->itens->mapWithKeys(fn ($item) => [$item->id => $pesquisa->calcular(
-            $item->cotacoes->map(fn ($c) => ['valor' => $c->valor_unitario, 'fonte' => $c->fonte, 'data' => $c->data_cotacao, 'desconsiderada' => $c->desconsiderada, 'motivo' => $c->motivo_desconsideracao])->values()->all(),
+            $item->cotacoesParaCalculo(),
             $item->metodo_preco,
         )]);
 
@@ -144,6 +145,7 @@ class ProcessoController extends Controller
             'fluxos' => $aba === 'instrucao' && $processo->editavel() ? Fluxo::where('ativo', true)->orderBy('nome')->get() : collect(),
             'destinos' => $tramitacao->destinosPara($processo, $request->user()),
             'precos' => $precos,
+            'loteIa' => $aba === 'itens' ? LoteCotacaoIa::where('processo_id', $processo->id)->latest('id')->first() : null,
             'dispensa' => $dispensa,
             'tipos' => TiposDocumento::todos(),
             'documentos' => $processo->documentos()->orderByDesc('versao')->get()->unique('tipo')->keyBy('tipo'),

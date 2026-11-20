@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['orgao_id', 'processo_id', 'item_pca_id', 'numero', 'material_servico', 'codigo_catalogo', 'descricao', 'unidade_medida', 'quantidade', 'metodo_preco', 'tipo_beneficio', 'situacao', 'fornecedor_vencedor_id', 'valor_unitario_homologado', 'proposta_id', 'adjudicado_em', 'adjudicado_por', 'sequencial_resultado_pncp'])]
+#[Fillable(['orgao_id', 'processo_id', 'item_pca_id', 'numero', 'material_servico', 'codigo_catalogo', 'descricao', 'unidade_medida', 'quantidade', 'metodo_preco', 'tipo_beneficio', 'situacao', 'fornecedor_vencedor_id', 'valor_unitario_homologado', 'proposta_id', 'adjudicado_em', 'adjudicado_por', 'sequencial_resultado_pncp', 'justificativa_precos', 'cotacao_ia_situacao', 'cotacao_ia_mensagem', 'cotacao_ia_em'])]
 class ItemProcesso extends Model
 {
     use Auditable, BelongsToOrgao;
@@ -23,7 +23,7 @@ class ItemProcesso extends Model
 
     protected function casts(): array
     {
-        return ['quantidade' => 'decimal:4', 'valor_unitario_estimado' => 'decimal:4', 'valor_total_estimado' => 'decimal:2', 'valor_unitario_homologado' => 'decimal:4', 'tipo_beneficio' => 'integer', 'adjudicado_em' => 'datetime'];
+        return ['quantidade' => 'decimal:4', 'valor_unitario_estimado' => 'decimal:4', 'valor_total_estimado' => 'decimal:2', 'valor_unitario_homologado' => 'decimal:4', 'tipo_beneficio' => 'integer', 'adjudicado_em' => 'datetime', 'cotacao_ia_em' => 'datetime'];
     }
 
     public function processo(): BelongsTo
@@ -34,6 +34,16 @@ class ItemProcesso extends Model
     public function cotacoes(): HasMany
     {
         return $this->hasMany(Cotacao::class)->orderBy('data_cotacao');
+    }
+
+    /**
+     * Cotações no formato da regra de cálculo da pesquisa de preços (art. 23), com a quantidade como peso da média ponderada.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function cotacoesParaCalculo(): array
+    {
+        return $this->cotacoes->map(fn ($c) => ['valor' => $c->valor_unitario, 'fonte' => $c->fonte, 'data' => $c->data_cotacao, 'quantidade' => $c->quantidade, 'desconsiderada' => $c->desconsiderada, 'motivo' => $c->motivo_desconsideracao])->values()->all();
     }
 
     public function propostas(): HasMany

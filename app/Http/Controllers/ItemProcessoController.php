@@ -174,7 +174,7 @@ class ItemProcessoController extends Controller
     {
         $item->load('cotacoes');
         $r = (new PesquisaPrecos(Parametros::valor('preco_tolerancia_pct', $item->orgao_id) / 100))->calcular(
-            $item->cotacoes->map(fn ($c) => ['valor' => $c->valor_unitario, 'fonte' => $c->fonte, 'data' => $c->data_cotacao, 'desconsiderada' => $c->desconsiderada, 'motivo' => $c->motivo_desconsideracao])->values()->all(),
+            $item->cotacoesParaCalculo(),
             $item->metodo_preco,
         );
 
