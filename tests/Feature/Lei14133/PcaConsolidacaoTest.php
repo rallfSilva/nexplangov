@@ -37,7 +37,7 @@ class PcaConsolidacaoTest extends TestCase
 
     public function test_mostra_agrupamento_cronograma_e_falta_de_dotacao(): void
     {
-        $this->actingAs($this->u['planejamento'])->get("/pca/{$this->plano->id}")->assertOk()->assertSee('Consolidação e orçamento');
+        $this->actingAs($this->u['planejamento'])->get("/pca/{$this->plano->id}")->assertOk()->assertSee('DFDs, consolidação e orçamento');
 
         $this->actingAs($this->u['planejamento'])->get("/pca/{$this->plano->id}/consolidacao")->assertOk()
             ->assertSee('Código 150123')->assertSee('pedidos por SEMAD, SEMED')

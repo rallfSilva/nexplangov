@@ -139,7 +139,7 @@ class PncpIntegracaoTest extends TestCase
         $this->assertSame('publicado', $envio->estado);
         $this->assertSame(2027, $envio->payload['anoPca']);
         $this->assertEquals(12500.0, $envio->payload['itensPlano'][0]['valorTotal']);
-        $this->assertSame('2027/2', $plano->fresh()->numero_controle_pncp);
+        $this->assertSame('2027/2', $plano->pcasUnidade()->value('numero_controle_pncp'));
     }
 
     private function contrato(): Contrato

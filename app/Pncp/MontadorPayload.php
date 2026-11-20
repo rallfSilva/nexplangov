@@ -8,7 +8,7 @@ use App\Models\Ata;
 use App\Models\Contrato;
 use App\Models\ItemPca;
 use App\Models\ItemProcesso;
-use App\Models\PlanoContratacao;
+use App\Models\PcaUnidade;
 use App\Models\Processo;
 use App\Models\TermoContrato;
 use App\Support\Documento;
@@ -214,21 +214,22 @@ class MontadorPayload
         return ['metodo' => $operacao === 'excluir' ? 'DELETE' : 'PUT', 'rota' => "{$colecao}/{$a->numero_controle_pncp}", 'corpo' => $corpo, 'pendencias' => $pendencias];
     }
 
-    /** Plano de contratações anual (art. 12, VII, e § 1º). */
-    private function pca(PlanoContratacao $pl, string $operacao): array
+    /** Plano de contratações anual de uma unidade compradora (art. 12, VII, e § 1º): o PNCP recebe um plano por unidade. */
+    private function pca(PcaUnidade $pu, string $operacao): array
     {
+        $pl = $pu->plano;
         $cnpj = Documento::digitos((string) $pl->orgao->cnpj);
-        $pl->loadMissing('itens.unidade');
-        $unidade = $pl->itens->first()?->unidade?->codigo_unidade_pncp ?? $pl->orgao->unidades()->whereNotNull('codigo_unidade_pncp')->value('codigo_unidade_pncp');
+        $unidade = $pu->unidade?->codigo_unidade_pncp;
+        $itens = $pu->itens();
         $pendencias = $this->pendenciasOrgao($pl->orgao->cnpj, $unidade);
-        if ($pl->itens->isEmpty()) {
-            $pendencias[] = 'O plano não tem itens.';
+        if ($itens->isEmpty()) {
+            $pendencias[] = 'O plano não tem itens desta unidade.';
         }
 
         $corpo = [
             'codigoUnidade' => $unidade,
             'anoPca' => $pl->ano,
-            'itensPlano' => $pl->itens->map(fn (ItemPca $i) => [
+            'itensPlano' => $itens->map(fn (ItemPca $i) => [
                 'numeroItem' => $i->numero,
                 'categoriaItemPca' => self::categoriaItemPca((int) $i->categoria, $i->material_servico),
                 'catalogo' => $i->codigo_catalogo ? 1 : 2, // 1 = CATMAT/CATSER (compras.gov.br), 2 = outros
@@ -245,7 +246,7 @@ class MontadorPayload
             ])->values()->all(),
         ];
 
-        [$metodo, $rota] = $this->rota($operacao, "/v1/orgaos/{$cnpj}/pca", $pl->numero_controle_pncp);
+        [$metodo, $rota] = $this->rota($operacao, "/v1/orgaos/{$cnpj}/pca", $pu->numero_controle_pncp);
 
         return ['metodo' => $metodo, 'rota' => $rota, 'corpo' => $corpo, 'pendencias' => $pendencias];
     }

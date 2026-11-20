@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Ata;
 use App\Models\Contrato;
 use App\Models\EnvioPncp;
+use App\Models\PcaUnidade;
 use App\Models\PlanoContratacao;
 use App\Models\Processo;
 use App\Models\TermoContrato;
@@ -53,13 +54,40 @@ class PncpController extends Controller
     }
 
     /** PCA aprovado (art. 12, § 1º). */
+    /**
+     * Publica o PCA aprovado num clique: o PNCP recebe um plano por unidade compradora (art. 12, § 1º, e art. 174),
+     * então vai um envio para cada unidade que tem itens. A unidade já publicada recebe retificação.
+     */
     public function publicarPca(Request $request, PlanoContratacao $plano, FilaPncp $fila): RedirectResponse
     {
         if ($plano->situacao !== 'aprovado') {
             return back()->with('erro', 'Só o PCA aprovado vai ao PNCP (art. 12, § 1º).');
         }
 
-        return $this->resposta($fila->agendar($plano, 'pca', 'inserir', $request->user()), 'PCA na fila de publicação do PNCP.');
+        $grupos = $plano->gruposPncp();
+        if ($grupos['sem_unidade'] !== []) {
+            $numeros = $plano->itens()->whereIn('id', $grupos['sem_unidade'])->pluck('numero')->implode(', ');
+
+            return back()->with('erro', "Os itens {$numeros} não têm unidade com código no PNCP. Cadastre o código da unidade compradora em Unidades.");
+        }
+        if ($grupos['grupos'] === []) {
+            return back()->with('erro', 'O plano não tem itens.');
+        }
+
+        $envios = collect($grupos['grupos'])->keys()->map(function (int $unidadeId) use ($plano, $fila, $request) {
+            $parte = PcaUnidade::firstOrCreate(['plano_contratacao_id' => $plano->id, 'unidade_id' => $unidadeId], ['orgao_id' => $plano->orgao_id]);
+
+            return $fila->agendar($parte, 'pca', 'inserir', $request->user());
+        });
+
+        $erros = $envios->where('estado', 'erro');
+        if ($erros->isNotEmpty()) {
+            return back()->with('erro', $erros->map(fn (EnvioPncp $e) => ($e->publicavel?->unidade?->sigla ?? 'Unidade').': '.$e->erro)->implode(' '));
+        }
+
+        $n = $envios->count();
+
+        return back()->with('sucesso', $n === 1 ? 'PCA na fila de publicação do PNCP.' : "PCA na fila de publicação do PNCP: um plano para cada uma das {$n} unidades.");
     }
 
     /** Resultado de cada item homologado da compra (art. 71, IV, e art. 174). */
@@ -132,6 +160,10 @@ class PncpController extends Controller
 
         $alvo = $envio->publicavel;
         abort_unless($alvo, 404);
+        // Envio antigo do PCA inteiro: refaz pela publicação por unidade.
+        if ($alvo instanceof PlanoContratacao) {
+            return $this->publicarPca($request, $alvo, $fila);
+        }
         $novo = $fila->agendar($alvo, $envio->recurso, $envio->operacao, $request->user());
 
         return back()->with($novo->estado === 'erro' ? 'erro' : 'sucesso', $novo->estado === 'erro' ? $novo->erro : 'Envio refeito com os dados atuais e colocado na fila.');

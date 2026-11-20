@@ -11,6 +11,37 @@
     @include('ia._recomendacao', ['rota' => route('ia.pca', $plano), 'titulo' => 'O que agrupar, o que falta planejar e riscos de fracionamento e de orçamento'])
 
     <section class="card">
+        <div class="row">
+            <div>
+                <h2>DFDs das unidades</h2>
+                <p class="hint">Cada unidade lança os seus DFDs com itens do catálogo. Os aprovados entram no plano: o mesmo item na mesma unidade vira uma linha só, com a soma das quantidades <span class="lei">art. 12, VII</span></p>
+            </div>
+            @can('pca.gerenciar')
+                @if ($aConsolidar->isNotEmpty())
+                    <form method="POST" action="{{ route('pca.dfds.consolidar', $plano) }}" onsubmit="return confirm('Levar ao PCA os itens de {{ $aConsolidar->count() }} DFD(s) aprovado(s)?')">@csrf<button class="btn btn-p" type="submit" @disabled(! $plano->editavel())><x-icone nome="liga" />Consolidar {{ $aConsolidar->count() }} DFD{{ $aConsolidar->count() === 1 ? '' : 's' }} aprovado{{ $aConsolidar->count() === 1 ? '' : 's' }}</button></form>
+                @endif
+            @endcan
+        </div>
+        @if ($aConsolidar->isNotEmpty() && ! $plano->editavel())<p class="small" style="color:#9A3412">O plano está aprovado: abra uma revisão para consolidar novos DFDs <span class="lei">art. 12, § 1º</span></p>@endif
+        <div class="tbl-wrap" style="margin-top:10px">
+            <table class="tbl">
+                <thead><tr><th>Unidade</th><th class="num">Valor dos DFDs</th><th>DFDs consolidados</th></tr></thead>
+                <tbody>
+                    @forelse ($progressoDfd as $p)
+                        <tr>
+                            <td class="sigla">{{ $p['unidade'] }}</td>
+                            <td class="num valor">{{ reais($p['valor']) }}</td>
+                            <td style="min-width:220px"><div class="row" style="gap:8px;align-items:center"><div class="barra" style="flex:1" role="progressbar" aria-valuenow="{{ $p['percentual'] }}" aria-valuemin="0" aria-valuemax="100" aria-label="DFDs consolidados de {{ $p['unidade'] }}"><span style="width:{{ $p['percentual'] }}%"></span></div><span class="small">{{ $p['consolidados'] }} de {{ $p['total'] }}</span></div></td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="3" class="vazio"><b>Nenhum DFD para o exercício {{ $plano->ano }}</b>As unidades lançam os DFDs em Demandas.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card">
         <h2>Sugestões de agrupamento</h2>
         <p class="hint">Itens do mesmo objeto ou do mesmo mercado que podem ir a uma só contratação, com itens ou lotes <span class="lei">art. 40, V, e § 2º</span>. A decisão é de quem planeja: o sistema só aponta.</p>
         <div class="list" style="margin-top:10px">

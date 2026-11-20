@@ -7,6 +7,7 @@ use App\Models\Demanda;
 use App\Models\DocumentoProcesso;
 use App\Models\EventoProcesso;
 use App\Models\Fornecedor;
+use App\Models\ItemDemanda;
 use App\Models\ItemPca;
 use App\Models\OperacaoTratamento;
 use App\Models\Orgao;
@@ -135,6 +136,21 @@ class DemoSeeder extends Seeder
         $dKits = Demanda::create(['orgao_id' => $pm->id, 'unidade_id' => $semed->id, 'item_pca_id' => $itens26[1]->id, 'solicitante_id' => $u['requisitante']->id, 'numero' => '0001', 'ano' => 2026, 'objeto' => 'Kits de material escolar para 3.200 alunos do ensino fundamental', 'justificativa' => 'Atender os alunos matriculados na rede municipal no segundo semestre, conforme censo escolar de 2026.', 'quantidade' => 3200, 'valor_estimado' => 156480, 'prioridade' => 1, 'situacao' => 'atendida']);
         Demanda::create(['orgao_id' => $pm->id, 'unidade_id' => $semus->id, 'item_pca_id' => $itens26[4]->id, 'solicitante_id' => $u['requisitante']->id, 'numero' => '0002', 'ano' => 2026, 'objeto' => 'Luvas de procedimento para as unidades básicas de saúde', 'justificativa' => 'Reposição do estoque das 6 unidades básicas de saúde para o último trimestre, com base no consumo médio mensal.', 'quantidade' => 1800, 'valor_estimado' => 58320, 'prioridade' => 1, 'situacao' => 'enviada']);
         Demanda::create(['orgao_id' => $pm->id, 'unidade_id' => $semed->id, 'solicitante_id' => $u['requisitante']->id, 'numero' => '0003', 'ano' => 2026, 'objeto' => 'Bebedouros industriais para 4 escolas', 'justificativa' => 'Os bebedouros atuais estão sem conserto e a demanda não estava prevista no PCA por quebra inesperada.', 'valor_estimado' => 22000, 'prioridade' => 2, 'situacao' => 'enviada']);
+
+        // DFDs do PCA 2027 com itens do catálogo, aprovados e prontos para consolidar (dados fictícios).
+        foreach ([
+            [$semed, '0004', 'aceita', 'Material de expediente para as escolas', [['M', 2, '150000', 'Papel A4 branco, 75 g/m²', 'RESMA', 900, 24.9]]],
+            [$semus, '0005', 'aceita', 'Material de expediente para as unidades de saúde', [['M', 2, '150000', 'Papel A4 branco, 75 g/m²', 'RESMA', 400, 25.4], ['M', 2, '150001', 'Caneta esferográfica azul', 'CX', 30, 18.5]]],
+            [$semed, '0006', 'rascunho', 'Manutenção de aparelhos de ar-condicionado das escolas', [['S', 8, null, 'Manutenção preventiva e corretiva de ar-condicionado split', 'MÊS', 12, 4800]]],
+        ] as [$uni, $num, $sit, $obj, $linhas]) {
+            $dfd = Demanda::create(['orgao_id' => $pm->id, 'unidade_id' => $uni->id, 'solicitante_id' => $u['requisitante']->id, 'numero' => $num, 'ano' => 2026, 'exercicio' => 2027, 'objeto' => $obj,
+                'justificativa' => 'Reposição anual da unidade, estimada pelo consumo médio dos últimos doze meses.', 'data_pretendida' => '2027-03-15', 'prioridade' => 2, 'situacao' => $sit,
+                'enviada_em' => $sit === 'rascunho' ? null : now(), 'quantidade' => array_sum(array_column($linhas, 5)), 'valor_estimado' => array_sum(array_map(fn ($l) => $l[5] * $l[6], $linhas))]);
+            foreach ($linhas as $n => [$ms, $cat, $cod, $desc, $un, $qtd, $vu]) {
+                ItemDemanda::create(['orgao_id' => $pm->id, 'demanda_id' => $dfd->id, 'numero' => $n + 1, 'material_servico' => $ms, 'categoria' => $cat, 'codigo_catalogo' => $cod,
+                    'descricao' => $desc, 'unidade_fornecimento' => $un, 'quantidade' => $qtd, 'valor_unitario_estimado' => $vu]);
+            }
+        }
 
         // Processo 1: pregão eletrônico na fase preparatória, instrução parcial
         $pregao = $this->processo($pm, $semed, [
