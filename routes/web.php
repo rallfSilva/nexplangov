@@ -11,6 +11,7 @@ use App\Http\Controllers\CatalogoOrgaoController;
 use App\Http\Controllers\CicloContratoController;
 use App\Http\Controllers\ConfiguracaoController;
 use App\Http\Controllers\ContratoController;
+use App\Http\Controllers\CotacaoIaController;
 use App\Http\Controllers\DemandaController;
 use App\Http\Controllers\DevolucaoDadosController;
 use App\Http\Controllers\DispensaController;
@@ -192,6 +193,7 @@ Route::middleware(['auth', 'ativo'])->group(function () {
         // Processos
         Route::get('/processos', [ProcessoController::class, 'index'])->middleware('can:processos.ver')->name('processos.index');
         Route::get('/processos/exportar.xlsx', [ExportacaoController::class, 'processos'])->middleware(['can:processos.ver', 'throttle:10,1'])->name('processos.exportar');
+        Route::get('/processos/{processo}/mapa-de-precos.pdf', [CotacaoIaController::class, 'mapa'])->middleware(['can:processos.ver', 'throttle:20,1'])->name('processos.mapa-precos');
         Route::get('/processos/{processo}/documentos/{tipo}/docx', [ExportacaoController::class, 'peca'])->middleware(['can:processos.ver', 'throttle:20,1'])->name('documentos.docx');
         Route::middleware('can:processos.gerenciar')->group(function () {
             Route::get('/processos/novo', [ProcessoController::class, 'create'])->name('processos.create');
@@ -200,6 +202,10 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::put('/processos/{processo}', [ProcessoController::class, 'update'])->name('processos.update');
             Route::post('/processos/{processo}/duplicar', [ProcessoController::class, 'duplicar'])->name('processos.duplicar');
             Route::post('/processos/{processo}/itens', [ItemProcessoController::class, 'store'])->name('processos.itens.store');
+            Route::get('/processos/{processo}/itens/modelo.xlsx', [CotacaoIaController::class, 'modelo'])->name('processos.itens.modelo');
+            Route::post('/processos/{processo}/itens/importar', [CotacaoIaController::class, 'importar'])->middleware('throttle:10,1')->name('processos.itens.importar');
+            Route::post('/processos/{processo}/cotacao-ia', [CotacaoIaController::class, 'iniciar'])->middleware(['can:ia.usar', 'throttle:6,1'])->name('processos.cotacao-ia');
+            Route::get('/processos/{processo}/cotacao-ia', [CotacaoIaController::class, 'andamento'])->name('processos.cotacao-ia.andamento');
             Route::put('/processos/{processo}/itens/{item}', [ItemProcessoController::class, 'update'])->name('processos.itens.update');
             Route::delete('/processos/{processo}/itens/{item}', [ItemProcessoController::class, 'destroy'])->name('processos.itens.destroy');
             Route::get('/processos/{processo}/itens/{item}/compras-gov', [PrecosComprasGovController::class, 'mostrar'])->middleware('throttle:20,1')->name('processos.comprasgov');

@@ -13,17 +13,24 @@ use DateTimeInterface;
  *   orçamentos de fornecedor com mais de 6 meses (art. 23, § 1º, II e IV).
  * - Marca como destoantes as cotações muito acima ou muito abaixo da mediana. A lei não fixa o
  *   percentual; o padrão é 50% e o órgão pode mudar. A desconsideração sempre fica registrada.
- * - Aplica o método escolhido (mediana, média ou menor preço) às cotações restantes.
+ * - Aplica o método escolhido (mediana, média, média ponderada pela quantidade ou menor preço) às cotações restantes.
+ * - Devolve mínimo, média, mediana e média ponderada das cotações válidas e alerta quando a pesquisa está dispersa
+ *   (coeficiente de variação acima de 25%), para o servidor conferir antes de fixar o preço estimado.
  */
 final class PesquisaPrecos
 {
-    public const METODOS = ['mediana' => 'Mediana', 'media' => 'Média', 'menor' => 'Menor preço'];
+    public const METODOS = ['mediana' => 'Mediana', 'media' => 'Média', 'ponderada' => 'Média ponderada', 'menor' => 'Menor preço'];
+
+    /** Coeficiente de variação (%) a partir do qual a pesquisa é tratada como discrepante. */
+    public const LIMITE_DISPERSAO = 25.0;
 
     public function __construct(private float $toleranciaDestoante = 0.5) {}
 
     /**
-     * @param  list<array{valor: float|string, fonte: string, data: DateTimeInterface|string, desconsiderada?: bool, motivo?: ?string}>  $cotacoes
-     * @return array{valor_unitario: float, metodo: string, validas: list<int>, descartadas: array<int, string>, alertas: list<string>, coeficiente_variacao: ?float, quantidade_validas: int}
+     * A quantidade da cotação (quando a fonte informa) é o peso da média ponderada; sem ela, o peso é 1.
+     *
+     * @param  list<array{valor: float|string, fonte: string, data: DateTimeInterface|string, quantidade?: float|string|null, desconsiderada?: bool, motivo?: ?string}>  $cotacoes
+     * @return array{valor_unitario: float, metodo: string, validas: list<int>, descartadas: array<int, string>, alertas: list<string>, coeficiente_variacao: ?float, quantidade_validas: int, estatisticas: array{minimo: float, media: float, mediana: float, media_ponderada: float}, discrepante: bool}
      */
     public function calcular(array $cotacoes, string $metodo = 'mediana', DateTimeInterface|string|null $referencia = null): array
     {
@@ -92,11 +99,31 @@ final class PesquisaPrecos
             $alertas[] = 'Pesquisa direta com fornecedores exige no mínimo 3 orçamentos (art. 23, § 1º, IV).';
         }
 
+        $pesos = [];
+        foreach (array_keys($candidatas) as $i) {
+            $q = $cotacoes[$i]['quantidade'] ?? null;
+            $pesos[] = is_numeric($q) && (float) $q > 0 ? (float) $q : 1.0;
+        }
+
+        $estatisticas = [
+            'minimo' => $valores === [] ? 0.0 : round(min($valores), 4),
+            'media' => $valores === [] ? 0.0 : round(array_sum($valores) / count($valores), 4),
+            'mediana' => round(self::mediana($valores), 4),
+            'media_ponderada' => round(self::mediaPonderada($valores, $pesos), 4),
+        ];
+
+        $cv = self::coeficienteVariacao($valores);
+        $discrepante = $cv !== null && $cv > self::LIMITE_DISPERSAO;
+        if ($discrepante) {
+            $alertas[] = sprintf('Preços discrepantes: coeficiente de variação de %s%%, acima de %d%%. Confira se os itens cotados são equivalentes e justifique o preço escolhido (art. 23).', number_format($cv, 2, ',', '.'), self::LIMITE_DISPERSAO);
+        }
+
         $valor = match (true) {
             $valores === [] => 0.0,
-            $metodo === 'media' => array_sum($valores) / count($valores),
-            $metodo === 'menor' => min($valores),
-            default => self::mediana($valores),
+            $metodo === 'media' => $estatisticas['media'],
+            $metodo === 'ponderada' => $estatisticas['media_ponderada'],
+            $metodo === 'menor' => $estatisticas['minimo'],
+            default => $estatisticas['mediana'],
         };
 
         return [
@@ -105,8 +132,10 @@ final class PesquisaPrecos
             'validas' => array_keys($candidatas),
             'descartadas' => $descartadas,
             'alertas' => $alertas,
-            'coeficiente_variacao' => self::coeficienteVariacao($valores),
+            'coeficiente_variacao' => $cv,
             'quantidade_validas' => count($valores),
+            'estatisticas' => $estatisticas,
+            'discrepante' => $discrepante,
         ];
     }
 
@@ -123,6 +152,22 @@ final class PesquisaPrecos
         $meio = intdiv($n, 2);
 
         return $n % 2 ? $valores[$meio] : ($valores[$meio - 1] + $valores[$meio]) / 2;
+    }
+
+    /**
+     * Média dos valores pesada pelas quantidades das contratações de origem.
+     *
+     * @param  list<float>  $valores
+     * @param  list<float>  $pesos
+     */
+    public static function mediaPonderada(array $valores, array $pesos): float
+    {
+        $soma = array_sum($pesos);
+        if ($valores === [] || $soma <= 0) {
+            return 0.0;
+        }
+
+        return array_sum(array_map(fn ($v, $p) => $v * $p, $valores, $pesos)) / $soma;
     }
 
     /** Desvio padrão amostral dividido pela média, em %. Acima de 25% indica pesquisa dispersa. */

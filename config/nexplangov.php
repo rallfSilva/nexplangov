@@ -67,6 +67,21 @@ return [
         'max_paginas' => 3,
     ],
 
+    // PNCP, API de consulta (pública, sem credencial): preços homologados para a cotação automática por IA.
+    'pncp_consulta' => [
+        'url' => env('PNCP_CONSULTA_URL', 'https://pncp.gov.br/api/pncp'),
+        'url_busca' => env('PNCP_BUSCA_URL', 'https://pncp.gov.br/api/search/'),
+        'timeout' => (int) env('PNCP_CONSULTA_TIMEOUT', 20),
+        'max_compras' => (int) env('PNCP_CONSULTA_MAX_COMPRAS', 8),
+        'itens_por_compra' => 2,
+    ],
+
+    // Cotação automática por IA: quantos preços encontrados vão para a IA avaliar por item.
+    'cotacao_ia' => [
+        'max_candidatos' => (int) env('NEXPLANGOV_COTACAO_IA_CANDIDATOS', 30),
+        'max_itens_por_lote' => (int) env('NEXPLANGOV_COTACAO_IA_MAX_ITENS', 500),
+    ],
+
     // Portal da Transparência, API de dados: consulta automática ao CEIS e ao CNEP antes de adjudicar e contratar
     // (art. 161). A chave é gratuita (cadastro no portal) e fica só no .env. Sem chave, a consulta fica desligada.
     'transparencia' => [
