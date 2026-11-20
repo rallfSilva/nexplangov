@@ -5,6 +5,7 @@ namespace App\Licitacao\Cotacao;
 use App\Http\Controllers\ItemProcessoController;
 use App\Integracoes\ComprasGov\PesquisaPrecosComprasGov;
 use App\Integracoes\IntegracaoIndisponivel;
+use App\Integracoes\NotasFiscais\PrecosNotasFiscais;
 use App\Integracoes\Pncp\PrecosPncp;
 use App\Licitacao\Enums\FontePreco;
 use App\Licitacao\Ia\AssistenteIa;
@@ -16,10 +17,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Cota um item com a NexMind IA, usando preços já praticados em compras públicas (art. 23, § 1º, II):
+ * Cota um item com a NexMind IA, usando três fontes públicas de preços já praticados (art. 23, § 1º):
+ * Painel de Preços do governo federal (inciso I), licitações anteriores de outros órgãos no PNCP (inciso II) e
+ * notas fiscais eletrônicas (inciso V, quando o órgão tem o convênio de acesso). Passos:
  *
  * 1. Sem código CATMAT/CATSER, a IA escolhe o código entre os itens parecidos do catálogo (art. 19, II).
- * 2. Busca os preços do último ano no Compras.gov.br (pelo código) e no PNCP (pelas palavras do item).
+ * 2. Busca os preços do último ano nas três fontes.
  * 3. A IA marca quais são de objeto equivalente e escreve a justificativa; a regra escolhe os N mais recentes.
  * 4. Grava as cotações com a fonte e o motivo, troca as cotações anteriores da IA e recalcula o preço do item.
  *
@@ -28,7 +31,7 @@ use Illuminate\Support\Str;
  */
 final class CotadorIa
 {
-    public function __construct(private AssistenteIa $ia, private PesquisaPrecosComprasGov $comprasGov, private PrecosPncp $pncp) {}
+    public function __construct(private AssistenteIa $ia, private PesquisaPrecosComprasGov $comprasGov, private PrecosPncp $pncp, private PrecosNotasFiscais $notas) {}
 
     /** @return array{situacao: string, mensagem: string, gravadas: int} */
     public function cotar(ItemProcesso $item, int $quantidade, User $u): array
@@ -54,13 +57,14 @@ final class CotadorIa
             return ['situacao' => 'sem_resultado', 'mensagem' => count($candidatos).' preço(s) encontrado(s), mas nenhum de objeto equivalente ao item. Confira a descrição ou cote à mão.', 'gravadas' => 0];
         }
 
-        DB::transaction(function () use ($item, $candidatos, $escolhidos, $avaliacao) {
+        $consultadoEm = now();
+        DB::transaction(function () use ($item, $candidatos, $escolhidos, $avaliacao, $consultadoEm) {
             $item->cotacoes()->where('origem', 'ia')->get()->each->delete();
             foreach ($escolhidos as $i) {
                 $c = $candidatos[$i];
                 $item->cotacoes()->create([
                     'orgao_id' => $item->orgao_id,
-                    'fonte' => FontePreco::ContratacoesSimilares->value,
+                    'fonte' => FontePreco::from($c['fonte'] ?? FontePreco::ContratacoesSimilares->value)->value,
                     'referencia' => mb_substr("{$c['origem']} · {$c['orgao']}".($c['uasg'] ? " (UASG {$c['uasg']})" : ''), 0, 255),
                     'documento_fonte' => $c['cnpj'],
                     'valor_unitario' => $c['valor'],
@@ -69,7 +73,9 @@ final class CotadorIa
                     'quantidade' => $c['quantidade'],
                     'unidade_fonte' => $c['unidade'] ? mb_substr($c['unidade'], 0, 60) : null,
                     'descricao_fonte' => $c['descricao'],
-                    'url_fonte' => $c['url'],
+                    'url_fonte' => mb_substr($c['url'], 0, 500),
+                    'identificacao_fonte' => $c['identificacao'],
+                    'consultado_em' => $consultadoEm,
                     'analise_ia' => $avaliacao['compativeis'][$i] ?? null,
                 ]);
             }
@@ -96,7 +102,7 @@ final class CotadorIa
 
         if ($item->codigo_catalogo) {
             try {
-                $lista = array_map(fn ($p) => $p + ['descricao' => null, 'url' => null, 'origem' => 'Compras.gov.br'], $this->comprasGov->buscar($item->material_servico, $item->codigo_catalogo));
+                $lista = $this->comprasGov->buscar($item->material_servico, $item->codigo_catalogo);
             } catch (IntegracaoIndisponivel $e) {
                 $falhas[] = $e->getMessage();
             }
@@ -108,9 +114,20 @@ final class CotadorIa
             $falhas[] = $e->getMessage();
         }
 
+        if (PrecosNotasFiscais::habilitada()) {
+            try {
+                $lista = array_merge($lista, $this->notas->buscar($item->descricao, $item->codigo_catalogo));
+            } catch (IntegracaoIndisponivel $e) {
+                $falhas[] = $e->getMessage();
+            }
+        }
+
         $vistos = [];
         $saida = [];
         foreach ($lista as $p) {
+            if (empty($p['url']) || empty($p['identificacao'])) { // sem fonte verificável, o preço não entra
+                continue;
+            }
             $chave = $p['origem'].'|'.$p['id'].'|'.$p['data'].'|'.$p['valor'];
             if (! isset($vistos[$chave])) {
                 $vistos[$chave] = true;
@@ -119,7 +136,8 @@ final class CotadorIa
         }
         usort($saida, fn ($a, $b) => strcmp($b['data'], $a['data']));
 
-        return [array_slice($saida, 0, (int) config('nexplangov.cotacao_ia.max_candidatos', 30)), $falhas];
+        // As três fontes entram intercaladas, para nenhuma ocupar sozinha a lista que vai para a IA.
+        return [CotacaoAutomatica::intercalar($saida, (int) config('nexplangov.cotacao_ia.max_candidatos', 30)), $falhas];
     }
 
     /** @return list<array{codigo: string, descricao: string}> */

@@ -189,19 +189,19 @@ final class AssistenteIa
     public function cotarAvaliar(ItemProcesso $item, array $candidatos, User $u): array
     {
         $this->exigirHabilitada();
-        $linhas = ["Item a cotar: {$item->descricao}. Unidade: {$item->unidade_medida}. Quantidade: ".numero_br($item->quantidade, 0).'.', '', 'Preços encontrados em contratações públicas do último ano:'];
+        $linhas = ["Item a cotar: {$item->descricao}. Unidade: {$item->unidade_medida}. Quantidade: ".numero_br($item->quantidade, 0).'.', '', 'Preços encontrados no último ano (Painel de Preços, licitações anteriores no PNCP e notas fiscais eletrônicas):'];
         foreach ($candidatos as $i => $c) {
             $linhas[] = "[{$i}] ".Str::limit((string) ($c['descricao'] ?? '(sem descrição)'), 300)
                 .' | unidade: '.($c['unidade'] ?? 'não informada')
                 .' | R$ '.number_format((float) $c['valor'], 2, ',', '.')
-                .' | '.($c['origem'] ?? 'Compras.gov.br').', '.$c['orgao'].', '.$c['data'];
+                .' | '.($c['origem'] ?? 'Painel de Preços').', '.$c['orgao'].', '.$c['data'];
         }
         $pedido = Anonimizador::limpar(implode("\n", $linhas))
             ."\n\nAvalie cada preço. É compatível só se o objeto for o mesmo do item, com especificação essencial equivalente e a mesma unidade de fornecimento "
             .'(caixa com 10 não equivale a unidade, resma não equivale a folha). Marca diferente não torna incompatível. '
             .'Responda só com um objeto JSON, sem texto fora dele, com as chaves "avaliacoes" (array com um elemento por preço: {"i": índice, "compativel": true ou false, "motivo": frase curta}) '
             .'e "justificativa" (um parágrafo para os autos explicando os critérios usados para considerar os preços comparáveis e por que os demais foram afastados, '
-            .'citando o art. 23, § 1º, II, da Lei 14.133/2021 e, quando o ente a adotar, a IN SEGES/ME nº 65/2021; não cite valores nem o preço final).';
+            .'citando os incisos do art. 23, § 1º, da Lei 14.133/2021 que correspondem às fontes usadas (I para o Painel de Preços, II para licitações anteriores, V para notas fiscais) e, quando o ente a adotar, a IN SEGES/ME nº 65/2021; não cite valores nem o preço final).';
 
         return CotacaoAutomatica::lerAvaliacao($this->chamarSem($item->orgao_id, $item->processo_id, 'precos', 'cotar', $pedido, $u), count($candidatos));
     }

@@ -7,11 +7,25 @@
 - Entram só compras do último ano, como **contratações similares** (art. 23, § 1º, II). O servidor escolhe quais são comparáveis; valor e data vêm da API, nunca do navegador.
 - **A confirmar na homologação**: os caminhos e os nomes dos campos (`precoUnitario`, `dataResultado`, `nomeOrgao`, `codigoUasg`, `niFornecedor`, `idCompra`). O mapeamento aceita variações conhecidas; o ambiente desta construção não tinha acesso à API para testar ao vivo.
 
-## Cotação automática por IA (Compras.gov.br + PNCP)
+## Cotação automática por IA (três fontes do art. 23, § 1º)
+
+A pesquisa usa as três fontes de preços já praticados:
+
+| Fonte | Inciso | Classe | Situação |
+|---|---|---|---|
+| Painel de Preços do governo federal (API de dados abertos do Compras.gov.br, por CATMAT/CATSER) | I (`painel_oficial`) | `PesquisaPrecosComprasGov` | Ativa, sem credencial |
+| Licitações anteriores de outros órgãos (PNCP: busca, itens e resultado homologado) | II (`contratacoes_similares`) | `PrecosPncp` | Ativa, sem credencial |
+| Notas fiscais eletrônicas (preços efetivamente pagos) | V (`notas_fiscais`) | `PrecosNotasFiscais` | Desligada até haver convênio |
+
+**Notas fiscais:** não há API pública e aberta da base nacional de NF-e para pesquisa de preços. O acesso depende de convênio do órgão com a Receita Federal ou com a SEFAZ do estado, ou de serviço contratado que já tenha esse acesso. Com o convênio, informe `NFE_PRECOS_URL` e `NFE_PRECOS_TOKEN` (opcionais: `NFE_PRECOS_TIMEOUT`, `NFE_PORTAL_CONSULTA`). O conector chama `GET {url}?descricao=&catmat=&desde=AAAA-MM-DD` com `Authorization: Bearer {token}` e espera `{"itens":[{"chaveAcesso","dataEmissao","valorUnitario","quantidade","unidade","descricao","cnpjEmitente","nomeEmitente","uf","url"}]}`; um adaptador do convênio converte a resposta para esse formato. Nota sem chave de 44 dígitos não entra. O link é o da nota, se vier, ou o portal de consulta da NF-e, onde a chave se confere.
+
+**Equilíbrio entre fontes:** os candidatos vão para a IA intercalados por fonte (`CotacaoAutomatica::intercalar`), e a escolha final pega um preço de cada fonte antes de repetir (`CotacaoAutomatica::selecionar`), sempre o mais recente primeiro.
+
+### Funcionamento
 
 - Tela: processo › Itens e preços › "Cotar com IA" (só itens sem preço ou todos, com 3, 5 ou 10 resultados por item), "Importar planilha" (modelo em `/processos/{id}/itens/modelo.xlsx`) e "Mapa de preços (PDF)" com colunas e seções escolhidas.
 - Fluxo por item (job `CotarItemComIa`, um por item, na fila padrão): sem código CATMAT/CATSER, a IA escolhe entre os itens parecidos do catálogo local (`catalogo_itens`); busca preços do último ano no Compras.gov.br (pelo código) e no PNCP (pelas palavras do item); a IA marca os de objeto equivalente e escreve a justificativa; a regra `CotacaoAutomatica::selecionar` fica com os N mais recentes e a `PesquisaPrecos` calcula mínimo, média, mediana e média ponderada (pela quantidade da compra de origem), com alerta quando o coeficiente de variação passa de 25%.
-- As cotações da IA entram como **contratações similares** (art. 23, § 1º, II), com `origem = ia`, a descrição e a unidade da compra de origem, o link do PNCP e o motivo da compatibilidade. Uma nova cotação por IA troca só as cotações anteriores da IA; as lançadas à mão ficam. Quem pediu recebe e-mail ao fim do lote.
+- As cotações da IA entram com a fonte do inciso correspondente (I, II ou V), com `origem = ia`, a descrição e a unidade da compra de origem e o motivo da compatibilidade. **Transparência da fonte:** todo preço guarda o portal, o órgão, a identificação da compra (`identificacao_fonte`: número de controle do PNCP e item, ou compra e UASG no Compras.gov.br), a data do resultado, a data e hora da consulta (`consultado_em`) e o link do registro original (`url_fonte`: página da compra no PNCP; no Compras.gov.br, a compra no PNCP quando a API traz o número de controle, ou a própria consulta à API de dados abertos). Preço sem link e identificação não entra. A tela e o mapa de preços mostram esse bloco "Fonte da coleta" em cada preço. Uma nova cotação por IA troca só as cotações anteriores da IA; as lançadas à mão ficam. Quem pediu recebe e-mail ao fim do lote.
 - PNCP (API pública, sem credencial): `PNCP_BUSCA_URL` (padrão `https://pncp.gov.br/api/search/`, parâmetros `q`, `tipos_documento=edital`, `status=encerradas`) e `PNCP_CONSULTA_URL` (padrão `https://pncp.gov.br/api/pncp`, rotas `/v1/orgaos/{cnpj}/compras/{ano}/{sequencial}/itens` e `.../itens/{numero}/resultados`). Cache de 6 horas.
 - Uso de IA: duas chamadas por item no máximo (`acao` = `catalogo` e `cotar` em `usos_ia`). Limite de itens por pedido em `NEXPLANGOV_COTACAO_IA_MAX_ITENS` (padrão 500).
 - **A confirmar na homologação**: a busca do PNCP (`/api/search/`) é a mesma que o portal usa e não está no manual de consultas; os campos lidos são `items[].orgao_cnpj`, `ano`, `numero_sequencial`, `orgao_nome`, `municipio_nome`, `uf`, e nos resultados `valorUnitarioHomologado`, `quantidadeHomologada`, `dataResultado`, `niFornecedor`, `nomeRazaoSocialFornecedor`. No Compras.gov.br, a descrição do item vem de `descricaoItem`. O ambiente desta construção não tinha acesso às APIs para testar ao vivo.

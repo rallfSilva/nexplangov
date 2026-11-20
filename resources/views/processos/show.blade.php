@@ -213,7 +213,12 @@
                                     <td>@if ($c->daIa())<span class="b b-info" title="Cotação trazida pela NexMind IA"><x-icone nome="ia" tamanho="12" /> IA</span> @endif{{ $c->referencia }}@if ($c->documento_fonte)<div class="muted small">{{ $c->documento_fonte }}</div>@endif
                                         @if ($c->descricao_fonte)<div class="muted small">{{ \Illuminate\Support\Str::limit($c->descricao_fonte, 160) }}@if ($c->unidade_fonte) · {{ $c->unidade_fonte }}@endif @if ($c->quantidade) · qtd. {{ numero_br($c->quantidade, 0) }}@endif</div>@endif
                                         @if ($c->analise_ia)<div class="small" style="color:var(--color-azul)">{{ $c->analise_ia }}</div>@endif
-                                        @if ($c->url_fonte)<a class="small" href="{{ $c->url_fonte }}" target="_blank" rel="noopener noreferrer">Ver no portal</a>@endif
+                                        @if ($c->url_fonte || $c->identificacao_fonte)
+                                            <div class="small" style="margin-top:4px;padding:6px 8px;border-radius:8px;background:#F4FAFD;border:1px solid #DCEAF2">
+                                                <b>Fonte da coleta:</b> {{ \Illuminate\Support\Str::before($c->referencia, ' · ') }}@if ($c->identificacao_fonte) · {{ $c->identificacao_fonte }}@endif · resultado de {{ $c->data_cotacao->format('d/m/Y') }}@if ($c->consultado_em) · consultado em {{ $c->consultado_em->format('d/m/Y H:i') }}@endif
+                                                @if ($c->url_fonte)<br><a href="{{ $c->url_fonte }}" target="_blank" rel="noopener noreferrer">Ver o registro original no portal</a> <span class="muted" style="word-break:break-all">({{ \Illuminate\Support\Str::limit($c->url_fonte, 90) }})</span>@endif
+                                            </div>
+                                        @endif
                                     </td>
                                     <td>{{ $c->data_cotacao->format('d/m/Y') }}</td>
                                     <td class="num valor">{{ reais($c->valor_unitario, 4) }}</td>

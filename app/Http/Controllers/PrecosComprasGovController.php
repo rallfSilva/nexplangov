@@ -11,7 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
-/** Importa preços de compras públicas do Compras.gov.br para a pesquisa de preços do item (art. 23, § 1º, II). */
+/** Importa preços do Painel de Preços (Compras.gov.br) para a pesquisa de preços do item (art. 23, § 1º, I). */
 class PrecosComprasGovController extends Controller
 {
     public function __construct(private PesquisaPrecosComprasGov $api) {}
@@ -58,13 +58,13 @@ class PrecosComprasGovController extends Controller
             if ($item->cotacoes()->where('referencia', $ref)->where('valor_unitario', $p['valor'])->exists()) {
                 continue;
             }
-            $item->cotacoes()->create(['orgao_id' => $processo->orgao_id, 'fonte' => FontePreco::ContratacoesSimilares->value, 'referencia' => $ref, 'documento_fonte' => $p['cnpj'], 'valor_unitario' => $p['valor'], 'data_cotacao' => $p['data']]);
+            $item->cotacoes()->create(['orgao_id' => $processo->orgao_id, 'fonte' => FontePreco::PainelOficial->value, 'referencia' => $ref, 'documento_fonte' => $p['cnpj'], 'valor_unitario' => $p['valor'], 'data_cotacao' => $p['data'], 'quantidade' => $p['quantidade'], 'unidade_fonte' => $p['unidade'] ? mb_substr($p['unidade'], 0, 60) : null, 'descricao_fonte' => $p['descricao'] ?? null, 'url_fonte' => isset($p['url']) ? mb_substr($p['url'], 0, 500) : null, 'identificacao_fonte' => $p['identificacao'] ?? null, 'consultado_em' => now()]);
             $n++;
         }
 
         app(ItemProcessoController::class)->recalcular($item);
 
-        return redirect()->route('processos.show', [$processo, 'aba' => 'itens'])->with('sucesso', "{$n} preço(s) importado(s) do Compras.gov.br como contratações similares (art. 23, § 1º, II).");
+        return redirect()->route('processos.show', [$processo, 'aba' => 'itens'])->with('sucesso', "{$n} preço(s) importado(s) do Compras.gov.br do Painel de Preços (art. 23, § 1º, I).");
     }
 
     private function exigir(Processo $processo, ItemProcesso $item): void

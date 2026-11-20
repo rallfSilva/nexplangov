@@ -2,13 +2,14 @@
 @php
     $iaLigada = \App\Licitacao\Ia\AssistenteIa::habilitada() && auth()->user()->can('ia.usar');
     $semPreco = $processo->itens->filter(fn ($i) => (float) $i->valor_unitario_estimado <= 0)->count();
+    $nfeLigada = \App\Integracoes\NotasFiscais\PrecosNotasFiscais::habilitada();
     $nomesEstat = ['minimo' => 'Mínimo', 'media' => 'Média', 'mediana' => 'Mediana', 'media_ponderada' => 'Média pond.'];
 @endphp
 <section class="card">
     <div class="row">
         <div style="min-width:0">
             <h2 style="display:flex;align-items:center;gap:8px"><x-icone nome="ia" />Pesquisa de preços</h2>
-            <p class="hint">Preços já praticados em compras públicas do último ano, no Compras.gov.br e no PNCP, como contratações similares (<span class="lei">art. 23, § 1º, II</span>). A NexMind IA confere se o objeto é equivalente; o cálculo segue a regra do sistema.</p>
+            <p class="hint">Preços já praticados no último ano em três fontes: Painel de Preços do governo federal (<span class="lei">art. 23, § 1º, I</span>), licitações anteriores de outros órgãos no PNCP (<span class="lei">inciso II</span>) e notas fiscais eletrônicas (<span class="lei">inciso V</span>). Cada preço mostra a fonte da coleta e o link do registro original. A NexMind IA confere se o objeto é equivalente; o cálculo segue a regra do sistema.</p>
         </div>
         <div class="btns">
             @if ($podeInstruir)
@@ -106,7 +107,13 @@
         <form method="POST" action="{{ route('processos.cotacao-ia', $processo) }}">
             @csrf
             <h2 id="dlg-cotar-ia-t" style="display:flex;align-items:center;gap:8px"><x-icone nome="ia" />Cotar com IA</h2>
-            <p class="small" style="line-height:1.5">A cotação é processada em uma fila e você recebe um e-mail quando terminar. Para cada item, a IA procura o código CATMAT/CATSER (se faltar), busca preços do último ano no Compras.gov.br e no PNCP e fica só com os de objeto equivalente. Cotações lançadas à mão são mantidas; as da IA anterior são trocadas.</p>
+            <p class="small" style="line-height:1.5">A cotação é processada em uma fila e você recebe um e-mail quando terminar. Para cada item, a IA procura o código CATMAT/CATSER (se faltar), busca preços do último ano nas fontes abaixo, fica só com os de objeto equivalente e equilibra a escolha entre as fontes. Cotações lançadas à mão são mantidas; as da IA anterior são trocadas.</p>
+            <p class="small" style="margin:10px 0 4px"><b>Fontes consultadas</b></p>
+            <ul class="small" style="margin:0;padding-left:18px;line-height:1.6">
+                <li>Painel de Preços do governo federal, Compras.gov.br (<span class="lei">art. 23, § 1º, I</span>) <span class="b b-ok">Ativa</span></li>
+                <li>Licitações anteriores de outros órgãos, PNCP (<span class="lei">inciso II</span>) <span class="b b-ok">Ativa</span></li>
+                <li>Notas fiscais eletrônicas (<span class="lei">inciso V</span>) @if ($nfeLigada)<span class="b b-ok">Ativa</span>@else<span class="b b-mute" title="Não há base pública aberta de NF-e: o acesso depende de convênio com a Receita Federal ou a SEFAZ">Depende de convênio</span>@endif</li>
+            </ul>
             <fieldset style="border:0;padding:0;margin:12px 0">
                 <legend class="small"><b>Quais itens</b></legend>
                 <label class="small" style="display:block"><input type="radio" name="escopo" value="sem_preco" @checked($semPreco > 0) @disabled($semPreco === 0)> Só os itens sem preço ({{ $semPreco }})</label>

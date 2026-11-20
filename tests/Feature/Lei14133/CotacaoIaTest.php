@@ -56,7 +56,7 @@ class CotacaoIaTest extends TestCase
         Http::fake([
             'dadosabertos.compras.gov.br/*' => Http::response(['totalPaginas' => 1, 'resultado' => [
                 ['idCompra' => '2001', 'precoUnitario' => 24.5, 'dataResultado' => $d(2), 'nomeOrgao' => 'Prefeitura de Vale Verde (fictícia)', 'codigoUasg' => '999001', 'niFornecedor' => '99000333000188', 'quantidade' => 100, 'siglaUnidadeFornecimento' => 'RESMA', 'descricaoItem' => 'PAPEL A4 75G BRANCO'],
-                ['idCompra' => '2002', 'precoUnitario' => 26.0, 'dataResultado' => $d(4), 'nomeOrgao' => 'Câmara de Vale Verde (fictícia)', 'quantidade' => 300, 'siglaUnidadeFornecimento' => 'RESMA', 'descricaoItem' => 'PAPEL A4 75G'],
+                ['idCompra' => '2002', 'numeroControlePNCPCompra' => '99222333000144-1-000015/2026', 'precoUnitario' => 26.0, 'dataResultado' => $d(4), 'nomeOrgao' => 'Câmara de Vale Verde (fictícia)', 'quantidade' => 300, 'siglaUnidadeFornecimento' => 'RESMA', 'descricaoItem' => 'PAPEL A4 75G'],
                 ['idCompra' => '2003', 'precoUnitario' => 240.0, 'dataResultado' => $d(1), 'nomeOrgao' => 'Autarquia fictícia', 'siglaUnidadeFornecimento' => 'CX', 'descricaoItem' => 'PAPEL A4 CAIXA COM 10 RESMAS'],
             ]]),
             'pncp.gov.br/api/search/*' => Http::response(['items' => [['orgao_cnpj' => '99111222000133', 'ano' => 2026, 'numero_sequencial' => 7, 'orgao_nome' => 'Município de Serra Azul (fictício)', 'municipio_nome' => 'Serra Azul', 'uf' => 'RR']]]),
@@ -90,9 +90,14 @@ class CotacaoIaTest extends TestCase
         $this->assertSame('cotado', $item->cotacao_ia_situacao);
         $cot = $item->cotacoes()->get();
         $this->assertCount(3, $cot);
-        $this->assertTrue($cot->every(fn ($c) => $c->origem === 'ia' && $c->fonte === 'contratacoes_similares'));
+        $this->assertTrue($cot->every(fn ($c) => $c->origem === 'ia'));
+        $this->assertSame(['contratacoes_similares' => 1, 'painel_oficial' => 2], $cot->countBy('fonte')->sortKeys()->all(), 'Painel de Preços (inciso I) e licitação anterior no PNCP (inciso II)');
         $this->assertFalse($cot->contains(fn ($c) => (float) $c->valor_unitario === 240.0), 'caixa com 10 resmas ficou de fora');
-        $this->assertTrue($cot->contains(fn ($c) => str_starts_with($c->referencia, 'PNCP') && $c->url_fonte === 'https://pncp.gov.br/app/editais/99111222000133/2026/7'));
+        $this->assertTrue($cot->contains(fn ($c) => str_starts_with($c->referencia, 'Licitação anterior (PNCP)') && $c->url_fonte === 'https://pncp.gov.br/app/editais/99111222000133/2026/7'));
+        $this->assertTrue($cot->every(fn ($c) => $c->url_fonte && $c->identificacao_fonte && $c->consultado_em), 'todo preço da IA tem fonte verificável');
+        $this->assertTrue($cot->contains(fn ($c) => $c->identificacao_fonte === '99111222000133-1-000007/2026 · item 1'));
+        $this->assertTrue($cot->contains(fn ($c) => $c->identificacao_fonte === 'Compra 2001 · UASG 999001' && str_starts_with($c->url_fonte, 'https://dadosabertos.compras.gov.br/modulo-pesquisa-preco/1_consultarMaterial?codigoItemCatalogo=461777')));
+        $this->assertTrue($cot->contains(fn ($c) => $c->url_fonte === 'https://pncp.gov.br/app/editais/99222333000144/2026/15'), 'compra do Compras.gov.br com controle PNCP aponta para o PNCP');
         $this->assertSame(25.1, (float) $item->valor_unitario_estimado, 'mediana de 24,50, 25,10 e 26,00');
         $this->assertStringContainsString('art. 23', $item->justificativa_precos);
         $this->assertSame(['catalogo', 'cotar'], UsoIa::orderBy('id')->pluck('acao')->all());
@@ -102,7 +107,7 @@ class CotacaoIaTest extends TestCase
         Notification::assertSentTo($quem, CotacaoIaConcluida::class);
 
         $this->actingAs($quem)->get("/processos/{$p->id}?aba=itens")->assertOk()
-            ->assertSee('Cotar com IA')->assertSee('Média pond.')->assertSee('Cotado pela IA')->assertSee('Justificativa da pesquisa');
+            ->assertSee('Cotar com IA')->assertSee('Média pond.')->assertSee('Fonte da coleta')->assertSee('Ver o registro original no portal')->assertSee('Cotado pela IA')->assertSee('Justificativa da pesquisa')->assertSee('Painel de Preços do governo federal')->assertSee('Depende de convênio');
     }
 
     public function test_nova_cotacao_troca_so_as_da_ia_e_mantem_as_manuais(): void
@@ -132,6 +137,32 @@ class CotacaoIaTest extends TestCase
         $this->assertStringContainsString('PNCP respondeu com erro 503', $item->cotacao_ia_mensagem);
         $this->assertSame(0, $item->cotacoes()->count());
         $this->assertSame('concluido', LoteCotacaoIa::sole()->situacao);
+    }
+
+    public function test_notas_fiscais_entram_so_com_convenio_configurado(): void
+    {
+        $this->fakeFontes();
+        [$p, $item] = $this->itemSemCodigo();
+        $quem = $this->u['planejamento'];
+
+        // Sem convênio (padrão), a base de NF-e nem é consultada.
+        $this->actingAs($quem)->post("/processos/{$p->id}/cotacao-ia", ['escopo' => 'todos', 'resultados' => 5]);
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), 'nfe.exemplo.test'));
+        $this->assertSame(0, $item->cotacoes()->where('fonte', 'notas_fiscais')->count());
+
+        config(['nexplangov.notas_fiscais.url' => 'https://nfe.exemplo.test/precos', 'nexplangov.notas_fiscais.token' => 'token-ficticio']);
+        Http::fake(['nfe.exemplo.test/*' => Http::response(['itens' => [
+            ['chaveAcesso' => str_repeat('9', 44), 'dataEmissao' => today()->subMonth()->toDateString(), 'valorUnitario' => 24.9, 'quantidade' => 20, 'unidade' => 'RESMA', 'descricao' => 'PAPEL A4 75G 500 FOLHAS', 'cnpjEmitente' => '99000666000177', 'nomeEmitente' => 'Distribuidora Fictícia', 'uf' => 'RR'],
+            ['chaveAcesso' => '123', 'dataEmissao' => today()->toDateString(), 'valorUnitario' => 1], // chave inválida
+        ]])]);
+
+        $this->actingAs($quem)->post("/processos/{$p->id}/cotacao-ia", ['escopo' => 'todos', 'resultados' => 5]);
+        Http::assertSent(fn ($r) => str_contains($r->url(), 'nfe.exemplo.test') && $r->hasHeader('Authorization', 'Bearer token-ficticio'));
+        $nf = $item->cotacoes()->where('fonte', 'notas_fiscais')->sole();
+        $this->assertSame(24.9, (float) $nf->valor_unitario);
+        $this->assertStringStartsWith('NF-e chave 9999 9999', $nf->identificacao_fonte);
+        $this->assertStringStartsWith('https://www.nfe.fazenda.gov.br/', $nf->url_fonte, 'a chave se confere no portal da NF-e');
+        $this->assertSame(['contratacoes_similares', 'notas_fiscais', 'painel_oficial'], $item->cotacoes()->pluck('fonte')->unique()->sort()->values()->all());
     }
 
     public function test_exige_permissao_ia_ligada_e_fase_preparatoria(): void
