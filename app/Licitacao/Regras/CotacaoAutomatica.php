@@ -97,20 +97,58 @@ final class CotacaoAutomatica
     }
 
     /**
-     * Escolhe até N preços entre os compatíveis: os mais recentes primeiro (o mais próximo do preço de mercado atual),
-     * sem repetir a mesma compra. Não escolhe por valor, para não enviesar a pesquisa para cima ou para baixo.
+     * Intercala os preços das fontes (mais recente de cada uma, depois o segundo de cada uma...) e corta no limite.
      *
-     * @param  list<array{id: string, valor: float, data: string}>  $candidatos
+     * @param  list<array{origem: string, data: string}>  $lista
+     * @return list<array<string, mixed>>
+     */
+    public static function intercalar(array $lista, int $limite): array
+    {
+        $porFonte = [];
+        foreach ($lista as $p) {
+            $porFonte[$p['origem']][] = $p;
+        }
+        foreach ($porFonte as &$l) {
+            usort($l, fn ($a, $b) => strcmp($b['data'], $a['data']));
+        }
+        unset($l);
+
+        $saida = [];
+        for ($i = 0; count($saida) < $limite; $i++) {
+            $achou = false;
+            foreach ($porFonte as $l) {
+                if (isset($l[$i])) {
+                    $saida[] = $l[$i];
+                    $achou = true;
+                    if (count($saida) >= $limite) {
+                        break;
+                    }
+                }
+            }
+            if (! $achou) {
+                break;
+            }
+        }
+
+        return $saida;
+    }
+
+    /**
+     * Escolhe até N preços entre os compatíveis, equilibrando as fontes (Painel de Preços, PNCP, notas fiscais): em cada
+     * rodada pega o mais recente ainda não usado de cada fonte, sem repetir a mesma compra ou nota. Não escolhe por
+     * valor, para não enviesar a pesquisa para cima ou para baixo.
+     *
+     * @param  list<array{id: string, valor: float, data: string, origem?: string}>  $candidatos
      * @param  array<int, string>  $compativeis  índice do candidato => motivo da compatibilidade
      * @return list<int> índices escolhidos
      */
     public static function selecionar(array $candidatos, array $compativeis, int $quantidade): array
     {
         $indices = array_keys($compativeis);
-        usort($indices, fn ($a, $b) => [$candidatos[$b]['data'], $a] <=> [$candidatos[$a]['data'], $b]);
+        usort($indices, fn ($a, $b) => [$candidatos[$b]['data'] ?? '', $a] <=> [$candidatos[$a]['data'] ?? '', $b]);
 
+        $porFonte = [];
         $vistos = [];
-        $saida = [];
         foreach ($indices as $i) {
             $c = $candidatos[$i] ?? null;
             if (! $c || (float) $c['valor'] <= 0) {
@@ -121,10 +159,21 @@ final class CotacaoAutomatica
                 continue;
             }
             $vistos[$chave] = true;
-            $saida[] = $i;
-            if (count($saida) >= $quantidade) {
-                break;
+            $porFonte[$c['origem'] ?? ''][] = $i;
+        }
+
+        $saida = [];
+        while (count($saida) < $quantidade && $porFonte !== []) {
+            foreach ($porFonte as $f => &$fila) {
+                $saida[] = array_shift($fila);
+                if ($fila === []) {
+                    unset($porFonte[$f]);
+                }
+                if (count($saida) >= $quantidade) {
+                    break;
+                }
             }
+            unset($fila);
         }
 
         return $saida;

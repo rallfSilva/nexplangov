@@ -9,22 +9,22 @@ use Illuminate\Support\Facades\Http;
 use Throwable;
 
 /**
- * Preços praticados em compras públicas, pela API de dados abertos do Compras.gov.br (módulo de pesquisa de preço).
- * Servem como contratações similares (art. 23, § 1º, II): só entram compras do último ano.
+ * Painel de Preços do governo federal, pela API de dados abertos do Compras.gov.br (módulo de pesquisa de preço):
+ * parâmetro do art. 23, § 1º, I. Só entram compras do último ano.
  *
  * Os nomes dos campos da resposta seguem a documentação pública da API; confirme-os na homologação
  * (ver docs/integracoes.md). O mapeamento aceita as variações conhecidas.
  */
 final class PesquisaPrecosComprasGov
 {
-    /** @return list<array{id: string, valor: float, data: string, orgao: string, uasg: ?string, fornecedor: ?string, cnpj: ?string, unidade: ?string, quantidade: ?float, descricao: ?string, url: ?string, origem: string}> */
+    /** @return list<array{id: string, valor: float, data: string, orgao: string, uasg: ?string, fornecedor: ?string, cnpj: ?string, unidade: ?string, quantidade: ?float, descricao: ?string, url: string, identificacao: string, origem: string}> */
     public function buscar(string $tipo, string $codigo): array
     {
         if (! in_array($tipo, ['M', 'S'], true) || ! ctype_digit($codigo)) {
             return [];
         }
 
-        return Cache::remember("comprasgov:precos:{$tipo}:{$codigo}", now()->addHours(6), fn () => $this->consultar($tipo, $codigo));
+        return Cache::remember("comprasgov:precos:v3:{$tipo}:{$codigo}", now()->addHours(6), fn () => $this->consultar($tipo, $codigo));
     }
 
     private function consultar(string $tipo, string $codigo): array
@@ -45,7 +45,7 @@ final class PesquisaPrecosComprasGov
 
                 $lista = $r->json('resultado') ?? $r->json('data') ?? [];
                 foreach ($lista as $l) {
-                    if ($n = $this->normalizar($l)) {
+                    if ($n = $this->normalizar($l, $cfg['url'].$caminho.'?'.http_build_query(['codigoItemCatalogo' => $codigo]))) {
                         if (Carbon::parse($n['data'])->gte($limite)) {
                             $itens[] = $n;
                         }
@@ -69,7 +69,11 @@ final class PesquisaPrecosComprasGov
         return array_slice($itens, 0, 60);
     }
 
-    private function normalizar(array $l): ?array
+    /**
+     * Normaliza um registro. O link aponta para a compra no PNCP quando a API informa o número de controle; senão,
+     * para a própria consulta à API de dados abertos, que qualquer pessoa pode abrir e conferir.
+     */
+    private function normalizar(array $l, string $urlConsulta): ?array
     {
         $valor = $l['precoUnitario'] ?? $l['valorUnitario'] ?? $l['valorUnitarioHomologado'] ?? null;
         $data = $l['dataResultado'] ?? $l['dataCompra'] ?? $l['dataHomologacao'] ?? null;
@@ -96,8 +100,25 @@ final class PesquisaPrecosComprasGov
             'unidade' => $l['siglaUnidadeFornecimento'] ?? $l['nomeUnidadeFornecimento'] ?? $l['unidadeFornecimento'] ?? null,
             'quantidade' => is_numeric($l['quantidade'] ?? null) ? (float) $l['quantidade'] : null,
             'descricao' => ($d = $l['descricaoItem'] ?? $l['descricaoDetalhadaItem'] ?? $l['descricao'] ?? null) ? mb_substr((string) $d, 0, 1000) : null,
-            'url' => null,
-            'origem' => 'Compras.gov.br',
+            'url' => self::urlPncp($l['numeroControlePNCPCompra'] ?? $l['numeroControlePNCP'] ?? null) ?? $urlConsulta,
+            'identificacao' => mb_substr(trim(implode(' · ', array_filter([
+                ($l['numeroControlePNCPCompra'] ?? $l['numeroControlePNCP'] ?? null) ? 'Controle PNCP '.($l['numeroControlePNCPCompra'] ?? $l['numeroControlePNCP']) : null,
+                isset($l['idCompra']) ? "Compra {$l['idCompra']}" : null,
+                isset($l['codigoUasg']) ? "UASG {$l['codigoUasg']}" : null,
+                isset($l['numeroItemCompra']) ? "item {$l['numeroItemCompra']}" : null,
+            ]))), 0, 160) ?: 'Compra sem identificação na API',
+            'origem' => 'Painel de Preços (Compras.gov.br)',
+            'fonte' => 'painel_oficial',
         ];
+    }
+
+    /** Número de controle do PNCP (CNPJ-1-sequencial/ano) vira o link público da compra. */
+    public static function urlPncp(?string $controle): ?string
+    {
+        if (! $controle || ! preg_match('#^(\d{14})-\d-0*(\d+)/(\d{4})$#', trim($controle), $m)) {
+            return null;
+        }
+
+        return "https://pncp.gov.br/app/editais/{$m[1]}/{$m[3]}/{$m[2]}";
     }
 }

@@ -19,6 +19,8 @@
     .alerta { color: #9A3412; }
     .fora { color: #6b7c87; }
     .ia { font-size: 7.5pt; color: #34729C; }
+    .fonte { font-size: 7.5pt; color: #1E5470; word-break: break-all; }
+    .fonte a { color: #34729C; }
     .just { background: #F4FAFD; border-left: 3px solid #34729C; padding: 6px 8px; white-space: pre-line; }
 </style>
 </head>
@@ -66,7 +68,7 @@
                             <td>{{ $c->fonteEnum()->rotulo() }}</td>
                             <td>{{ $c->referencia }}@if ($c->documento_fonte)<br>{{ $c->documento_fonte }}@endif
                                 @if ($c->descricao_fonte)<br><span class="fora">{{ \Illuminate\Support\Str::limit($c->descricao_fonte, 200) }}@if ($c->unidade_fonte) · {{ $c->unidade_fonte }}@endif</span>@endif
-                                @if ($c->url_fonte)<br><span class="fora">{{ $c->url_fonte }}</span>@endif
+                                @if ($c->identificacao_fonte || $c->url_fonte)<br><span class="fonte">Fonte da coleta: {{ \Illuminate\Support\Str::before($c->referencia, ' · ') }}@if ($c->identificacao_fonte) · {{ $c->identificacao_fonte }}@endif @if ($c->consultado_em) · consultado em {{ $c->consultado_em->format('d/m/Y H:i') }}@endif @if ($c->url_fonte)<br><a href="{{ $c->url_fonte }}">{{ $c->url_fonte }}</a>@endif</span>@endif
                                 @if ($c->daIa())<br><span class="ia">Trazida pela NexMind IA{{ $c->analise_ia ? ': '.$c->analise_ia : '' }}</span>@endif
                             </td>
                             <td>{{ $c->data_cotacao->format('d/m/Y') }}</td>
@@ -86,5 +88,6 @@
         @endif
     @endforeach
 @endif
+<p class="fora" style="margin-top:16px;font-size:8pt">Os preços com "Fonte da coleta" vieram de consultas públicas ao Compras.gov.br (dados abertos) e ao PNCP na data e hora indicadas. O link de cada preço abre o registro original para conferência.</p>
 </body>
 </html>

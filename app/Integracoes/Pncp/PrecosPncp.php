@@ -19,7 +19,7 @@ use Throwable;
 final class PrecosPncp
 {
     /**
-     * @return list<array{id: string, valor: float, data: string, orgao: string, uasg: ?string, fornecedor: ?string, cnpj: ?string, unidade: ?string, quantidade: ?float, descricao: ?string, url: ?string, origem: string}>
+     * @return list<array{id: string, valor: float, data: string, orgao: string, uasg: ?string, fornecedor: ?string, cnpj: ?string, unidade: ?string, quantidade: ?float, descricao: ?string, url: string, identificacao: string, origem: string}>
      */
     public function buscar(string $termos, string $descricaoItem): array
     {
@@ -28,7 +28,7 @@ final class PrecosPncp
             return [];
         }
 
-        return Cache::remember('pncp:precos:'.md5(mb_strtolower($termos.'|'.$descricaoItem)), now()->addHours(6), fn () => $this->consultar($termos, $descricaoItem));
+        return Cache::remember('pncp:precos:v3:'.md5(mb_strtolower($termos.'|'.$descricaoItem)), now()->addHours(6), fn () => $this->consultar($termos, $descricaoItem));
     }
 
     private function consultar(string $termos, string $descricaoItem): array
@@ -120,7 +120,9 @@ final class PrecosPncp
             'quantidade' => is_numeric($r['quantidadeHomologada'] ?? null) ? (float) $r['quantidadeHomologada'] : (is_numeric($item['quantidade'] ?? null) ? (float) $item['quantidade'] : null),
             'descricao' => isset($item['descricao']) ? mb_substr((string) $item['descricao'], 0, 1000) : null,
             'url' => "https://pncp.gov.br/app/editais/{$cnpjOrgao}/{$ano}/{$seq}",
-            'origem' => 'PNCP',
+            'identificacao' => mb_substr(($compra['numero_controle_pncp'] ?? sprintf('%s-1-%06d/%d', $cnpjOrgao, $seq, $ano))." · item {$item['numeroItem']}".(isset($compra['numero']) ? " · compra nº {$compra['numero']}" : ''), 0, 160),
+            'origem' => 'Licitação anterior (PNCP)',
+            'fonte' => 'contratacoes_similares',
         ];
     }
 }

@@ -49,6 +49,24 @@ class CotacaoAutomaticaTest extends TestCase
         $this->assertSame([1], CotacaoAutomatica::selecionar($c, [0 => 'ok', 1 => 'ok', 3 => 'ok'], 1));
     }
 
+    public function test_escolha_equilibra_as_fontes_do_art_23(): void
+    {
+        $c = [
+            ['id' => 'p1', 'valor' => 10.0, 'data' => '2026-10-01', 'origem' => 'Painel'],
+            ['id' => 'p2', 'valor' => 11.0, 'data' => '2026-09-01', 'origem' => 'Painel'],
+            ['id' => 'p3', 'valor' => 12.0, 'data' => '2026-08-01', 'origem' => 'Painel'],
+            ['id' => 'l1', 'valor' => 13.0, 'data' => '2026-03-01', 'origem' => 'PNCP'],
+            ['id' => 'n1', 'valor' => 14.0, 'data' => '2026-02-01', 'origem' => 'NF-e'],
+        ];
+        $todos = array_fill_keys(range(0, 4), 'ok');
+
+        $this->assertSame([0, 3, 4], CotacaoAutomatica::selecionar($c, $todos, 3), 'um preço de cada fonte antes de repetir');
+        $this->assertSame([0, 3, 4, 1], CotacaoAutomatica::selecionar($c, $todos, 4));
+
+        $lista = CotacaoAutomatica::intercalar($c, 4);
+        $this->assertSame(['p1', 'l1', 'n1', 'p2'], array_column($lista, 'id'));
+    }
+
     public function test_media_ponderada_e_estatisticas(): void
     {
         $r = (new PesquisaPrecos)->calcular([

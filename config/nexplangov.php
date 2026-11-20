@@ -76,6 +76,15 @@ return [
         'itens_por_compra' => 2,
     ],
 
+    // Notas fiscais eletrônicas (art. 23, § 1º, V): depende de convênio com a Receita Federal ou a SEFAZ (ou serviço
+    // contratado com esse acesso). Sem URL e token, a fonte fica desligada e a cotação usa as outras duas.
+    'notas_fiscais' => [
+        'url' => env('NFE_PRECOS_URL'),
+        'token' => env('NFE_PRECOS_TOKEN'),
+        'timeout' => (int) env('NFE_PRECOS_TIMEOUT', 20),
+        'portal_consulta' => env('NFE_PORTAL_CONSULTA', 'https://www.nfe.fazenda.gov.br/portal/consultaRecaptcha.aspx?tipoConsulta=resumo'),
+    ],
+
     // Cotação automática por IA: quantos preços encontrados vão para a IA avaliar por item.
     'cotacao_ia' => [
         'max_candidatos' => (int) env('NEXPLANGOV_COTACAO_IA_CANDIDATOS', 30),

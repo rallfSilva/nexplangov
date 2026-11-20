@@ -61,7 +61,7 @@ class IntegracoesTest extends TestCase
         $this->actingAs($this->u['planejamento'])->post("/processos/{$p->id}/itens/{$item->id}/compras-gov", ['selecionados' => [$chave, '1001|2026-01-01|0.01']])->assertSessionHas('sucesso');
         $this->assertSame(1, Cotacao::count());
         $c = Cotacao::first();
-        $this->assertSame('contratacoes_similares', $c->fonte);
+        $this->assertSame('painel_oficial', $c->fonte);
         $this->assertEquals(24.5, (float) $c->valor_unitario);
         $this->assertStringStartsWith('Compras.gov.br', $c->referencia);
         $this->assertEquals(24.5, (float) $item->refresh()->valor_unitario_estimado);
