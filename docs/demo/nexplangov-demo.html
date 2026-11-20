@@ -351,7 +351,7 @@ code.hash { white-space: nowrap; }
    As regras espelham app/Licitacao/Regras do sistema (Lei 14.133/2021).
    ================================================================ */
 
-const ICONES = {"calendario":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M16 2v4M8 2v4M3 10h18M8 14h2M14 14h2M8 18h2\"/>","demanda":"<path d=\"M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2\"/><rect x=\"9\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"M9 12h6M9 16h4\"/>","processo":"<path d=\"M12 3v18M5 7h14M5 7l-3 7a4 4 0 0 0 6 0Zm14 0-3 7a4 4 0 0 0 6 0ZM8 21h8\"/>","contrato":"<path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z\"/><path d=\"M14 2v6h6M8 15c1.5-2 3-2 4 0s2.5 2 4 0\"/>","fornecedor":"<path d=\"M3 21h18M4 21V10l8-6 8 6v11M9 21v-6h6v6\"/>","pncp":"<path d=\"M17.5 19a4.5 4.5 0 1 0-1.4-8.8A6 6 0 0 0 4.3 12 3.5 3.5 0 0 0 6.5 19Z\"/><path d=\"m9 14 3-3 3 3M12 11v7\"/>","cifrao":"<path d=\"M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6\"/>","engrenagem":"<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z\"/>","privacidade":"<rect x=\"3\" y=\"11\" width=\"18\" height=\"11\" rx=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 10 0v4M12 15v3\"/>","enviar":"<path d=\"m22 2-7 20-4-9-9-4Z\"/><path d=\"M22 2 11 13\"/>","olho":"<path d=\"M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>","balanca":"<path d=\"M12 3v18M5 7h14M5 7l-3 7a4 4 0 0 0 6 0Zm14 0-3 7a4 4 0 0 0 6 0ZM8 21h8\"/>","painel":"<rect x=\"3\" y=\"3\" width=\"7\" height=\"9\" rx=\"1.5\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"5\" rx=\"1.5\"/><rect x=\"14\" y=\"12\" width=\"7\" height=\"9\" rx=\"1.5\"/><rect x=\"3\" y=\"16\" width=\"7\" height=\"5\" rx=\"1.5\"/>","predio":"<path d=\"M3 21h18M5 21V7l7-4 7 4v14M9 9h1M14 9h1M9 13h1M14 13h1M9 17h1M14 17h1\"/>","organograma":"<rect x=\"9\" y=\"3\" width=\"6\" height=\"5\" rx=\"1\"/><rect x=\"3\" y=\"16\" width=\"6\" height=\"5\" rx=\"1\"/><rect x=\"15\" y=\"16\" width=\"6\" height=\"5\" rx=\"1\"/><path d=\"M12 8v4M6 16v-2h12v2\"/>","usuarios":"<circle cx=\"9\" cy=\"8\" r=\"4\"/><path d=\"M2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1M16 4a4 4 0 0 1 0 8M22 21v-1a6 6 0 0 0-4-5.6\"/>","escudo":"<path d=\"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z\"/><path d=\"m9 12 2 2 4-4\"/>","auditoria":"<path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z\"/><path d=\"M14 2v6h6M9 13h6M9 17h4\"/>","planilha":"<path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z\"/><path d=\"M14 2v6h6M8 13h8M8 17h8M12 11v8\"/>","download":"<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3\"/>","cargos":"<rect x=\"3\" y=\"7\" width=\"18\" height=\"13\" rx=\"2\"/><path d=\"M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18\"/>","servidor":"<circle cx=\"12\" cy=\"8\" r=\"4\"/><path d=\"M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1\"/>","ferias":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M16 2v4M8 2v4M3 10h18\"/>","pasta":"<path d=\"M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z\"/>","api":"<path d=\"m16 18 6-6-6-6M8 6l-6 6 6 6\"/>","sair":"<path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9\"/>","mais":"<path d=\"M12 5v14M5 12h14\"/>","editar":"<path d=\"M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z\"/>","lixeira":"<path d=\"M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6\"/>","busca":"<circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"m21 21-4.3-4.3\"/>","ok":"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"m8 12 3 3 5-6\"/>","alerta":"<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z\"/><path d=\"M12 9v4M12 17h.01\"/>","cadeado":"<rect x=\"4\" y=\"11\" width=\"16\" height=\"10\" rx=\"2\"/><path d=\"M8 11V7a4 4 0 0 1 8 0v4\"/>","email":"<rect x=\"2\" y=\"4\" width=\"20\" height=\"16\" rx=\"2\"/><path d=\"m22 6-10 7L2 6\"/>","relogio":"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/>","seta":"<path d=\"m9 18 6-6-6-6\"/>","voltar":"<path d=\"m15 18-6-6 6-6\"/>","liga":"<path d=\"M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10\"/>"};
+const ICONES = {"ia":"<path d=\"m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z\"/><path d=\"M19 15v4M17 17h4M5 3v3M3.5 4.5h3\"/>","calendario":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M16 2v4M8 2v4M3 10h18M8 14h2M14 14h2M8 18h2\"/>","demanda":"<path d=\"M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2\"/><rect x=\"9\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"M9 12h6M9 16h4\"/>","processo":"<path d=\"M12 3v18M5 7h14M5 7l-3 7a4 4 0 0 0 6 0Zm14 0-3 7a4 4 0 0 0 6 0ZM8 21h8\"/>","contrato":"<path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z\"/><path d=\"M14 2v6h6M8 15c1.5-2 3-2 4 0s2.5 2 4 0\"/>","fornecedor":"<path d=\"M3 21h18M4 21V10l8-6 8 6v11M9 21v-6h6v6\"/>","pncp":"<path d=\"M17.5 19a4.5 4.5 0 1 0-1.4-8.8A6 6 0 0 0 4.3 12 3.5 3.5 0 0 0 6.5 19Z\"/><path d=\"m9 14 3-3 3 3M12 11v7\"/>","cifrao":"<path d=\"M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6\"/>","engrenagem":"<circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z\"/>","privacidade":"<rect x=\"3\" y=\"11\" width=\"18\" height=\"11\" rx=\"2\"/><path d=\"M7 11V7a5 5 0 0 1 10 0v4M12 15v3\"/>","enviar":"<path d=\"m22 2-7 20-4-9-9-4Z\"/><path d=\"M22 2 11 13\"/>","olho":"<path d=\"M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>","balanca":"<path d=\"M12 3v18M5 7h14M5 7l-3 7a4 4 0 0 0 6 0Zm14 0-3 7a4 4 0 0 0 6 0ZM8 21h8\"/>","painel":"<rect x=\"3\" y=\"3\" width=\"7\" height=\"9\" rx=\"1.5\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"5\" rx=\"1.5\"/><rect x=\"14\" y=\"12\" width=\"7\" height=\"9\" rx=\"1.5\"/><rect x=\"3\" y=\"16\" width=\"7\" height=\"5\" rx=\"1.5\"/>","predio":"<path d=\"M3 21h18M5 21V7l7-4 7 4v14M9 9h1M14 9h1M9 13h1M14 13h1M9 17h1M14 17h1\"/>","organograma":"<rect x=\"9\" y=\"3\" width=\"6\" height=\"5\" rx=\"1\"/><rect x=\"3\" y=\"16\" width=\"6\" height=\"5\" rx=\"1\"/><rect x=\"15\" y=\"16\" width=\"6\" height=\"5\" rx=\"1\"/><path d=\"M12 8v4M6 16v-2h12v2\"/>","usuarios":"<circle cx=\"9\" cy=\"8\" r=\"4\"/><path d=\"M2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1M16 4a4 4 0 0 1 0 8M22 21v-1a6 6 0 0 0-4-5.6\"/>","escudo":"<path d=\"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z\"/><path d=\"m9 12 2 2 4-4\"/>","auditoria":"<path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z\"/><path d=\"M14 2v6h6M9 13h6M9 17h4\"/>","planilha":"<path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z\"/><path d=\"M14 2v6h6M8 13h8M8 17h8M12 11v8\"/>","download":"<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3\"/>","cargos":"<rect x=\"3\" y=\"7\" width=\"18\" height=\"13\" rx=\"2\"/><path d=\"M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18\"/>","servidor":"<circle cx=\"12\" cy=\"8\" r=\"4\"/><path d=\"M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1\"/>","ferias":"<rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M16 2v4M8 2v4M3 10h18\"/>","pasta":"<path d=\"M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z\"/>","api":"<path d=\"m16 18 6-6-6-6M8 6l-6 6 6 6\"/>","sair":"<path d=\"M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9\"/>","mais":"<path d=\"M12 5v14M5 12h14\"/>","editar":"<path d=\"M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z\"/>","lixeira":"<path d=\"M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6\"/>","busca":"<circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"m21 21-4.3-4.3\"/>","ok":"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"m8 12 3 3 5-6\"/>","alerta":"<path d=\"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z\"/><path d=\"M12 9v4M12 17h.01\"/>","cadeado":"<rect x=\"4\" y=\"11\" width=\"16\" height=\"10\" rx=\"2\"/><path d=\"M8 11V7a4 4 0 0 1 8 0v4\"/>","email":"<rect x=\"2\" y=\"4\" width=\"20\" height=\"16\" rx=\"2\"/><path d=\"m22 6-10 7L2 6\"/>","relogio":"<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/>","seta":"<path d=\"m9 18 6-6-6-6\"/>","voltar":"<path d=\"m15 18-6-6 6-6\"/>","liga":"<path d=\"M18.36 6.64a9 9 0 1 1-12.73 0M12 2v10\"/>"};
 Object.assign(ICONES, {
     fechar: '<path d="M18 6 6 18M6 6l12 12"/>',
     reiniciar: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
@@ -529,7 +529,7 @@ const DIREITOS = { confirmacao: 'Confirmação de que há tratamento', acesso: '
 let S;
 function salvar() { try { localStorage.setItem(CHAVE, JSON.stringify(S)); } catch (e) { /* navegação privada: segue só em memória */ } }
 function carregar() {
-    try { const t = localStorage.getItem(CHAVE); if (t) { S = JSON.parse(t); if (S && S.versao === 2) return; } } catch (e) { /* ignora */ }
+    try { const t = localStorage.getItem(CHAVE); if (t) { S = JSON.parse(t); if (S && S.versao === 3) return; } } catch (e) { /* ignora */ }
     S = semente(); salvar();
 }
 const usuario = () => S.usuarios.find(u => u.id === S.sessao) || null;
@@ -583,8 +583,14 @@ function pesquisa(item, ref = hoje()) {
     const forn = Object.keys(cand).filter(i => item.cotacoes[i].fonte === 'fornecedor');
     if (forn.length && forn.length < 3 && forn.length === vals.length) alertas.push('Pesquisa direta com fornecedores exige no mínimo 3 orçamentos (art. 23, § 1º, IV).');
     const metodo = item.metodo || 'mediana';
-    const valor = !vals.length ? 0 : metodo === 'media' ? vals.reduce((s, x) => s + x, 0) / vals.length : metodo === 'menor' ? Math.min(...vals) : mediana(vals);
-    return { valor: Math.round(valor * 100) / 100, validas: Object.keys(cand).map(Number), descartadas, alertas, cv: cv(vals), metodo };
+    // Peso da média ponderada: quantidade da contratação de origem (sem ela, peso 1).
+    const pesos = Object.keys(cand).map(i => Number(item.cotacoes[i].qtd) > 0 ? Number(item.cotacoes[i].qtd) : 1);
+    const somaPesos = pesos.reduce((s, x) => s + x, 0);
+    const est = vals.length ? { minimo: Math.min(...vals), media: vals.reduce((s, x) => s + x, 0) / vals.length, mediana: mediana(vals), ponderada: vals.reduce((s, v, k) => s + v * pesos[k], 0) / somaPesos } : { minimo: 0, media: 0, mediana: 0, ponderada: 0 };
+    const cvv = cv(vals), discrepante = vals.length >= 2 && cvv > 25;
+    if (discrepante) alertas.push(`Preços discrepantes: coeficiente de variação de ${pct(cvv)}, acima de 25%. Confira se os itens cotados são equivalentes e justifique o preço escolhido (art. 23).`);
+    const valor = !vals.length ? 0 : metodo === 'media' ? est.media : metodo === 'ponderada' ? est.ponderada : metodo === 'menor' ? est.minimo : est.mediana;
+    return { valor: Math.round(valor * 100) / 100, validas: Object.keys(cand).map(Number), descartadas, alertas, cv: cvv, metodo, est, discrepante };
 }
 const valorItem = it => it.qtd * pesquisa(it).valor;
 const valorProcesso = p => p.itens.reduce((s, it) => s + valorItem(it), 0);
@@ -756,7 +762,7 @@ function processarFila() {
 /* ---------------- dados fictícios iniciais ---------------- */
 function semente() {
     const H = hoje(), ano = Number(H.slice(0, 4));
-    S = { versao: 2, sessao: null, auditoria: [], tentativasLgpd: [] };
+    S = { versao: 3, sessao: null, auditoria: [], tentativasLgpd: [] };
     S.orgao = { nome: 'Prefeitura Municipal de Vale Verde (fictícia)', sigla: 'PMVV', cnpj: '99.000.111/0001-65', dobro: false, ambiente: 'homologacao' };
     S.limites = {
         2025: { eng: 125451.15, outros: 62725.59, base: 'Decreto nº 12.343/2024', conferido: true },
@@ -830,6 +836,15 @@ function semente() {
                 { id: 'it2', descricao: 'Mouse óptico USB', qtd: 40, unidade: 'unidade', metodo: 'mediana', cotacoes: [cot('painel_oficial', 'Painel de Preços', 20, 42.9), cot('fornecedor', 'Papelaria Horizonte Ltda (fictícia)', 8, 48.2), cot('fornecedor', 'Distribuidora Norte Escolar Ltda (fictícia)', 10, 51.3)] },
             ],
             eventos: [{ em: somaDias(-50, H), por: 'u4', de: null, para: 'planejamento', obs: 'Processo aberto a partir do DFD 001.' }] },
+        { id: 'p5', numero: `015/${ano}`, ano, objeto: 'Fornecimento de material de expediente para as secretarias municipais', modalidade: 6, amparo: 1, criterio: 1, categoria: 'material', natureza: '3.3.90.30', situacao: 'planejamento', criado: somaDias(-6, H), unidadePncp: '000001',
+            docs: { dfd: concl({ necessidade: 'Reposição do material de expediente das secretarias para o exercício.', quantidade_justificada: 'Consumo médio dos últimos 12 meses.', previsao_pca: `Item 1 do PCA ${ano}.`, responsavel: 'Renata Costa' }, 5, 'u8') },
+            itens: [
+                { id: 'it51', descricao: 'Papel A4 75 g/m², branco, pacote com 500 folhas', qtd: 1200, unidade: 'resma', metodo: 'mediana', cotacoes: [] },
+                { id: 'it52', descricao: 'Caneta esferográfica azul, ponta média 1,0 mm', qtd: 3000, unidade: 'unidade', metodo: 'mediana', cotacoes: [] },
+                { id: 'it53', descricao: 'Grampeador de mesa para 25 folhas, grampo 26/6', qtd: 150, unidade: 'unidade', metodo: 'mediana', cotacoes: [] },
+                { id: 'it54', descricao: 'Clipe niquelado 2/0, caixa com 100 unidades', qtd: 400, unidade: 'caixa', metodo: 'mediana', cotacoes: [] },
+            ],
+            eventos: [{ em: somaDias(-6, H), por: 'u4', de: null, para: 'planejamento', obs: 'Processo aberto a partir do DFD 004.' }] },
         { id: 'p2', numero: `009/${ano}`, ano, objeto: 'Manutenção preventiva e corretiva de ar-condicionado dos prédios administrativos', modalidade: 8, amparo: 19, criterio: 1, categoria: 'servico', natureza: '3.3.90.39', demandaId: 'd2', fornecedorId: 'f3', situacao: 'contratado', criado: somaDias(-125, H), pncp: `${soDigitos(S.orgao.cnpj)}-1-000009/${ano}`, unidadePncp: '000001', docs: docsDireta,
             itens: [{ id: 'it3', descricao: 'Manutenção mensal de 54 aparelhos (12 meses)', qtd: 12, unidade: 'mês', metodo: 'menor', cotacoes: [cot('fornecedor', 'Tecnologia Aurora S.A. (fictícia)', 122, 4050), cot('fornecedor', 'Climatiza Vale (fictícia)', 122, 4380), cot('fornecedor', 'Frio Norte (fictícia)', 121, 4420)] }],
             eventos: [['planejamento', null, 125, 'u4'], ['analise_juridica', 'planejamento', 115, 'u3'], ['aguardando_autorizacao', 'analise_juridica', 112, 'u5'], ['publicado', 'aguardando_autorizacao', 110, 'u2'], ['homologado', 'publicado', 104, 'u2'], ['contratado', 'homologado', 100, 'u6']].map(([para, de, d, por]) => ({ em: somaDias(-d, H), por, de, para, obs: '' })) },
@@ -1111,16 +1126,111 @@ function abaInstrucao(p) {
 }
 function abaItens(p) {
     const edita = pode('processos.gerenciar') && p.situacao === 'planejamento';
-    const itens = p.itens.map(it => {
+    const lote = LOTE_IA && LOTE_IA.p === p.id ? LOTE_IA : null;
+    const EST = [['minimo', 'Mínimo'], ['media', 'Média'], ['mediana', 'Mediana'], ['ponderada', 'Média ponderada']];
+    const METODOS = { mediana: 'Mediana', media: 'Média', ponderada: 'Média ponderada', menor: 'Menor preço' };
+    const situacaoIa = it => ({ na_fila: badge('Na fila da IA', 'b-info'), cotado: badge('Cotado pela IA', 'b-ok'), sem_resultado: badge('IA sem resultado', 'b-mute') }[it.iaSituacao] || '');
+    const resumo = p.itens.length ? `<div class="tbl-wrap" style="margin-top:14px"><table class="tbl"><thead><tr><th>Item</th><th>Descrição</th><th class="num">Qtd.</th>${EST.map(([, r]) => `<th class="num">${r === 'Média ponderada' ? 'Média pond.' : r}</th>`).join('')}<th>Situação</th></tr></thead><tbody>${p.itens.map((it, n) => { const r = pesquisa(it); return `<tr><td><button type="button" class="btn btn-g btn-sm" data-acao="rolar-item" data-alvo="item-${it.id}" aria-label="Ir ao item ${n + 1}">${n + 1}</button></td><td>${esc(it.descricao)}</td><td class="num">${num(it.qtd, 0)} ${esc(it.unidade)}</td>${EST.map(([k]) => `<td class="num valor">${reais(r.est[k])}</td>`).join('')}<td>${r.discrepante ? `<span class="b b-warn" title="Coeficiente de variação ${pct(r.cv)}">${ico('alerta', 14)} Discrepante</span> ` : ''}${situacaoIa(it)}${!r.validas.length && !it.iaSituacao ? badge('Sem preço', 'b-mute') : ''}</td></tr>`; }).join('')}</tbody></table></div>` : '';
+    const andamento = lote ? `<div style="margin-top:14px"><div class="small" style="display:flex;justify-content:space-between;gap:8px;margin-bottom:6px"><span>${ico('relogio', 16)} Cotando com IA na fila de processamento. Você recebe um e-mail quando terminar e pode sair desta tela.</span><b>${lote.feitos} de ${lote.total}</b></div>${barra(lote.total ? lote.feitos / lote.total * 100 : 0, 'Andamento da cotação por IA')}</div>` : '';
+    const topo = `<section class="card"><div class="row"><div style="min-width:0"><h2 style="display:flex;align-items:center;gap:8px">${ico('ia')}Pesquisa de preços</h2><p class="hint">Preços já praticados em compras públicas do último ano, no Compras.gov.br e no PNCP, como contratações similares ${lei('art. 23, § 1º, II')}. A NexMind IA confere se o objeto é equivalente; o cálculo segue a regra do sistema.</p></div><div class="btns">
+        ${edita && p.itens.length ? `<button class="btn btn-p" data-acao="cotar-ia" data-p="${p.id}" ${lote ? 'disabled' : ''}>${ico('ia', 16)}Cotar com IA</button>` : ''}
+        ${edita ? `<button class="btn btn-s" data-acao="importar-itens" data-p="${p.id}">${ico('planilha', 16)}Importar planilha</button>` : ''}
+        ${p.itens.length ? `<button class="btn btn-s" data-acao="mapa-precos" data-p="${p.id}">${ico('download', 16)}Mapa de preços (PDF)</button>` : ''}
+        </div></div>${andamento}${resumo}</section>`;
+    const itens = p.itens.map((it, n) => {
         const r = pesquisa(it);
-        const linhas = it.cotacoes.map((c, i) => { const valida = r.validas.includes(i); return `<tr class="${valida ? '' : 'riscada'}"><td>${esc(FONTES[c.fonte].rot)} <span class="lei">art. 23, § 1º, ${FONTES[c.fonte].inc}</span><div class="small muted">${esc(c.origem)}</div></td><td>${dataBR(c.data)}</td><td class="num valor">${reais(c.valor)}</td><td>${valida ? badge('Válida', 'b-ok') : `<span class="b b-err">Descartada</span><div class="small muted" style="margin-top:4px;max-width:280px">${esc(r.descartadas[i])}</div>`}</td>${edita ? `<td class="acoes"><button class="btn btn-g btn-sm btn-icone" data-acao="cotacao-editar" data-p="${p.id}" data-it="${it.id}" data-i="${i}" aria-label="Editar cotação" title="Editar cotação">${ico('editar', 16)}</button><button class="btn btn-g btn-sm btn-icone" data-acao="cotacao-remover" data-p="${p.id}" data-it="${it.id}" data-i="${i}" aria-label="Remover cotação" title="Remover cotação">${ico('lixeira', 16)}</button></td>` : ''}</tr>`; }).join('');
-        return `<section class="card"><div class="row"><div><h2>${esc(it.descricao)}</h2><p class="hint">${num(it.qtd, 0)} ${esc(it.unidade)}</p></div><div class="btns">${edita ? `<label class="small muted" for="m-${it.id}">Método</label><select class="input input-sm" id="m-${it.id}" data-metodo data-p="${p.id}" data-it="${it.id}">${Object.entries({ mediana: 'Mediana', media: 'Média', menor: 'Menor preço' }).map(([k, v]) => `<option value="${k}" ${k === r.metodo ? 'selected' : ''}>${v}</option>`).join('')}</select><button class="btn btn-s btn-sm" data-acao="cotacao-nova" data-p="${p.id}" data-it="${it.id}">${ico('mais', 16)}Cotação</button><button class="btn btn-g btn-sm btn-icone" data-acao="item-editar" data-p="${p.id}" data-it="${it.id}" aria-label="Editar item" title="Editar item">${ico('editar', 16)}</button><button class="btn btn-g btn-sm btn-icone" data-acao="item-remover" data-p="${p.id}" data-it="${it.id}" aria-label="Excluir item" title="Excluir item">${ico('lixeira', 16)}</button>` : ''}</div></div>
-        <div class="tbl-wrap" style="margin-top:12px"><table class="tbl"><thead><tr><th>Fonte</th><th>Data</th><th class="num">Valor unitário</th><th>Resultado</th>${edita ? '<th></th>' : ''}</tr></thead><tbody>${linhas || `<tr><td colspan="5">${vazio('Sem cotações', 'Inclua ao menos 3 preços.')}</td></tr>`}</tbody></table></div>
-        <div class="resumo-preco"><div><span class="muted small">Valor unitário estimado (${{ mediana: 'mediana', media: 'média', menor: 'menor preço' }[r.metodo]})</span><b class="valor">${reais(r.valor)}</b></div><div><span class="muted small">Total do item</span><b class="valor">${reais(r.valor * it.qtd)}</b></div><div><span class="muted small">Preços válidos</span><b>${r.validas.length}</b></div><div><span class="muted small">Coeficiente de variação</span><b>${pct(r.cv)}</b></div></div>
-        ${r.alertas.map(a => `<div class="flash flash-aviso" style="margin-top:12px">${ico('alerta')}<span>${esc(a)}</span></div>`).join('')}</section>`;
+        const linhas = it.cotacoes.map((c, i) => { const valida = r.validas.includes(i); return `<tr class="${valida ? '' : 'riscada'}"><td>${c.ia ? `<span class="b b-info" title="Cotação trazida pela NexMind IA">${ico('ia', 12)} IA</span> ` : ''}${esc(FONTES[c.fonte].rot)} <span class="lei">art. 23, § 1º, ${FONTES[c.fonte].inc}</span><div class="small muted">${esc(c.origem)}</div>${c.descFonte ? `<div class="small muted">${esc(c.descFonte)} · ${esc(c.unFonte)}${c.qtd ? ' · qtd. ' + num(c.qtd, 0) : ''}</div>` : ''}${c.analise ? `<div class="small" style="color:var(--color-azul)">${esc(c.analise)}</div>` : ''}</td><td>${dataBR(c.data)}</td><td class="num valor">${reais(c.valor)}</td><td>${valida ? badge('Válida', 'b-ok') : `<span class="b b-err">Descartada</span><div class="small muted" style="margin-top:4px;max-width:280px">${esc(r.descartadas[i])}</div>`}</td>${edita ? `<td class="acoes"><button class="btn btn-g btn-sm btn-icone" data-acao="cotacao-editar" data-p="${p.id}" data-it="${it.id}" data-i="${i}" aria-label="Editar cotação" title="Editar cotação">${ico('editar', 16)}</button><button class="btn btn-g btn-sm btn-icone" data-acao="cotacao-remover" data-p="${p.id}" data-it="${it.id}" data-i="${i}" aria-label="Remover cotação" title="Remover cotação">${ico('lixeira', 16)}</button></td>` : ''}</tr>`; }).join('');
+        const estat = `<div class="resumo-preco">${EST.map(([k, rot]) => `<div ${r.metodo === k || (r.metodo === 'menor' && k === 'minimo') ? 'style="outline:2px solid var(--color-azul);outline-offset:-2px;border-radius:10px;padding:6px 8px"' : ''}><span class="muted small">${rot}</span><b class="valor">${reais(r.est[k])}</b></div>`).join('')}<div><span class="muted small">Total do item (${METODOS[r.metodo].toLowerCase()})</span><b class="valor">${reais(r.valor * it.qtd)}</b></div><div><span class="muted small">Preços válidos · CV</span><b>${r.validas.length} · ${pct(r.cv)}</b></div></div>`;
+        return `<section class="card" id="item-${it.id}"><div class="row"><div><h2>Item ${n + 1} · ${esc(it.descricao)}</h2><p class="hint">${num(it.qtd, 0)} ${esc(it.unidade)}${it.catmat ? ` · CATMAT ${esc(it.catmat)} <span class="small muted">(escolhido pela IA)</span>` : ''}</p></div><div class="btns">${edita ? `<label class="small muted" for="m-${it.id}">Método</label><select class="input input-sm" id="m-${it.id}" data-metodo data-p="${p.id}" data-it="${it.id}">${Object.entries(METODOS).map(([k, v]) => `<option value="${k}" ${k === r.metodo ? 'selected' : ''}>${v}</option>`).join('')}</select><button class="btn btn-s btn-sm" data-acao="cotacao-nova" data-p="${p.id}" data-it="${it.id}">${ico('mais', 16)}Cotação</button><button class="btn btn-g btn-sm btn-icone" data-acao="item-editar" data-p="${p.id}" data-it="${it.id}" aria-label="Editar item" title="Editar item">${ico('editar', 16)}</button><button class="btn btn-g btn-sm btn-icone" data-acao="item-remover" data-p="${p.id}" data-it="${it.id}" aria-label="Excluir item" title="Excluir item">${ico('lixeira', 16)}</button>` : ''}</div></div>
+        <div class="tbl-wrap" style="margin-top:12px"><table class="tbl"><thead><tr><th>Fonte</th><th>Data</th><th class="num">Valor unitário</th><th>Resultado</th>${edita ? '<th></th>' : ''}</tr></thead><tbody>${linhas || `<tr><td colspan="5">${vazio('Sem cotações', 'Use "Cotar com IA" ou inclua ao menos 3 preços.')}</td></tr>`}</tbody></table></div>
+        ${r.validas.length ? estat : ''}
+        ${r.alertas.map(a => `<div class="flash flash-aviso" style="margin-top:12px">${ico('alerta')}<span>${esc(a)}</span></div>`).join('')}
+        ${it.iaSituacao === 'sem_resultado' ? `<div class="flash flash-aviso" style="margin-top:12px">${ico('ia')}<span>NexMind IA: ${esc(it.iaMsg || 'nenhum preço compatível encontrado.')}</span></div>` : ''}
+        ${it.justificativa ? `<details style="margin-top:12px"><summary class="small"><b>Justificativa da pesquisa</b> <span class="muted">(proposta da NexMind IA: revise antes de juntar aos autos)</span></summary><p class="small" style="line-height:1.6">${esc(it.justificativa)}</p></details>` : ''}</section>`;
     }).join('');
-    return `<div class="aviso-lei">Regras aplicadas: cotação de fornecedor vale 6 meses e contratação similar vale 1 ano; preços mais de 50% acima ou abaixo da mediana são descartados; mínimo de 3 preços ${lei('art. 23')}</div>` +
-        (edita ? `<div class="btns"><button class="btn btn-p" data-acao="item-novo" data-p="${p.id}">${ico('mais', 16)}Novo item</button></div>` : '') + (itens || `<section class="card">${vazio('Nenhum item', 'Cadastre os itens para fazer a pesquisa de preços.')}</section>`);
+    return `<div class="aviso-lei">Regras aplicadas: cotação de fornecedor vale 6 meses e contratação similar vale 1 ano; preços mais de 50% acima ou abaixo da mediana são descartados; mínimo de 3 preços; alerta quando o coeficiente de variação passa de 25% ${lei('art. 23')}</div>` + topo +
+        (edita ? `<div class="btns"><button class="btn btn-p" data-acao="item-novo" data-p="${p.id}">${ico('mais', 16)}Novo item</button></div>` : '') + (itens || `<section class="card">${vazio('Nenhum item', 'Cadastre os itens ou importe a planilha para fazer a pesquisa de preços.')}</section>`);
+}
+
+/* ---- cotação automática por IA (simulada; no sistema, busca no Compras.gov.br e no PNCP e chama a NexMind IA) ---- */
+let LOTE_IA = null;
+const BANCO_IA = [
+    { chave: /papel/i, catmat: '461543', base: 24.9, un: 'resma', desc: 'PAPEL A4 75 G/M2 BRANCO, PACOTE COM 500 FOLHAS', fora: ['PAPEL A4 75 G/M2, CAIXA COM 10 RESMAS', 'caixa', 238] },
+    { chave: /caneta/i, catmat: '279314', base: 1.38, un: 'unidade', desc: 'CANETA ESFEROGRÁFICA AZUL, PONTA MÉDIA 1,0 MM', fora: ['CANETA ESFEROGRÁFICA AZUL, CAIXA COM 50 UNIDADES', 'caixa', 61.5] },
+    { chave: /grampeador/i, catmat: '233890', base: 27.5, un: 'unidade', desc: 'GRAMPEADOR DE MESA 25 FOLHAS, GRAMPO 26/6', fora: ['GRAMPEADOR INDUSTRIAL PARA 100 FOLHAS', 'unidade', 189], fatores: [1, 0.68, 1.38, 0.82, 1.21, 0.95] },
+    { chave: /clipe/i, catmat: '278858', base: 6.9, un: 'caixa', desc: 'CLIPE NIQUELADO 2/0, CAIXA COM 100 UNIDADES', fora: ['CLIPE NIQUELADO 2/0, CAIXA COM 500 UNIDADES', 'caixa', 29.9] },
+    { chave: /notebook/i, catmat: '472013', base: 4210, un: 'unidade', desc: 'NOTEBOOK 14", 16 GB RAM, SSD 512 GB, GARANTIA 36 MESES', fora: ['NOTEBOOK 14", 8 GB RAM, SSD 256 GB', 'unidade', 2890] },
+    { chave: /mouse/i, catmat: '461890', base: 44.9, un: 'unidade', desc: 'MOUSE ÓPTICO USB, 1.000 DPI', fora: ['MOUSE ÓPTICO USB, KIT COM 10', 'kit', 389] },
+];
+const ORGAOS_IA = ['Prefeitura de Vale Verde (fictícia)', 'Município de Serra Azul (fictício)', 'Câmara de Rio Claro do Norte (fictícia)', 'Consórcio Intermunicipal Vale do Sol (fictício)', 'Prefeitura de Lago Bonito (fictícia)', 'Secretaria de Saúde de Monte Alto (fictícia)'];
+/** Preços que a busca devolveria: 6 do mesmo objeto e 1 de unidade diferente, que a IA afasta. */
+function precosPublicosIa(it) {
+    const b = BANCO_IA.find(x => x.chave.test(it.descricao));
+    if (!b) return null;
+    const fatores = b.fatores || [1, 0.95, 1.06, 0.98, 1.11, 0.92], dias = [21, 46, 73, 118, 164, 230];
+    const lista = fatores.map((f, k) => ({ valor: Math.round(b.base * f * 100) / 100, dias: dias[k], orgao: ORGAOS_IA[k], fonte: k % 2 ? 'Compras.gov.br' : 'PNCP', qtd: [500, 1200, 300, 2000, 800, 150][k], desc: b.desc, un: b.un, ok: true }));
+    lista.splice(1, 0, { valor: b.fora[2], dias: 12, orgao: 'Universidade Estadual de Vale Verde (fictícia)', fonte: 'PNCP', qtd: 40, desc: b.fora[0], un: b.fora[1], ok: false });
+    return { b, lista };
+}
+function cotarItemIa(it, n) {
+    const achados = precosPublicosIa(it);
+    it.cotacoes = it.cotacoes.filter(c => !c.ia); // troca só as cotações anteriores da IA
+    if (!achados) { it.iaSituacao = 'sem_resultado'; it.iaMsg = 'nenhum preço do último ano com objeto equivalente. Lance as cotações à mão ou detalhe a descrição.'; return false; }
+    const { b, lista } = achados;
+    it.catmat = b.catmat;
+    const escolhidos = lista.filter(x => x.ok).sort((x, y) => x.dias - y.dias).slice(0, n);
+    escolhidos.forEach(x => it.cotacoes.push({ id: uid(), fonte: 'contratacoes_similares', origem: `${x.fonte} · ${x.orgao}`, data: somaDias(-x.dias, hoje()), valor: x.valor, ia: true, qtd: x.qtd, descFonte: x.desc, unFonte: x.un, analise: `Mesmo objeto e mesma unidade de fornecimento (${x.un}).` }));
+    it.iaSituacao = 'cotado';
+    it.justificativa = `Foram considerados ${escolhidos.length} preços de contratações similares homologadas no último ano, publicadas no PNCP e no Compras.gov.br, de objeto equivalente ao item (${b.desc.toLowerCase()}) e na mesma unidade de fornecimento (${b.un}). Foi afastado o preço de "${b.fora[0].toLowerCase()}", por se referir a unidade de fornecimento ou especificação diferente. A pesquisa segue o art. 23, § 1º, II, da Lei nº 14.133/2021 e, quando adotada pelo ente, a IN SEGES/ME nº 65/2021.`;
+    return true;
+}
+function iniciarCotacaoIa(p, ids, n) {
+    p.itens.forEach(it => { if (ids.includes(it.id)) it.iaSituacao = 'na_fila'; });
+    LOTE_IA = { p: p.id, fila: ids.slice(), total: ids.length, feitos: 0, cotados: 0, n };
+    auditar('Cotação por IA pedida', p.numero, `${ids.length} item(ns), ${n} resultados por item`);
+    atualizar();
+    const passo = () => {
+        const lote = LOTE_IA; if (!lote) return;
+        const id = lote.fila.shift(), it = processo(lote.p).itens.find(x => x.id === id);
+        if (it && cotarItemIa(it, lote.n)) lote.cotados++;
+        lote.feitos++;
+        if (!lote.fila.length) {
+            LOTE_IA = null;
+            auditar('Cotação por IA concluída', processo(lote.p).numero, `${lote.cotados} de ${lote.total} item(ns) com preços`);
+            atualizar();
+            toast(`Cotação por IA concluída: ${lote.cotados} de ${lote.total} item(ns) com preços. Aviso enviado por e-mail.`);
+            return;
+        }
+        atualizar(); setTimeout(passo, 1100);
+    };
+    setTimeout(passo, 1100);
+}
+function mapaPrecosIa(p, op) {
+    const EST = [['minimo', 'Mínimo'], ['media', 'Média'], ['mediana', 'Mediana'], ['ponderada', 'Média ponderada']].filter(([k]) => op.colunas.includes(k));
+    const METODOS = { mediana: 'Mediana', media: 'Média', ponderada: 'Média ponderada', menor: 'Menor preço' };
+    const total = p.itens.reduce((s, it) => s + valorItem(it), 0);
+    const detalhe = p.itens.map((it, n) => { const r = pesquisa(it); return `<h2>Item ${n + 1} · ${esc(it.descricao)}</h2>${r.alertas.map(a => `<p class="al">${esc(a)}</p>`).join('')}${op.cotacoes ? `<table><tr><th>Fonte</th><th>Referência</th><th>Data</th><th>Qtd.</th><th>Valor unitário</th><th>Situação</th></tr>${it.cotacoes.map((c, i) => r.validas.includes(i) || op.descartadas ? `<tr class="${r.validas.includes(i) ? '' : 'fora'}"><td>${esc(FONTES[c.fonte].rot)}</td><td>${esc(c.origem)}${c.descFonte ? `<br><span class="m">${esc(c.descFonte)} · ${esc(c.unFonte)}</span>` : ''}${c.ia ? `<br><span class="ia">Trazida pela NexMind IA: ${esc(c.analise || '')}</span>` : ''}</td><td>${dataBR(c.data)}</td><td class="n">${c.qtd ? num(c.qtd, 0) : ''}</td><td class="n">${reais(c.valor)}</td><td>${r.validas.includes(i) ? 'Válida' : 'Fora do cálculo: ' + esc(r.descartadas[i])}</td></tr>` : '').join('') || '<tr><td colspan="6">Sem cotações.</td></tr>'}</table>` : ''}${op.justificativa && it.justificativa ? `<p><b>Justificativa</b></p><div class="just">${esc(it.justificativa)}</div>` : ''}`; }).join('');
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Mapa de preços · ${esc(p.numero)}</title><style>
+      @page { size: A4 landscape; margin: 1.6cm; } body { font: 10pt/1.45 Arial, sans-serif; color: #1b2a35; max-width: 1050px; margin: 24px auto; padding: 0 20px; }
+      .cab { border-bottom: 2px solid #1E5470; padding-bottom: 8px; margin-bottom: 14px; } .cab b { color: #1E5470; font-size: 12pt; } h1 { color: #1E5470; font-size: 17pt; margin: 0 0 4px; } h2 { color: #1E5470; font-size: 12pt; margin: 18px 0 4px; }
+      .m { color: #4a5b68; font-size: 8.5pt; } table { border-collapse: collapse; width: 100%; font-size: 9pt; margin-top: 6px; } td, th { border: 1px solid #c9d6de; padding: 4px 6px; text-align: left; vertical-align: top; } th { background: #D1ECFF; }
+      .n { text-align: right; white-space: nowrap; } .fora { color: #6b7c87; } .al { color: #9A3412; margin: 4px 0; } .ia { color: #34729C; font-size: 8pt; } .just { background: #F4FAFD; border-left: 3px solid #34729C; padding: 6px 8px; }
+      .imp { position: fixed; top: 10px; right: 10px; } @media print { .imp { display: none; } }
+    </style></head><body><button class="imp" onclick="print()">Imprimir ou salvar em PDF</button><div class="cab"><b>${esc(S.orgao.nome)}</b><br>CNPJ ${esc(S.orgao.cnpj)}</div><h1>Mapa de preços</h1><p class="m">Processo ${esc(p.numero)} · ${esc(p.objeto)}<br>Pesquisa de preços conforme o art. 23 da Lei nº 14.133/2021. Gerado em ${dataBR(hoje())}.</p>
+      <h2>Resumo por item</h2><table><tr><th>Item</th><th>Descrição</th><th class="n">Qtd.</th>${EST.map(([, r]) => `<th class="n">${r}</th>`).join('')}<th>Método</th><th class="n">Unitário estimado</th><th class="n">Total estimado</th></tr>
+      ${p.itens.map((it, n) => { const r = pesquisa(it); return `<tr><td>${n + 1}</td><td>${esc(it.descricao)}${it.catmat ? `<br><span class="m">CATMAT ${esc(it.catmat)}</span>` : ''}${r.discrepante ? `<br><span class="al">Preços discrepantes (CV ${pct(r.cv)})</span>` : ''}</td><td class="n">${num(it.qtd, 0)} ${esc(it.unidade)}</td>${EST.map(([k]) => `<td class="n">${reais(r.est[k])}</td>`).join('')}<td>${METODOS[r.metodo]}</td><td class="n">${reais(r.valor)}</td><td class="n">${reais(r.valor * it.qtd)}</td></tr>`; }).join('')}
+      <tr><td colspan="${5 + EST.length}"><b>Valor total estimado</b></td><td class="n"><b>${reais(total)}</b></td></tr></table>${op.cotacoes || op.justificativa ? detalhe : ''}
+      <p class="m" style="margin-top:30px">Demonstração com dados fictícios. No sistema instalado, o PDF é gerado no servidor com paginação em cada folha.</p></body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) return toast('O navegador bloqueou a nova janela. Permita pop-ups para ver o mapa de preços.', 'erro');
+    w.document.write(html); w.document.close();
+}
+const ITENS_EXEMPLO_IA = [['Grampo para grampeador 26/6, caixa com 5.000', 200, 'caixa'], ['Papel A4 75 g/m², branco, pacote com 500 folhas', 300, 'resma'], ['Pasta suspensa marmorizada com visor', 500, 'unidade']];
+function importarItensIa(p, linhas) {
+    let n = 0;
+    linhas.forEach(([descricao, qtd, unidade]) => { if (descricao && Number(qtd) > 0) { p.itens.push({ id: uid(), descricao: String(descricao).trim(), qtd: Number(qtd), unidade: String(unidade || 'unidade').trim(), metodo: 'mediana', cotacoes: [] }); n++; } });
+    auditar('Itens importados da planilha', p.numero, `${n} item(ns)`); fecharModal(); atualizar();
+    toast(`${n} item(ns) importado(s). Agora use "Cotar com IA".`);
 }
 function abaTramitacao(p) {
     const ds = destinos(p);
@@ -1320,6 +1430,48 @@ const ACOES = {
         const it = p.itens.splice(i, 1)[0]; auditar('Item excluído', p.numero, it.descricao); atualizar(); toast('Item excluído.');
     },
     'cotacao-nova': d => formCotacao(d),
+    'cotar-ia': d => {
+        const p = processo(d.p); if (!pode('processos.gerenciar')) return naoPode();
+        const semPreco = p.itens.filter(it => !pesquisa(it).validas.length).length;
+        abrirModal(`${ico('ia')} Cotar com IA`, `<form data-form="cotar-ia" data-p="${p.id}" class="form-grid">
+            <p class="small full" style="line-height:1.55;margin:0">A cotação é processada em uma fila e você recebe um e-mail quando terminar. Para cada item, a NexMind IA procura o código CATMAT/CATSER (se faltar), busca os preços praticados no último ano no Compras.gov.br e no PNCP e fica só com os de objeto equivalente. As cotações lançadas à mão são mantidas; as da IA anterior são trocadas.</p>
+            <fieldset class="full" style="border:0;padding:0;margin:0"><legend class="small"><b>Quais itens</b></legend>
+              <label class="small" style="display:block"><input type="radio" name="escopo" value="sem_preco" ${semPreco ? 'checked' : 'disabled'}> Só os itens sem preço (${semPreco})</label>
+              <label class="small" style="display:block"><input type="radio" name="escopo" value="todos" ${semPreco ? '' : 'checked'}> Todos os itens (${p.itens.length})</label></fieldset>
+            ${campo('resultados', 'Quantidade de resultados por item', sel('resultados', { 3: '3 resultados', 5: '5 resultados', 10: '10 resultados' }, '3'), 'Com menos de 3 preços válidos, o sistema alerta e pede justificativa (art. 23, § 1º).', 'full')}
+            <div class="full">${acoesForm('Processar com IA')}</div></form>`);
+    },
+    'importar-itens': d => {
+        const p = processo(d.p); if (!pode('processos.gerenciar')) return naoPode();
+        const modelo = 'data:text/csv;charset=utf-8,' + encodeURIComponent('\ufefftipo;codigo_catmat_catser;descricao;unidade_fornecimento;quantidade\nM;;Papel A4 75 g/m², branco, pacote com 500 folhas (exemplo: apague esta linha);RESMA;200\n');
+        abrirModal('Importar planilha de itens', `<div class="form-grid"><p class="small full" style="line-height:1.55;margin:0">Baixe o modelo, preencha um item por linha e envie. Se qualquer linha estiver errada, nenhum item entra. No sistema, a planilha pode ser .xlsx ou .csv; nesta demonstração, use .csv separado por ponto e vírgula.</p>
+            <div class="full btns"><a class="btn btn-s btn-sm" href="${modelo}" download="modelo-itens-cotacao.csv">${ico('download', 16)}Baixar modelo</a><button type="button" class="btn btn-s btn-sm" data-acao="importar-exemplo" data-p="${p.id}">${ico('planilha', 16)}Usar a planilha de exemplo</button></div>
+            ${campo('planilha', 'Planilha (.csv)', '<input class="input" type="file" id="c-planilha" accept=".csv" data-importar-planilha="' + p.id + '">', '', 'full')}
+            <div class="form-acoes"><button type="button" class="btn btn-s" data-acao="fechar-modal">Fechar</button></div></div>`);
+        $('#c-planilha').addEventListener('change', e => {
+            const arq = e.target.files[0]; if (!arq) return;
+            const leitor = new FileReader();
+            leitor.onload = () => {
+                const linhas = String(leitor.result).replace(/^\ufeff/, '').split(/\r?\n/).filter(l => l.trim()).map(l => l.split(';'));
+                const cab = linhas.shift().map(c => c.trim().toLowerCase());
+                const iD = cab.indexOf('descricao'), iQ = cab.indexOf('quantidade'), iU = cab.indexOf('unidade_fornecimento');
+                if (iD < 0 || iQ < 0) return toast('Use o modelo: faltam as colunas "descricao" e "quantidade".', 'erro');
+                const dados = linhas.map(l => [l[iD], Number(String(l[iQ] || '').replace(/\./g, '').replace(',', '.')), iU >= 0 ? l[iU] : 'unidade']);
+                const ruins = dados.map((x, k) => (!x[0] || !(x[1] > 0)) ? k + 2 : 0).filter(Boolean);
+                if (ruins.length) return toast(`Nenhum item importado. Corrija a(s) linha(s) ${ruins.join(', ')}.`, 'erro');
+                importarItensIa(p, dados);
+            };
+            leitor.readAsText(arq, 'utf-8');
+        });
+    },
+    'rolar-item': d => { const el = document.getElementById(d.alvo); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
+    'importar-exemplo': d => importarItensIa(processo(d.p), ITENS_EXEMPLO_IA),
+    'mapa-precos': d => {
+        const p = processo(d.p);
+        abrirModal('Mapa de preços (PDF)', `<form data-form="mapa-precos" data-p="${p.id}" class="form-grid"><fieldset class="full" style="border:0;padding:0;margin:0"><legend class="small"><b>Colunas</b></legend>${[['minimo', 'Mínimo'], ['media', 'Média'], ['mediana', 'Mediana'], ['ponderada', 'Média ponderada']].map(([k, r]) => `<label class="small" style="display:block"><input type="checkbox" name="col_${k}" value="1" checked> ${r}</label>`).join('')}</fieldset>
+            <fieldset class="full" style="border:0;padding:0;margin:0"><legend class="small"><b>Seções</b></legend><label class="small" style="display:block"><input type="checkbox" name="cotacoes" value="1" checked> Cotações de cada item, com a fonte</label><label class="small" style="display:block"><input type="checkbox" name="descartadas" value="1" checked> Cotações fora do cálculo e o motivo</label><label class="small" style="display:block"><input type="checkbox" name="justificativa" value="1" checked> Justificativa da pesquisa</label></fieldset>
+            <div class="full">${acoesForm('Gerar PDF')}</div></form>`);
+    },
     'cotacao-editar': d => { const c = processo(d.p).itens.find(i => i.id === d.it).cotacoes[Number(d.i)]; if (c) formCotacao(d, c); },
     'cotacao-remover': d => { const it = processo(d.p).itens.find(i => i.id === d.it); const c = it.cotacoes.splice(Number(d.i), 1)[0]; auditar('Cotação removida', it.descricao, `${FONTES[c.fonte].rot} · ${reais(c.valor)}`); atualizar(); },
     transitar: d => {
@@ -1382,6 +1534,17 @@ function abrirContratoDoProcesso(p) {
 
 /* ---------------- formulários ---------------- */
 const FORMS = {
+    'cotar-ia': (f, el) => {
+        const p = processo(el.dataset.p), n = Number(f.resultados) || 3;
+        const ids = p.itens.filter(it => f.escopo === 'todos' || !pesquisa(it).validas.length).map(it => it.id);
+        if (!ids.length) return erroForm(el, ['Todos os itens já têm preço. Escolha "Todos os itens".']);
+        fecharModal(); toast(`Cotação por IA de ${ids.length} item(ns) na fila. Você recebe um e-mail quando terminar.`);
+        iniciarCotacaoIa(p, ids, n);
+    },
+    'mapa-precos': (f, el) => {
+        const colunas = ['minimo', 'media', 'mediana', 'ponderada'].filter(k => f['col_' + k]);
+        fecharModal(); mapaPrecosIa(processo(el.dataset.p), { colunas, cotacoes: !!f.cotacoes, descartadas: !!f.descartadas, justificativa: !!f.justificativa });
+    },
     'pca-item': (f, el) => {
         const v = Number(f.valor); if (!f.descricao.trim() || !(v > 0)) return erroForm(el, ['Preencha a descrição e um valor maior que zero.']);
         const pl = S.pca.find(p => p.ano === Number(el.dataset.ano));
@@ -1892,7 +2055,7 @@ function garantirNovidades() {
     if (S.novidades === 2) return;
     const H = hoje(), ano = Number(H.slice(0, 4));
     S.lotacao = S.lotacao || Object.assign({}, LOTACAO);
-    const origem = { p1: 'SEMED', p2: 'SEMAD', p3: 'SEMAD', p4: 'SEMED' };
+    const origem = { p1: 'SEMED', p2: 'SEMAD', p3: 'SEMAD', p4: 'SEMED', p5: 'SEMAD' };
     S.processos.forEach(p => {
         p.unidadeOrigem = p.unidadeOrigem || origem[p.id] || 'SEMAD';
         p.unidadeAtual = p.unidadeAtual || 'SEMAD';
