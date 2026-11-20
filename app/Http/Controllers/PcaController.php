@@ -6,6 +6,7 @@ use App\Licitacao\Pca\RegrasItemPca;
 use App\Licitacao\Pca\RevisaoPca;
 use App\Licitacao\Regras\VersoesPca;
 use App\Licitacao\RegraViolada;
+use App\Models\EnvioPncp;
 use App\Models\ItemPca;
 use App\Models\PlanoContratacao;
 use App\Models\Unidade;
@@ -48,7 +49,30 @@ class PcaController extends Controller
             'unidades' => Unidade::where('ativo', true)->orderBy('sigla')->get(),
             'editando' => $request->integer('item') ? $itens->firstWhere('id', $request->integer('item')) : null,
             'importacoes' => $plano->importacoes()->with('usuario')->limit(10)->get(),
+            'publicacao' => $this->publicacaoPorUnidade($plano),
         ]);
+    }
+
+    /**
+     * Situação no PNCP de cada unidade que publica parte do plano (art. 12, § 1º).
+     *
+     * @return list<array{unidade: ?Unidade, itens: int, valor: float, numero: ?string, envio: ?EnvioPncp}>
+     */
+    private function publicacaoPorUnidade(PlanoContratacao $plano): array
+    {
+        $grupos = $plano->gruposPncp()['grupos'];
+        $partes = $plano->pcasUnidade()->with(['unidade', 'envios'])->get()->keyBy('unidade_id');
+        $unidades = Unidade::whereIn('id', array_keys($grupos))->get()->keyBy('id');
+        $itens = $plano->itens->keyBy('id');
+        $linhas = [];
+
+        foreach ($grupos as $unidadeId => $ids) {
+            $parte = $partes->get($unidadeId);
+            $linhas[] = ['unidade' => $unidades->get($unidadeId), 'itens' => count($ids), 'valor' => (float) $itens->only($ids)->sum('valor_total_estimado'),
+                'numero' => $parte?->numero_controle_pncp, 'envio' => $parte?->envios->first()];
+        }
+
+        return $linhas;
     }
 
     public function salvarItem(Request $request, PlanoContratacao $plano, ?ItemPca $item = null): RedirectResponse

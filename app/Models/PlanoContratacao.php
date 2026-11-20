@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Licitacao\Regras\UnidadesPncpPca;
 use App\Licitacao\Regras\VersoesPca;
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToOrgao;
@@ -89,6 +90,26 @@ class PlanoContratacao extends Model
 
             return $linha;
         })->values()->all();
+    }
+
+    public function pcasUnidade(): HasMany
+    {
+        return $this->hasMany(PcaUnidade::class);
+    }
+
+    /**
+     * Itens separados pela unidade que publica cada um no PNCP (art. 12, § 1º). A unidade padrão é a primeira
+     * do órgão com código no PNCP.
+     *
+     * @return array{grupos: array<int, list<int>>, sem_unidade: list<int>}
+     */
+    public function gruposPncp(): array
+    {
+        $unidades = Unidade::where('orgao_id', $this->orgao_id)->orderBy('id')->get(['id', 'parent_id', 'codigo_unidade_pncp']);
+        $mapa = $unidades->mapWithKeys(fn (Unidade $u) => [$u->id => ['parent' => $u->parent_id, 'codigo' => $u->codigo_unidade_pncp]])->all();
+        $padrao = $unidades->first(fn (Unidade $u) => trim((string) $u->codigo_unidade_pncp) !== '')?->id;
+
+        return UnidadesPncpPca::agrupar($mapa, $this->itens()->pluck('unidade_id', 'id')->all(), $padrao);
     }
 
     public function valorTotal(): float

@@ -17,9 +17,7 @@
                     </div>
                 </details>
             @endif
-            @if ($itens->isNotEmpty())
-                <a href="{{ route('pca.consolidacao', $plano) }}" class="btn btn-s"><x-icone nome="liga" />Consolidação e orçamento</a>
-            @endif
+            <a href="{{ route('pca.consolidacao', $plano) }}" class="btn btn-s"><x-icone nome="liga" />DFDs, consolidação e orçamento</a>
             @if ($plano->versao_atual > 0 || $plano->emRevisao())
                 <a href="{{ route('pca.versoes', $plano) }}" class="btn btn-s"><x-icone nome="relogio" />Versões e alterações</a>
             @endif
@@ -38,7 +36,7 @@
             @endcan
             @can('pncp.enviar')
                 @if ($plano->situacao === 'aprovado')
-                    <form method="POST" action="{{ route('pncp.pca', $plano) }}">@csrf<button class="btn btn-s" type="submit"><x-icone nome="pncp" />{{ $plano->numero_controle_pncp ? 'Atualizar no PNCP' : 'Publicar no PNCP' }}</button></form>
+                    <form method="POST" action="{{ route('pncp.pca', $plano) }}">@csrf<button class="btn btn-s" type="submit"><x-icone nome="pncp" />{{ collect($publicacao)->contains(fn ($l) => $l['numero']) ? 'Atualizar no PNCP' : 'Publicar no PNCP' }}</button></form>
                 @endif
             @endcan
         </div>
@@ -59,6 +57,36 @@
             </details>
         @endif
     @endcan
+
+    @if ($plano->situacao === 'aprovado' && $publicacao !== [])
+        <section class="card">
+            <h2>Publicação no PNCP por unidade</h2>
+            <p class="hint">O PNCP recebe um plano por unidade compradora. O item vai para a unidade requisitante ou para a superior mais próxima com código no PNCP. Um clique em Publicar envia todas. <span class="lei">art. 12, § 1º, e art. 174</span></p>
+            <div class="tbl-wrap" style="margin-top:10px">
+                <table class="tbl">
+                    <thead><tr><th>Unidade</th><th class="num">Itens</th><th class="num">Valor estimado</th><th>PNCP</th></tr></thead>
+                    <tbody>
+                        @foreach ($publicacao as $l)
+                            <tr>
+                                <td class="sigla">{{ $l['unidade']?->sigla }} <span class="muted small">{{ $l['unidade']?->nome }} · código {{ $l['unidade']?->codigo_unidade_pncp }}</span></td>
+                                <td class="num">{{ $l['itens'] }}</td>
+                                <td class="num valor">{{ reais($l['valor']) }}</td>
+                                <td>
+                                    @if ($l['envio'] && $l['envio']->estado !== 'publicado')
+                                        <span class="b {{ $l['envio']->badge() }}">{{ \App\Models\EnvioPncp::ESTADOS[$l['envio']->estado] }}</span>@if ($l['envio']->erro)<div class="small" style="color:#9A3412">{{ $l['envio']->erro }}</div>@endif
+                                    @elseif ($l['numero'])
+                                        <span class="b b-ok">Publicado</span> <span class="small muted">{{ $l['numero'] }}</span>
+                                    @else
+                                        <span class="b b-warn">Pendente</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    @endif
 
     <div class="kpis">
         <div class="card kpi"><span class="lbl"><span class="chip c-navy"><x-icone nome="cifrao" /></span>Valor total estimado</span><span class="val valor">{{ reais($itens->sum('valor_total_estimado')) }}</span><span class="foot">{{ $itens->count() }} itens</span></div>

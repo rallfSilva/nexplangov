@@ -166,6 +166,7 @@ Route::middleware(['auth', 'ativo'])->group(function () {
             Route::post('/pca', [PcaController::class, 'store'])->name('pca.store');
             Route::post('/pca/{plano}/itens', [PcaController::class, 'salvarItem'])->name('pca.itens.store');
             Route::post('/pca/{plano}/dotacoes', [PcaConsolidacaoController::class, 'salvarDotacao'])->name('pca.dotacoes.store');
+            Route::post('/pca/{plano}/consolidar-dfds', [PcaConsolidacaoController::class, 'consolidarDfds'])->name('pca.dfds.consolidar');
             Route::delete('/pca/{plano}/dotacoes/{dotacao}', [PcaConsolidacaoController::class, 'excluirDotacao'])->name('pca.dotacoes.destroy');
             Route::put('/pca/{plano}/itens/{item}', [PcaController::class, 'salvarItem'])->name('pca.itens.update');
             Route::delete('/pca/{plano}/itens/{item}', [PcaController::class, 'excluirItem'])->name('pca.itens.destroy');
@@ -187,6 +188,9 @@ Route::middleware(['auth', 'ativo'])->group(function () {
         Route::middleware('can:demandas.criar')->group(function () {
             Route::get('/demandas/nova', [DemandaController::class, 'create'])->name('demandas.create');
             Route::post('/demandas', [DemandaController::class, 'store'])->name('demandas.store');
+            Route::get('/demandas/{demanda}/editar', [DemandaController::class, 'edit'])->name('demandas.edit');
+            Route::put('/demandas/{demanda}', [DemandaController::class, 'update'])->name('demandas.update');
+            Route::post('/demandas/{demanda}/enviar', [DemandaController::class, 'enviar'])->name('demandas.enviar');
         });
         Route::patch('/demandas/{demanda}/analisar', [DemandaController::class, 'analisar'])->middleware('can:pca.gerenciar')->name('demandas.analisar');
         Route::post('/demandas/prazos', [DemandaController::class, 'definirPrazo'])->middleware('can:pca.gerenciar')->name('demandas.prazos');

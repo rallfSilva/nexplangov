@@ -5,11 +5,14 @@ namespace App\Http\Controllers;
 use App\Licitacao\Enums\AmparoLegal;
 use App\Licitacao\Enums\Modalidade;
 use App\Licitacao\Enums\SituacaoProcesso;
+use App\Licitacao\Regras\ConsolidacaoDfd;
 use App\Licitacao\Regras\ConsolidacaoPca;
 use App\Licitacao\Regras\CronogramaPca;
 use App\Licitacao\Regras\FracionamentoHistorico;
 use App\Models\CatalogoItem;
+use App\Models\Demanda;
 use App\Models\DotacaoOrcamentaria;
+use App\Models\ItemDemanda;
 use App\Models\ItemPca;
 use App\Models\PlanoContratacao;
 use App\Models\Processo;
@@ -17,6 +20,7 @@ use App\Models\ValorLimite;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
@@ -44,10 +48,80 @@ class PcaConsolidacaoController extends Controller
         $cronograma = CronogramaPca::montar($plano->ano, $itens->map(fn (ItemPca $i) => ['natureza' => $i->natureza_despesa, 'valor' => (float) $i->valor_total_estimado, 'data' => $i->data_desejada?->toDateString()])->all(),
             $dotacoes->mapWithKeys(fn ($d) => [$d->natureza_despesa => (float) $d->valor_autorizado])->all());
 
+        $demandas = $this->demandasDoExercicio($plano);
+
         return view('pca.consolidacao', [
             'plano' => $plano, 'itens' => $itens->keyBy('id'), 'sugestoes' => $sugestoes, 'cronograma' => $cronograma, 'dotacoes' => $dotacoes,
             'recorrentes' => $this->recorrentes($request),
+            'progressoDfd' => ConsolidacaoDfd::progresso($demandas->map(fn (Demanda $d) => ['unidade' => $d->unidade?->sigla ?? 'Sem unidade',
+                'situacao' => $d->consolidada_em ? 'consolidada' : $d->situacao, 'valor' => (float) $d->valor_estimado])->all()),
+            'aConsolidar' => $demandas->where('situacao', 'aceita')->filter(fn (Demanda $d) => $d->itens->isNotEmpty()),
         ]);
+    }
+
+    /** DFDs do exercício que já passaram pela unidade: enviados, aprovados, consolidados ou que viraram processo. */
+    private function demandasDoExercicio(PlanoContratacao $plano)
+    {
+        return Demanda::with(['unidade', 'itens'])->where('exercicio', $plano->ano)->whereNotIn('situacao', ['rascunho', 'recusada'])->orderBy('id')->get();
+    }
+
+    /**
+     * Leva os itens dos DFDs aprovados ao PCA (art. 12, VII): o mesmo item do catálogo na mesma unidade vira uma
+     * linha só, com a soma das quantidades. Cada item do DFD guarda a linha do plano em que entrou.
+     */
+    public function consolidarDfds(Request $request, PlanoContratacao $plano): RedirectResponse
+    {
+        if (! $plano->editavel()) {
+            return back()->with('erro', 'O PCA aprovado não pode ser alterado diretamente. Abra uma revisão do plano, com justificativa, e consolide os DFDs nela.');
+        }
+
+        $demandas = Demanda::with('itens')->where('exercicio', $plano->ano)->where('situacao', 'aceita')->whereHas('itens')->get();
+        if ($demandas->isEmpty()) {
+            return back()->with('erro', 'Não há DFD aprovado com itens para consolidar neste exercício.');
+        }
+
+        $itensDfd = $demandas->flatMap(fn (Demanda $d) => $d->itens->map(fn (ItemDemanda $i) => [
+            'id' => $i->id, 'unidade_id' => $d->unidade_id, 'material_servico' => $i->material_servico, 'codigo' => $i->codigo_catalogo, 'descricao' => $i->descricao,
+            'unidade_fornecimento' => $i->unidade_fornecimento, 'quantidade' => (float) $i->quantidade, 'valor_unitario' => (float) $i->valor_unitario_estimado,
+            'categoria' => (int) $i->categoria, 'data' => $d->data_pretendida?->toDateString(), 'prioridade' => (int) $d->prioridade,
+        ]))->values()->all();
+        $itensPca = $plano->itens()->get()->map(fn (ItemPca $i) => [
+            'id' => $i->id, 'unidade_id' => $i->unidade_id, 'material_servico' => $i->material_servico, 'codigo' => $i->codigo_catalogo, 'descricao' => $i->descricao,
+            'unidade_fornecimento' => $i->unidade_fornecimento, 'quantidade' => (float) $i->quantidade, 'valor_unitario' => (float) $i->valor_unitario_estimado,
+            'data' => $i->data_desejada?->toDateString(), 'prioridade' => (int) $i->prioridade,
+        ])->all();
+
+        $linhas = ConsolidacaoDfd::planejar($itensDfd, $itensPca);
+
+        [$novas, $alteradas] = DB::transaction(function () use ($linhas, $plano, $demandas) {
+            $novas = $alteradas = 0;
+            foreach ($linhas as $l) {
+                $dados = ['quantidade' => $l['quantidade'], 'valor_unitario_estimado' => $l['valor_unitario'], 'data_desejada' => $l['data'], 'prioridade' => $l['prioridade']];
+                if ($l['item_pca_id']) {
+                    $item = ItemPca::findOrFail($l['item_pca_id']);
+                    $item->update($dados);
+                    $alteradas++;
+                } else {
+                    $item = $plano->itens()->create($dados + [
+                        'orgao_id' => $plano->orgao_id, 'numero' => $plano->proximoNumeroItem(), 'unidade_id' => $l['unidade_id'], 'material_servico' => $l['material_servico'],
+                        'categoria' => $l['categoria'], 'codigo_catalogo' => $l['codigo'], 'descricao' => $l['descricao'], 'unidade_fornecimento' => $l['unidade_fornecimento'],
+                    ]);
+                    $novas++;
+                }
+                ItemDemanda::whereIn('id', $l['itens_dfd'])->update(['item_pca_id' => $item->id]);
+            }
+
+            foreach ($demandas as $d) {
+                $linhasDoDfd = $d->itens()->pluck('item_pca_id')->unique()->values();
+                $d->update(['situacao' => 'consolidada', 'consolidada_em' => now(), 'item_pca_id' => $linhasDoDfd->count() === 1 ? $linhasDoDfd->first() : $d->item_pca_id]);
+            }
+
+            return [$novas, $alteradas];
+        });
+
+        return redirect()->route('pca.consolidacao', $plano)->with('sucesso', sprintf('%d DFD%s consolidado%s no PCA: %d ite%s novo%s e %d atualizado%s.',
+            $demandas->count(), $demandas->count() === 1 ? '' : 's', $demandas->count() === 1 ? '' : 's',
+            $novas, $novas === 1 ? 'm' : 'ns', $novas === 1 ? '' : 's', $alteradas, $alteradas === 1 ? '' : 's'));
     }
 
     public function salvarDotacao(Request $request, PlanoContratacao $plano): RedirectResponse
