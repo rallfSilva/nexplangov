@@ -5,6 +5,7 @@ namespace App\Pncp;
 use App\Licitacao\Enums\CategoriaProcesso;
 use App\Licitacao\Enums\Modalidade;
 use App\Models\Ata;
+use App\Models\CatalogoItem;
 use App\Models\Contrato;
 use App\Models\ItemPca;
 use App\Models\ItemProcesso;
@@ -31,6 +32,7 @@ class MontadorPayload
             'resultado' => $this->resultado($alvo, $operacao),
             'ata' => $this->ata($alvo, $operacao),
             'pca' => $this->pca($alvo, $operacao),
+            'pca_itens' => $this->pcaItens($alvo),
             'arquivo_contrato' => $this->arquivoContrato($alvo),
             'arquivo_ata' => $this->arquivoAta($alvo),
             default => throw new \InvalidArgumentException("Recurso do PNCP não suportado: {$recurso}"),
@@ -214,41 +216,96 @@ class MontadorPayload
         return ['metodo' => $operacao === 'excluir' ? 'DELETE' : 'PUT', 'rota' => "{$colecao}/{$a->numero_controle_pncp}", 'corpo' => $corpo, 'pendencias' => $pendencias];
     }
 
-    /** Plano de contratações anual de uma unidade compradora (art. 12, VII, e § 1º): o PNCP recebe um plano por unidade. */
+    /**
+     * Plano de contratações anual de uma unidade compradora (art. 12, VII, e § 1º): o PNCP recebe um plano por unidade.
+     * Inclusão: POST do plano com os itens. Retificação: PATCH dos itens que o PNCP já tem, com justificativa
+     * (o PNCP não retifica o plano inteiro). Exclusão: DELETE do plano, com justificativa.
+     */
     private function pca(PcaUnidade $pu, string $operacao): array
     {
         $pl = $pu->plano;
         $cnpj = Documento::digitos((string) $pl->orgao->cnpj);
         $unidade = $pu->unidade?->codigo_unidade_pncp;
-        $itens = $pu->itens();
         $pendencias = $this->pendenciasOrgao($pl->orgao->cnpj, $unidade);
+
+        if ($operacao === 'excluir') {
+            [$metodo, $rota] = $this->rota('excluir', "/v1/orgaos/{$cnpj}/pca", $pu->numero_controle_pncp);
+
+            return ['metodo' => $metodo, 'rota' => $rota, 'corpo' => [], 'pendencias' => $pendencias];
+        }
+
+        $itens = $pu->itens();
+        if ($operacao === 'retificar') {
+            [$ano, $seq] = NumeroControle::anoSequencial($pu->numero_controle_pncp);
+            $publicados = $pu->numerosPublicados();
+            $lista = $itens->filter(fn (ItemPca $i) => in_array((int) $i->numero, $publicados, true));
+            if ($lista->isEmpty()) {
+                $pendencias[] = 'Nenhum item deste plano está no PNCP para retificar. Sincronize com o PNCP.';
+            }
+
+            return ['metodo' => 'PATCH', 'rota' => "/v1/orgaos/{$cnpj}/pca/{$ano}/{$seq}/itens",
+                'corpo' => ['lista' => $this->itensPca($lista, $pendencias)], 'pendencias' => $pendencias];
+        }
+
         if ($itens->isEmpty()) {
             $pendencias[] = 'O plano não tem itens desta unidade.';
         }
+        $corpo = ['codigoUnidade' => $unidade, 'anoPca' => $pl->ano, 'itensPlano' => $this->itensPca($itens, $pendencias)];
 
-        $corpo = [
-            'codigoUnidade' => $unidade,
-            'anoPca' => $pl->ano,
-            'itensPlano' => $itens->map(fn (ItemPca $i) => [
+        return ['metodo' => 'POST', 'rota' => "/v1/orgaos/{$cnpj}/pca", 'corpo' => $corpo, 'pendencias' => $pendencias];
+    }
+
+    /** Itens novos num plano de unidade que já está no PNCP: POST da lista de itens. */
+    private function pcaItens(PcaUnidade $pu): array
+    {
+        $cnpj = Documento::digitos((string) $pu->plano->orgao->cnpj);
+        [$ano, $seq] = NumeroControle::anoSequencial($pu->numero_controle_pncp);
+        $pendencias = $seq ? [] : ['O plano da unidade precisa estar no PNCP antes de receber itens novos.'];
+        $publicados = $pu->numerosPublicados();
+        $novos = $pu->itens()->reject(fn (ItemPca $i) => in_array((int) $i->numero, $publicados, true));
+        if ($novos->isEmpty()) {
+            $pendencias[] = 'Não há item novo para incluir.';
+        }
+
+        return ['metodo' => 'POST', 'rota' => "/v1/orgaos/{$cnpj}/pca/{$ano}/{$seq}/itens", 'corpo' => $this->itensPca($novos, $pendencias), 'pendencias' => $pendencias];
+    }
+
+    /**
+     * Itens no formato do PNCP. A classe do catálogo vai como classificação superior quando o código é conhecido.
+     *
+     * @param  list<string>  $pendencias
+     * @return list<array<string, mixed>>
+     */
+    private function itensPca($itens, array &$pendencias): array
+    {
+        $classes = CatalogoItem::whereIn('codigo', $itens->pluck('codigo_catalogo')->filter()->unique()->values())->get(['tipo', 'codigo', 'classe_codigo', 'classe_nome'])
+            ->keyBy(fn ($c) => $c->tipo.':'.$c->codigo);
+
+        return $itens->map(function (ItemPca $i) use ($classes, &$pendencias) {
+            if (! $i->data_desejada) {
+                $pendencias[] = "Informe a data desejada do item {$i->numero}: o PNCP exige.";
+            }
+            $classe = $classes[$i->material_servico.':'.$i->codigo_catalogo] ?? null;
+            $total = round((float) $i->quantidade * (float) $i->valor_unitario_estimado, 2);
+
+            return array_filter([
                 'numeroItem' => $i->numero,
                 'categoriaItemPca' => self::categoriaItemPca((int) $i->categoria, $i->material_servico),
                 'catalogo' => $i->codigo_catalogo ? 1 : 2, // 1 = CATMAT/CATSER (compras.gov.br), 2 = outros
                 'classificacaoCatalogo' => $i->material_servico === 'S' ? 2 : 1,
+                'classificacaoSuperiorCodigo' => $classe?->classe_codigo,
+                'classificacaoSuperiorNome' => $classe?->classe_nome,
                 'codigoItem' => $i->codigo_catalogo,
                 'descricao' => mb_substr($i->descricao, 0, 2048),
                 'unidadeFornecimento' => $i->unidade_fornecimento,
                 'quantidade' => (float) $i->quantidade,
                 'valorUnitario' => (float) $i->valor_unitario_estimado,
-                'valorTotal' => round((float) $i->quantidade * (float) $i->valor_unitario_estimado, 2),
-                'valorOrcamentoExercicio' => round((float) $i->quantidade * (float) $i->valor_unitario_estimado, 2),
+                'valorTotal' => $total,
+                'valorOrcamentoExercicio' => $total,
                 'unidadeRequisitante' => $i->unidade?->nome,
                 'dataDesejada' => $i->data_desejada?->format('Y-m-d'),
-            ])->values()->all(),
-        ];
-
-        [$metodo, $rota] = $this->rota($operacao, "/v1/orgaos/{$cnpj}/pca", $pu->numero_controle_pncp);
-
-        return ['metodo' => $metodo, 'rota' => $rota, 'corpo' => $corpo, 'pendencias' => $pendencias];
+            ], fn ($v) => $v !== null);
+        })->values()->all();
     }
 
     /** Arquivo do contrato assinado, enviado depois de o contrato ter número no PNCP. */

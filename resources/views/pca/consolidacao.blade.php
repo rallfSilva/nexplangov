@@ -8,6 +8,8 @@
         <p class="sub">Agrupamento de demandas, compras recorrentes e cronograma com o orçamento <span class="lei">art. 12, VII; art. 18; art. 40, V</span></p>
     </div>
 
+    @include('pca._abas')
+
     @include('ia._recomendacao', ['rota' => route('ia.pca', $plano), 'titulo' => 'O que agrupar, o que falta planejar e riscos de fracionamento e de orçamento'])
 
     <section class="card">

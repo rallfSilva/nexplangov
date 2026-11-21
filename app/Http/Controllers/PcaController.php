@@ -2,17 +2,24 @@
 
 namespace App\Http\Controllers;
 
+use App\Licitacao\Pca\PainelPca;
 use App\Licitacao\Pca\RegrasItemPca;
 use App\Licitacao\Pca\RevisaoPca;
+use App\Licitacao\Regras\CalendarioPca;
 use App\Licitacao\Regras\VersoesPca;
 use App\Licitacao\RegraViolada;
 use App\Models\EnvioPncp;
 use App\Models\ItemPca;
 use App\Models\PlanoContratacao;
+use App\Models\PrazoDfd;
 use App\Models\Unidade;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 use Illuminate\View\View;
 
 /** Plano de Contratações Anual (art. 12, VII, da Lei 14.133). */
@@ -20,21 +27,116 @@ class PcaController extends Controller
 {
     public function index(Request $request): View
     {
-        $planos = PlanoContratacao::withCount('itens')->withSum('itens', 'valor_total_estimado')->orderByDesc('ano')->get();
+        $planos = PlanoContratacao::orderByDesc('ano')
+            ->when($request->filled('q'), fn ($q) => $q->where('ano', $request->integer('q')))
+            ->get();
 
-        return view('pca.index', ['planos' => $planos, 'proximoAno' => (int) now()->addYear()->format('Y')]);
+        return view('pca.index', [
+            'planos' => $planos->map(fn (PlanoContratacao $p) => ['plano' => $p, 'resumo' => PainelPca::resumo($p)]),
+            'proximoAno' => (int) now()->addYear()->format('Y'),
+        ]);
+    }
+
+    public function create(): View
+    {
+        return view('pca.form', $this->dadosFormulario(null));
+    }
+
+    public function edit(PlanoContratacao $plano): View
+    {
+        return view('pca.form', $this->dadosFormulario($plano->load('participantes')));
+    }
+
+    /** @return array<string, mixed> */
+    private function dadosFormulario(?PlanoContratacao $plano): array
+    {
+        return ['plano' => $plano, 'unidades' => Unidade::where('ativo', true)->orderBy('sigla')->get(), 'proximoAno' => (int) now()->addYear()->format('Y')];
     }
 
     public function store(Request $request): RedirectResponse
     {
         $orgaoId = $this->orgaoDoUsuario($request);
-        $dados = $request->validate([
-            'ano' => ['required', 'integer', 'min:2023', 'max:2100', Rule::unique('planos_contratacao', 'ano')->where('orgao_id', $orgaoId)],
-        ], ['ano.unique' => 'Já existe PCA para esse ano.']);
+        $dados = $this->validarCadastro($request, $orgaoId, null);
 
-        $plano = PlanoContratacao::create(['orgao_id' => $orgaoId, 'ano' => $dados['ano'], 'situacao' => 'rascunho']);
+        $plano = DB::transaction(function () use ($dados, $orgaoId, $request) {
+            $plano = PlanoContratacao::create(Arr::except($dados, ['participantes']) + ['orgao_id' => $orgaoId, 'situacao' => 'rascunho']);
+            $this->salvarParticipantes($plano, $dados['participantes'] ?? []);
+            $this->sincronizarPrazoDfd($plano, $request);
 
-        return redirect()->route('pca.show', $plano)->with('sucesso', "PCA {$plano->ano} criado. Inclua os itens.");
+            return $plano;
+        });
+
+        return redirect()->route('pca.show', $plano)->with('sucesso', "PCA {$plano->ano} criado. As unidades já podem lançar os DFDs a partir de ".$plano->inicio_demandas->format('d/m/Y').'.');
+    }
+
+    public function update(Request $request, PlanoContratacao $plano): RedirectResponse
+    {
+        $dados = $this->validarCadastro($request, $plano->orgao_id, $plano);
+
+        DB::transaction(function () use ($plano, $dados, $request) {
+            $plano->update(Arr::except($dados, ['participantes', 'ano']));
+            $this->salvarParticipantes($plano, $dados['participantes'] ?? []);
+            $this->sincronizarPrazoDfd($plano, $request);
+        });
+
+        return redirect()->route('pca.show', $plano)->with('sucesso', "Cadastro do PCA {$plano->ano} atualizado.");
+    }
+
+    /** @return array<string, mixed> */
+    private function validarCadastro(Request $request, int $orgaoId, ?PlanoContratacao $plano): array
+    {
+        $unidade = Rule::exists('unidades', 'id')->where('orgao_id', $orgaoId);
+        $regras = [
+            'abrangencia' => ['required', Rule::in(array_keys(PlanoContratacao::ABRANGENCIAS))],
+            'possui_objetivo_estrategico' => ['required', 'boolean'],
+            'objetivo_estrategico' => ['nullable', 'required_if:possui_objetivo_estrategico,1', 'string', 'max:5000'],
+            'tipo_consolidacao' => ['required', Rule::in(array_keys(PlanoContratacao::TIPOS_CONSOLIDACAO))],
+            'unidade_responsavel_id' => ['required', 'integer', $unidade],
+            'nivel_detalhamento' => ['required', Rule::in(array_keys(PlanoContratacao::NIVEIS_DETALHAMENTO))],
+            'participantes' => ['nullable', 'required_if:abrangencia,unidades', 'array', 'max:500'],
+            'participantes.*' => ['integer', $unidade],
+        ] + collect(CalendarioPca::ETAPAS)->mapWithKeys(fn ($r, $c) => [$c => ['required', 'date']])->all();
+        if (! $plano) {
+            $regras['ano'] = ['required', 'integer', 'min:2023', 'max:2100', Rule::unique('planos_contratacao', 'ano')->where('orgao_id', $orgaoId)];
+        }
+
+        $validador = validator($request->all(), $regras, [
+            'ano.unique' => 'Já existe PCA para esse ano.',
+            'objetivo_estrategico.required_if' => 'Descreva o objetivo estratégico a que o plano se vincula.',
+            'participantes.required_if' => 'Escolha as unidades participantes.',
+        ], collect(CalendarioPca::ETAPAS)->map(fn ($r) => mb_strtolower($r))->all() + ['unidade_responsavel_id' => 'unidade responsável']);
+
+        // Calendário de elaboração em ordem, com divulgação até o fim do exercício (art. 12, VII, e § 1º).
+        $validador->after(function (Validator $v) use ($request, $plano) {
+            if ($v->errors()->isNotEmpty()) {
+                return;
+            }
+            $datas = collect(CalendarioPca::ETAPAS)->mapWithKeys(fn ($r, $c) => [$c => Carbon::parse($request->input($c))->toDateString()])->all();
+            foreach (CalendarioPca::motivos($datas, (int) ($plano->ano ?? $request->integer('ano'))) as $m) {
+                $v->errors()->add('fim_divulgacao', $m);
+            }
+        });
+
+        $dados = $validador->validate();
+        if (! $dados['possui_objetivo_estrategico']) {
+            $dados['objetivo_estrategico'] = null;
+        }
+        if ($dados['abrangencia'] === 'orgao') {
+            $dados['participantes'] = [];
+        }
+
+        return $dados;
+    }
+
+    private function salvarParticipantes(PlanoContratacao $plano, array $ids): void
+    {
+        $plano->participantes()->sync(collect($ids)->map(fn ($id) => (int) $id)->unique()->mapWithKeys(fn ($id) => [$id => ['orgao_id' => $plano->orgao_id]])->all());
+    }
+
+    /** O fim do cadastro dos DFDs vira a data-limite de envio das demandas do exercício. */
+    private function sincronizarPrazoDfd(PlanoContratacao $plano, Request $request): void
+    {
+        PrazoDfd::updateOrCreate(['orgao_id' => $plano->orgao_id, 'exercicio' => $plano->ano], ['data_limite' => $plano->fim_dfds, 'definido_por' => $request->user()->id]);
     }
 
     public function show(Request $request, PlanoContratacao $plano): View

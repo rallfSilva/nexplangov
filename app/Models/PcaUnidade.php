@@ -11,12 +11,23 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 /** Parte do PCA de uma unidade compradora, como o PNCP recebe o plano (art. 12, § 1º, e art. 174). */
-#[Fillable(['orgao_id', 'plano_contratacao_id', 'unidade_id', 'numero_controle_pncp'])]
+#[Fillable(['orgao_id', 'plano_contratacao_id', 'unidade_id', 'numero_controle_pncp', 'itens_publicados', 'sincronizacao', 'sincronizado_em'])]
 class PcaUnidade extends Model
 {
     use Auditable, BelongsToOrgao;
 
     protected $table = 'pcas_unidade';
+
+    protected function casts(): array
+    {
+        return ['itens_publicados' => 'array', 'sincronizacao' => 'array', 'sincronizado_em' => 'datetime'];
+    }
+
+    /** @return list<int> números de item que o PNCP já tem neste plano */
+    public function numerosPublicados(): array
+    {
+        return array_map('intval', $this->itens_publicados ?? []);
+    }
 
     public function plano(): BelongsTo
     {

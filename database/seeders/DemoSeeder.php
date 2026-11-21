@@ -129,7 +129,9 @@ class DemoSeeder extends Seeder
         foreach ($itens26 as $i => [$ms, $cat, $cod, $desc, $un, $qtd, $vu, $uni, $prio, $nat]) {
             $itens26[$i] = ItemPca::create(['orgao_id' => $pm->id, 'plano_contratacao_id' => $pca26->id, 'unidade_id' => $uni->id, 'numero' => $i + 1, 'material_servico' => $ms, 'categoria' => $cat, 'codigo_catalogo' => $cod, 'descricao' => $desc, 'unidade_fornecimento' => $un, 'quantidade' => $qtd, 'valor_unitario_estimado' => $vu, 'data_desejada' => '2026-0'.(($i % 6) + 2).'-15', 'prioridade' => $prio, 'natureza_despesa' => $nat]);
         }
-        $pca27 = PlanoContratacao::create(['orgao_id' => $pm->id, 'ano' => 2027, 'situacao' => 'rascunho']);
+        $pca27 = PlanoContratacao::create(['orgao_id' => $pm->id, 'ano' => 2027, 'situacao' => 'rascunho', 'abrangencia' => 'orgao', 'tipo_consolidacao' => 'unidade',
+            'nivel_detalhamento' => 'item', 'possui_objetivo_estrategico' => true, 'objetivo_estrategico' => 'Ampliar a cobertura da educação e da saúde básica do município (fictício).',
+            'inicio_demandas' => '2026-03-01', 'fim_dfds' => '2026-05-31', 'fim_aprovacao' => '2026-06-30', 'fim_revisao' => '2026-07-31', 'fim_consolidacao' => '2026-08-31', 'fim_divulgacao' => '2026-12-31']);
         ItemPca::create(['orgao_id' => $pm->id, 'plano_contratacao_id' => $pca27->id, 'unidade_id' => $semed->id, 'numero' => 1, 'material_servico' => 'M', 'categoria' => 2, 'codigo_catalogo' => '150627', 'descricao' => 'Kit de material escolar para o ensino fundamental', 'unidade_fornecimento' => 'KIT', 'quantidade' => 3400, 'valor_unitario_estimado' => 51.2, 'data_desejada' => '2027-01-20', 'prioridade' => 1, 'natureza_despesa' => '3.3.90.30.22']);
 
         // Demandas

@@ -79,4 +79,17 @@ class ConsolidacaoDfdTest extends TestCase
         $this->assertSame(['unidade' => 'GAB', 'total' => 1, 'consolidados' => 1, 'valor' => 10.0, 'percentual' => 100], $p[0]);
         $this->assertSame(['unidade' => 'SEMED', 'total' => 3, 'consolidados' => 1, 'valor' => 200.0, 'percentual' => 33], $p[1]);
     }
+
+    public function test_unidade_consolidadora_conforme_participantes_e_tipo(): void
+    {
+        // 1 secretaria, 2 departamento dela, 3 escola do departamento; 9 outra secretaria.
+        $pais = [1 => null, 2 => 1, 3 => 2, 9 => null];
+
+        $this->assertSame(1, C::unidadeConsolidadora($pais, [], 3, 'unidade'), 'órgão todo: sobe até a raiz');
+        $this->assertSame(3, C::unidadeConsolidadora($pais, [], 3, 'setor'), 'por setor: fica no setor');
+        $this->assertSame(2, C::unidadeConsolidadora($pais, [2, 9], 3, 'unidade'), 'sobe até a participante mais próxima');
+        $this->assertNull(C::unidadeConsolidadora($pais, [2, 9], 1, 'unidade'), 'a secretaria acima da participante está fora');
+        $this->assertSame(9, C::participanteDe($pais, [2, 9], 9));
+        $this->assertNull(C::unidadeConsolidadora($pais, [], null, 'unidade'));
+    }
 }

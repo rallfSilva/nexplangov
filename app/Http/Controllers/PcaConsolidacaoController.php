@@ -80,8 +80,10 @@ class PcaConsolidacaoController extends Controller
             return back()->with('erro', 'Não há DFD aprovado com itens para consolidar neste exercício.');
         }
 
+        // Por unidade, os setores somam na unidade participante; por setor, cada um fica com as suas linhas.
+        $destino = $demandas->pluck('unidade_id')->unique()->mapWithKeys(fn ($u) => [(int) $u => $plano->unidadeConsolidadora($u ? (int) $u : null)]);
         $itensDfd = $demandas->flatMap(fn (Demanda $d) => $d->itens->map(fn (ItemDemanda $i) => [
-            'id' => $i->id, 'unidade_id' => $d->unidade_id, 'material_servico' => $i->material_servico, 'codigo' => $i->codigo_catalogo, 'descricao' => $i->descricao,
+            'id' => $i->id, 'unidade_id' => $destino[(int) $d->unidade_id] ?? $d->unidade_id, 'material_servico' => $i->material_servico, 'codigo' => $i->codigo_catalogo, 'descricao' => $i->descricao,
             'unidade_fornecimento' => $i->unidade_fornecimento, 'quantidade' => (float) $i->quantidade, 'valor_unitario' => (float) $i->valor_unitario_estimado,
             'categoria' => (int) $i->categoria, 'data' => $d->data_pretendida?->toDateString(), 'prioridade' => (int) $d->prioridade,
         ]))->values()->all();

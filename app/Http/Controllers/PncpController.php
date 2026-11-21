@@ -74,18 +74,38 @@ class PncpController extends Controller
             return back()->with('erro', 'O plano não tem itens.');
         }
 
-        $envios = collect($grupos['grupos'])->keys()->map(function (int $unidadeId) use ($plano, $fila, $request) {
-            $parte = PcaUnidade::firstOrCreate(['plano_contratacao_id' => $plano->id, 'unidade_id' => $unidadeId], ['orgao_id' => $plano->orgao_id]);
+        $partes = collect($grupos['grupos'])->map(fn ($ids, int $unidadeId) => PcaUnidade::firstOrCreate(['plano_contratacao_id' => $plano->id, 'unidade_id' => $unidadeId], ['orgao_id' => $plano->orgao_id]));
+        if ($partes->contains(fn (PcaUnidade $p) => $p->numero_controle_pncp && $p->itens_publicados === null)) {
+            return redirect()->route('pca.sincronizar', $plano)->with('erro', 'Antes de atualizar, sincronize com o PNCP para saber quais itens o portal já tem.');
+        }
 
-            return $fila->agendar($parte, 'pca', 'inserir', $request->user());
-        });
+        // Plano novo vai inteiro; o já publicado recebe a retificação dos itens que o PNCP tem e a inclusão dos novos.
+        $envios = $partes->flatMap(function (PcaUnidade $parte, int $unidadeId) use ($grupos, $plano, $fila, $request) {
+            if (! $parte->numero_controle_pncp) {
+                return [$fila->agendar($parte, 'pca', 'inserir', $request->user())];
+            }
+            $numeros = $plano->itens()->whereIn('id', $grupos['grupos'][$unidadeId])->pluck('numero')->map(fn ($n) => (int) $n);
+            $publicados = $parte->numerosPublicados();
+            $envios = [];
+            if ($numeros->intersect($publicados)->isNotEmpty()) {
+                $envios[] = $fila->agendar($parte, 'pca', 'retificar', $request->user(), "Atualização do PCA {$plano->ano} aprovado pelo órgão.");
+            }
+            if ($numeros->diff($publicados)->isNotEmpty()) {
+                $envios[] = $fila->agendar($parte, 'pca_itens', 'inserir', $request->user());
+            }
+
+            return $envios;
+        })->values();
+        if ($envios->isEmpty()) {
+            return back()->with('erro', 'Nada a enviar: os itens do plano não estão entre os do PNCP. Sincronize com o PNCP.');
+        }
 
         $erros = $envios->where('estado', 'erro');
         if ($erros->isNotEmpty()) {
             return back()->with('erro', $erros->map(fn (EnvioPncp $e) => ($e->publicavel?->unidade?->sigla ?? 'Unidade').': '.$e->erro)->implode(' '));
         }
 
-        $n = $envios->count();
+        $n = $partes->count();
 
         return back()->with('sucesso', $n === 1 ? 'PCA na fila de publicação do PNCP.' : "PCA na fila de publicação do PNCP: um plano para cada uma das {$n} unidades.");
     }
