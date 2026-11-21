@@ -17,7 +17,7 @@ class EnvioPncp extends Model
 
     public const RECURSOS = [
         'compra' => 'Compra', 'contrato' => 'Contrato', 'termo' => 'Termo de contrato', 'resultado' => 'Resultado de item',
-        'ata' => 'Ata de registro de preços', 'pca' => 'PCA', 'arquivo_contrato' => 'Contrato assinado (PDF)', 'arquivo_ata' => 'Ata (PDF)',
+        'ata' => 'Ata de registro de preços', 'pca' => 'PCA', 'pca_itens' => 'Itens novos do PCA', 'arquivo_contrato' => 'Contrato assinado (PDF)', 'arquivo_ata' => 'Ata (PDF)',
     ];
 
     public const AMBIENTES = ['producao' => 'Produção', 'homologacao' => 'Homologação'];

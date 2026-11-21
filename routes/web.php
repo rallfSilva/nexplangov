@@ -41,6 +41,8 @@ use App\Http\Controllers\ParametroController;
 use App\Http\Controllers\PcaConsolidacaoController;
 use App\Http\Controllers\PcaController;
 use App\Http\Controllers\PcaImportacaoController;
+use App\Http\Controllers\PcaPainelController;
+use App\Http\Controllers\PcaSincronizacaoController;
 use App\Http\Controllers\PedidoExternoController;
 use App\Http\Controllers\PncpController;
 use App\Http\Controllers\PrecosComprasGovController;
@@ -160,10 +162,18 @@ Route::middleware(['auth', 'ativo'])->group(function () {
 
         // PCA (art. 12, VII)
         Route::get('/pca', [PcaController::class, 'index'])->middleware('can:pca.ver')->name('pca.index');
+        Route::get('/pca/novo', [PcaController::class, 'create'])->middleware('can:pca.gerenciar')->name('pca.create');
         Route::get('/pca/{plano}', [PcaController::class, 'show'])->middleware('can:pca.ver')->name('pca.show');
+        Route::get('/pca/{plano}/dfds', [PcaPainelController::class, 'dfds'])->middleware('can:pca.ver')->name('pca.dfds');
+        Route::get('/pca/{plano}/visao-geral', [PcaPainelController::class, 'visaoGeral'])->middleware('can:pca.ver')->name('pca.visao');
+        Route::get('/pca/{plano}/operacional', [PcaPainelController::class, 'operacional'])->middleware('can:pca.ver')->name('pca.operacional');
         Route::get('/pca/{plano}/consolidacao', [PcaConsolidacaoController::class, 'show'])->middleware('can:pca.ver')->name('pca.consolidacao');
+        Route::get('/pca/{plano}/pncp', [PcaSincronizacaoController::class, 'show'])->middleware('can:pca.ver')->name('pca.sincronizar');
+        Route::post('/pca/{plano}/pncp/sincronizar', [PcaSincronizacaoController::class, 'sincronizar'])->middleware(['can:pncp.enviar', 'throttle:10,1'])->name('pca.sincronizar.executar');
         Route::middleware('can:pca.gerenciar')->group(function () {
             Route::post('/pca', [PcaController::class, 'store'])->name('pca.store');
+            Route::get('/pca/{plano}/editar', [PcaController::class, 'edit'])->name('pca.edit');
+            Route::put('/pca/{plano}', [PcaController::class, 'update'])->name('pca.update');
             Route::post('/pca/{plano}/itens', [PcaController::class, 'salvarItem'])->name('pca.itens.store');
             Route::post('/pca/{plano}/dotacoes', [PcaConsolidacaoController::class, 'salvarDotacao'])->name('pca.dotacoes.store');
             Route::post('/pca/{plano}/consolidar-dfds', [PcaConsolidacaoController::class, 'consolidarDfds'])->name('pca.dfds.consolidar');

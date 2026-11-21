@@ -49,6 +49,58 @@ final class ConsolidacaoDfd
         return array_values(array_filter($linhas, fn ($l) => $l['itens_dfd'] !== []));
     }
 
+    /**
+     * Unidade em que o DFD é consolidado. Por unidade, o setor sobe até a unidade participante que o contém
+     * (no plano do órgão todo, até a unidade de topo). Por setor, cada setor fica com as suas linhas.
+     * Devolve null quando a unidade não pertence a nenhuma participante.
+     *
+     * @param  array<int, ?int>  $pais  id da unidade => id da superior
+     * @param  list<int>  $participantes  vazio no plano do órgão todo
+     */
+    public static function unidadeConsolidadora(array $pais, array $participantes, ?int $unidade, string $tipo): ?int
+    {
+        if ($unidade === null) {
+            return null;
+        }
+        $participante = self::participanteDe($pais, $participantes, $unidade);
+        if ($participantes !== [] && $participante === null) {
+            return null;
+        }
+        if ($tipo === 'setor') {
+            return $unidade;
+        }
+
+        return $participante ?? self::raiz($pais, $unidade);
+    }
+
+    /** A própria unidade ou a superior mais próxima que participa do plano. Plano do órgão todo: a raiz. */
+    public static function participanteDe(array $pais, array $participantes, int $unidade): ?int
+    {
+        if ($participantes === []) {
+            return self::raiz($pais, $unidade);
+        }
+        $visitadas = [];
+        for ($u = $unidade; $u !== null && ! isset($visitadas[$u]); $u = $pais[$u] ?? null) {
+            if (in_array($u, $participantes, true)) {
+                return $u;
+            }
+            $visitadas[$u] = true;
+        }
+
+        return null;
+    }
+
+    private static function raiz(array $pais, int $unidade): int
+    {
+        $visitadas = [];
+        while (($pais[$unidade] ?? null) !== null && ! isset($visitadas[$unidade])) {
+            $visitadas[$unidade] = true;
+            $unidade = $pais[$unidade];
+        }
+
+        return $unidade;
+    }
+
     /** Mesma unidade, mesmo tipo e mesma unidade de fornecimento; depois o código do catálogo ou, sem ele, a descrição. */
     public static function chave(array $i): string
     {

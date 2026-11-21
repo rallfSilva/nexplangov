@@ -6,6 +6,7 @@ use App\Licitacao\Pca\RegrasItemPca;
 use App\Licitacao\Regras\PrazoDemanda;
 use App\Models\Demanda;
 use App\Models\ItemPca;
+use App\Models\PlanoContratacao;
 use App\Models\PrazoDfd;
 use App\Models\Unidade;
 use Illuminate\Http\RedirectResponse;
@@ -31,9 +32,14 @@ class DemandaController extends Controller
         return view('demandas.index', ['demandas' => $demandas, 'prazos' => PrazoDfd::orderByDesc('exercicio')->limit(5)->get()]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
-        return view('demandas.form', $this->dadosFormulario(null));
+        $dados = $this->dadosFormulario(null);
+        if (in_array($request->integer('exercicio'), $dados['exercicios'], true)) {
+            $dados['exercicioPadrao'] = $request->integer('exercicio');
+        }
+
+        return view('demandas.form', $dados);
     }
 
     public function edit(Request $request, Demanda $demanda): View
@@ -152,7 +158,20 @@ class DemandaController extends Controller
         ])->all());
 
         // Data-limite do órgão para o exercício: depois dela, só as exceções justificadas. Vale no envio.
-        $validador->after(function (Validator $v) use ($request, $enviar) {
+        $validador->after(function (Validator $v) use ($request, $enviar, $itens) {
+            // Regras do cadastro do PCA do exercício: unidades participantes e nível de detalhamento (art. 12, VII).
+            if ($plano = PlanoContratacao::where('ano', $request->integer('exercicio'))->first()) {
+                if ($request->filled('unidade_id') && ! $plano->aceitaUnidade($request->integer('unidade_id'))) {
+                    $v->errors()->add('unidade_id', "Esta unidade não participa do PCA {$plano->ano}. Fale com a unidade responsável pelo plano.");
+                }
+                if ($plano->nivel_detalhamento === 'item') {
+                    foreach ($itens as $n => $i) {
+                        if (trim((string) ($i['codigo_catalogo'] ?? '')) === '') {
+                            $v->errors()->add("itens.{$n}.codigo_catalogo", 'O PCA '.$plano->ano.' pede o código CATMAT/CATSER no item '.($n + 1).'. Busque no catálogo.');
+                        }
+                    }
+                }
+            }
             if (! $enviar) {
                 return;
             }

@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Ata;
 use App\Models\Contrato;
 use App\Models\EnvioPncp;
+use App\Models\PcaUnidade;
 use App\Models\User;
 use App\Pncp\FilaPncp;
 use App\Pncp\NumeroControle;
@@ -68,6 +69,9 @@ class EnviarAoPncp implements ShouldQueue
             $envio->forceFill($dados + ['estado' => 'publicado', 'erro' => null, 'publicado_em' => now()])->save();
 
             $alvo = $envio->publicavel()->withoutGlobalScopes()->first();
+            if ($alvo instanceof PcaUnidade) {
+                $this->guardarItensPca($alvo, $envio);
+            }
             if ($alvo && $envio->operacao === 'inserir') {
                 $this->guardarNumero($alvo, $envio->recurso, $dados['location']);
                 $this->enviarArquivos($fila, $alvo->refresh(), $envio);
@@ -99,6 +103,22 @@ class EnviarAoPncp implements ShouldQueue
                 ? $alvo->forceFill(['sequencial_resultado_pncp' => $n])->save() : null,
             default => null,
         };
+    }
+
+    /** Guarda os números de item que o PNCP passou a ter no plano da unidade, para retificar só esses depois. */
+    private function guardarItensPca(PcaUnidade $parte, EnvioPncp $envio): void
+    {
+        $payload = $envio->payload ?? [];
+        $numeros = match (true) {
+            $envio->recurso === 'pca' && $envio->operacao === 'inserir' => array_column($payload['itensPlano'] ?? [], 'numeroItem'),
+            $envio->recurso === 'pca_itens' => [...$parte->numerosPublicados(), ...array_column($payload, 'numeroItem')],
+            default => null,
+        };
+        if ($numeros !== null) {
+            $numeros = array_values(array_unique(array_map('intval', $numeros)));
+            sort($numeros);
+            $parte->forceFill(['itens_publicados' => $numeros])->save();
+        }
     }
 
     /** Depois do contrato e da ata publicados, segue o arquivo (contrato assinado; ata em PDF). */

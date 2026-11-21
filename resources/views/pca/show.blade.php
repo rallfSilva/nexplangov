@@ -17,7 +17,6 @@
                     </div>
                 </details>
             @endif
-            <a href="{{ route('pca.consolidacao', $plano) }}" class="btn btn-s"><x-icone nome="liga" />DFDs, consolidação e orçamento</a>
             @if ($plano->versao_atual > 0 || $plano->emRevisao())
                 <a href="{{ route('pca.versoes', $plano) }}" class="btn btn-s"><x-icone nome="relogio" />Versões e alterações</a>
             @endif
@@ -36,11 +35,27 @@
             @endcan
             @can('pncp.enviar')
                 @if ($plano->situacao === 'aprovado')
+                    @if (collect($publicacao)->contains(fn ($l) => $l['numero']))<a href="{{ route('pca.sincronizar', $plano) }}" class="btn btn-s"><x-icone nome="relogio" />Conferir no PNCP</a>@endif
                     <form method="POST" action="{{ route('pncp.pca', $plano) }}">@csrf<button class="btn btn-s" type="submit"><x-icone nome="pncp" />{{ collect($publicacao)->contains(fn ($l) => $l['numero']) ? 'Atualizar no PNCP' : 'Publicar no PNCP' }}</button></form>
                 @endif
             @endcan
         </div>
     </div>
+
+    @include('pca._abas')
+    <section class="card">
+        <div class="row" style="align-items:flex-start">
+            <div class="small">
+                <b>{{ \App\Models\PlanoContratacao::ABRANGENCIAS[$plano->abrangencia] ?? '' }}</b>@if ($plano->abrangencia === 'unidades') ({{ $plano->participantes->pluck('sigla')->implode(', ') }})@endif
+                · consolidação {{ mb_strtolower(\App\Models\PlanoContratacao::TIPOS_CONSOLIDACAO[$plano->tipo_consolidacao] ?? '') }}
+                · detalhamento: {{ mb_strtolower(\App\Models\PlanoContratacao::NIVEIS_DETALHAMENTO[$plano->nivel_detalhamento] ?? '') }}
+                @if ($plano->unidadeResponsavel)· responsável {{ $plano->unidadeResponsavel->sigla }}@endif
+                @if ($plano->objetivo_estrategico)<div style="margin-top:4px">Objetivo estratégico: {{ $plano->objetivo_estrategico }}</div>@endif
+                @if ($plano->fim_divulgacao)<div class="muted" style="margin-top:4px">@foreach (\App\Licitacao\Regras\CalendarioPca::ETAPAS as $c => $r){{ $r }}: {{ $plano->getAttribute($c)?->format('d/m/Y') }}@if (! $loop->last) · @endif @endforeach</div>@endif
+            </div>
+            @can('pca.gerenciar')<a href="{{ route('pca.edit', $plano) }}" class="btn btn-s btn-sm" style="margin-left:auto"><x-icone nome="editar" tamanho="16" />Editar cadastro</a>@endcan
+        </div>
+    </section>
 
     @if ($plano->emRevisao())
         <div class="aviso-lei" role="note"><b>Revisão da versão {{ $plano->versao_atual }}</b> aberta por {{ $plano->autorRevisao?->name ?? '—' }} em {{ $plano->revisao_aberta_em->format('d/m/Y H:i') }}: {{ $plano->revisao_justificativa }}. Depois das alterações, envie para nova aprovação; a versão {{ $plano->versao_atual }} continua vigente até lá. <span class="lei">art. 12, § 1º</span></div>
