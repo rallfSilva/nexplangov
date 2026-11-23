@@ -1039,7 +1039,8 @@ function proximosPassos() {
         });
     });
     if (pode('demandas.criar')) L.push({ t: 'Registrar uma nova demanda (DFD)', m: 'Pedido da sua unidade vinculado ao PCA', href: '#/demandas', ico: 'demanda' });
-    if (pode('processos.gerenciar')) S.demandas.filter(d => d.situacao === 'enviada').forEach(d => L.push({ t: `Abrir processo para o DFD ${d.numero}`, m: d.objeto, href: '#/demandas', ico: 'demanda' }));
+    if (pode('pca.gerenciar')) S.demandas.filter(d => d.situacao === 'enviada').forEach(d => L.push({ t: `Analisar o DFD ${d.numero}`, m: d.objeto, href: `#/pca/${d.exercicio || hoje().slice(0, 4)}/dfds`, ico: 'demanda' }));
+    if (pode('processos.gerenciar')) S.demandas.filter(d => ['aceita', 'consolidada'].includes(d.situacao) && !d.processoId && Number(d.exercicio || 0) <= Number(hoje().slice(0, 4))).forEach(d => L.push({ t: `Abrir processo para o DFD ${d.numero}`, m: d.objeto, href: '#/demandas', ico: 'demanda' }));
     if (pode('pca.aprovar')) S.pca.filter(p => p.situacao === 'rascunho').forEach(p => L.push({ t: `Aprovar o PCA ${p.ano}`, m: `${p.itens.length} itens em elaboração`, href: '#/pca/' + p.ano, ico: 'calendario' }));
     if (pode('pncp.enviar') && S.pncp.some(e => e.situacao !== 'publicado')) L.push({ t: 'Processar a fila do PNCP', m: 'Há envios aguardando', href: '#/pncp', ico: 'pncp' });
     if (pode('contratos.gerenciar')) S.contratos.filter(c => diasParaVencer(c) <= 60 && diasParaVencer(c) >= 0).forEach(c => L.push({ t: `Decidir a prorrogação do contrato ${c.numero}`, m: `Vence em ${diasParaVencer(c)} dias`, href: `#/contratos/${c.id}`, ico: 'contrato' }));
@@ -1410,7 +1411,7 @@ const ACOES = {
     entrar: d => { S.sessao = d.id; auditar('Entrada no sistema', 'Sessão', 'demonstração'); salvar(); ir('painel'); toast(`Você entrou como ${nomeUsuario(d.id)}.`); },
     sair: () => { auditar('Saída do sistema', 'Sessão'); S.sessao = null; salvar(); location.hash = '#/'; render(); },
     reiniciar: () => abrirModal('Reiniciar a demonstração?', `<p>Isso apaga o que você fez aqui e volta aos dados fictícios iniciais.</p><div class="form-acoes"><button class="btn btn-s" data-acao="fechar-modal">Cancelar</button><button class="btn btn-d" data-acao="reiniciar-ok">${ico('reiniciar', 16)}Reiniciar</button></div>`),
-    'reiniciar-ok': () => { const s = S.sessao; S = semente(); S.sessao = s; garantirNovidades(); garantirOnda4(); salvar(); fecharModal(); atualizar(); toast('Demonstração reiniciada.'); },
+    'reiniciar-ok': () => { const s = S.sessao; S = semente(); S.sessao = s; garantirNovidades(); garantirOnda4(); garantirOnda5(); salvar(); fecharModal(); atualizar(); toast('Demonstração reiniciada.'); },
 
     'pca-item': d => {
         if (!pode('pca.gerenciar')) return naoPode();
@@ -2761,6 +2762,515 @@ NAV[1][1].push(['catalogo-orgao', 'Catálogo do órgão', 'planilha', 'catalogo.
 NAV[NAV.length - 1][1].unshift(['paineis', 'Painéis gerenciais', 'painel', 'governanca.ver']);
 NAV[NAV.length - 1][1].push(['parametros', 'Parâmetros e permissões', 'engrenagem', 'parametros.gerenciar']);
 
+/* ================= PCA por exercício, DFDs com itens do catálogo e edital completo (PRs 34, 36 e 37) ================= */
+const ETAPAS_PCA = { inicio_demandas: 'Início do cadastro das demandas', fim_dfds: 'Fim do cadastro dos DFDs', fim_aprovacao: 'Fim da aprovação dos DFDs', fim_revisao: 'Fim da revisão', fim_consolidacao: 'Fim da consolidação', fim_divulgacao: 'Fim da divulgação' };
+const ABRANGENCIAS = { orgao: 'Órgão todo', unidades: 'Unidades participantes' };
+const TIPOS_CONSOLIDACAO = { unidade: 'Por unidade', setor: 'Por setor' };
+const NIVEIS_DETALHAMENTO = { item: 'Item do catálogo (código obrigatório)', classe: 'Classe do catálogo', livre: 'Descrição livre' };
+const SIT_PCA = { rascunho: ['Em elaboração', 'b-info'], em_aprovacao: ['Em aprovação', 'b-warn'], aprovado: ['Aprovado', 'b-ok'] };
+const SIT_DFD = { rascunho: ['Em elaboração', 'b-mute'], enviada: ['Em análise', 'b-info'], aceita: ['Aprovada', 'b-ok'], recusada: ['Devolvida', 'b-warn'], consolidada: ['Consolidada no PCA', 'b-ok'], atendida: ['Virou processo', 'b-mute'] };
+const COLUNAS_DFD = [['Em elaboração', ['rascunho', 'recusada']], ['Em análise', ['enviada']], ['Finalizados', ['aceita', 'consolidada', 'atendida']]];
+const UNIDADES_PCA = { SEMAD: 'Secretaria de Administração', SEMED: 'Secretaria de Educação', SEMUS: 'Secretaria de Saúde', SEMOB: 'Secretaria de Obras' };
+const CORES_CAT = { material: '#1E5470', servico: '#34729C', servico_engenharia: '#6CB1DA', obra: '#6EC1D1' };
+const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+const sitDfd = d => d.situacao === 'em_processo' ? 'atendida' : d.situacao;
+const exercicioDfd = d => d.exercicio || Number((d.data || hoje()).slice(0, 4));
+const mesItem = i => i.mes || (i.trimestre * 3 - 2);
+const itensDe = d => d.itens || [];
+const valorDfd = d => itensDe(d).length ? itensDe(d).reduce((s, x) => s + x.qtd * x.valorUnit, 0) : d.valor;
+const plano = ano => S.pca.find(p => p.ano === Number(ano));
+
+function garantirOnda5() {
+    if (S.onda5) return;
+    const H = hoje(), ano = Number(H.slice(0, 4));
+    S.pca.forEach(pl => {
+        const futuro = pl.ano > ano;
+        Object.assign(pl, {
+            abrangencia: 'unidades', tipoConsolidacao: 'unidade', responsavel: 'SEMAD', nivel: 'item', participantes: ['SEMAD', 'SEMED', 'SEMUS', 'SEMOB'],
+            objetivo: true, objetivoTexto: 'Garantir a infraestrutura das escolas e unidades de saúde prevista no Plano Plurianual (meta 3: ensino de qualidade; meta 5: atenção básica).',
+            calendario: futuro
+                ? (lim => ({ inicio_demandas: somaDias(-75, H), fim_dfds: lim(somaDias(12, H)), fim_aprovacao: lim(somaDias(20, H)), fim_revisao: lim(somaDias(25, H)), fim_consolidacao: lim(somaDias(30, H)), fim_divulgacao: `${ano}-12-31` }))(d => d > `${ano}-12-31` ? `${ano}-12-31` : d)
+                : { inicio_demandas: `${ano - 1}-03-02`, fim_dfds: `${ano - 1}-05-29`, fim_aprovacao: `${ano - 1}-06-30`, fim_revisao: `${ano - 1}-07-31`, fim_consolidacao: `${ano - 1}-08-31`, fim_divulgacao: `${ano - 1}-12-15` },
+        });
+        pl.itens.forEach((i, n) => { i.mes = i.mes || Math.min(12, i.trimestre * 3 - 2 + (n % 3)); });
+    });
+    S.demandas.forEach(d => { d.exercicio = d.exercicio || ano; d.itens = d.itens || []; });
+    const d3 = S.demandas.find(d => d.id === 'd3'); if (d3 && !d3.processoId) d3.situacao = 'aceita';
+    const cat = S.catOrgao || [], c = k => cat.find(x => x.codigo === k) || { codigo: k, descricao: k, tipo: 'M', unidade: 'unidade', natureza: '3.3.90.30' };
+    const it = (k, qtd, valorUnit) => { const x = c(k); return { id: uid(), codigo: x.codigo, tipo: x.tipo, descricao: x.descricao, unidade: x.unidade, natureza: x.natureza, qtd, valorUnit }; };
+    const prox = ano + 1;
+    S.demandas.push(
+        { id: uid(), numero: `001/${prox}`, exercicio: prox, unidade: 'SEMED', solicitante: 'u8', objeto: 'Notebooks para as salas de recursos multifuncionais', itens: [it('472013', 24, 4250)], necessidade: 'Atender os alunos com deficiência nas 6 salas de recursos multifuncionais, com 4 equipamentos por sala.', dataPretendida: `${prox}-03-15`, data: somaDias(-40, H), situacao: 'aceita' },
+        { id: uid(), numero: `002/${prox}`, exercicio: prox, unidade: 'SEMAD', solicitante: 'u4', objeto: 'Papel A4 para as secretarias', itens: [it('461543', 2400, 24.9)], necessidade: 'Consumo médio de 200 resmas por mês nas secretarias, pela média dos últimos 12 meses do almoxarifado.', dataPretendida: `${prox}-02-01`, data: somaDias(-30, H), situacao: 'consolidada' },
+        { id: uid(), numero: `003/${prox}`, exercicio: prox, unidade: 'SEMUS', solicitante: 'u8', objeto: 'Manutenção de ar-condicionado das unidades de saúde', itens: [it('3239', 12, 6900)], necessidade: 'Manter a climatização das salas de vacina e da farmácia básica, exigida pela vigilância sanitária.', dataPretendida: `${prox}-01-10`, data: somaDias(-15, H), situacao: 'enviada' },
+        { id: uid(), numero: `004/${prox}`, exercicio: prox, unidade: 'SEMOB', solicitante: 'u4', objeto: 'Sinalização viária horizontal do centro', itens: [], valor: 210000, necessidade: 'Repintura das faixas de pedestres e das vagas do centro.', dataPretendida: `${prox}-06-01`, data: somaDias(-20, H), situacao: 'recusada', devolucao: 'Informe os itens do catálogo (tinta, microesferas e mão de obra) e a memória de cálculo das quantidades.' },
+        { id: uid(), numero: `005/${prox}`, exercicio: prox, unidade: 'SEMED', solicitante: 'u8', objeto: 'Papel A4 para as escolas', itens: [it('461543', 1500, 24.9)], necessidade: 'Material para as provas e atividades impressas das 18 escolas.', dataPretendida: `${prox}-02-01`, data: somaDias(-3, H), situacao: 'rascunho' },
+    );
+    const pl2 = plano(prox);
+    if (pl2 && !pl2.itens.some(i => i.dfd)) pl2.itens.push({ id: uid(), descricao: 'Papel sulfite A4 branco 75 g/m², resma com 500 folhas', codigo: '461543', natureza: '3.3.90.30', categoria: 'material', unidade: 'SEMAD', valor: 59760, trimestre: 1, mes: 2, dfd: [S.demandas[S.demandas.length - 4].id] });
+    S.pca.forEach(garantirPncpUnidades);
+    const pl1 = plano(ano);
+    if (pl1 && pl1.pncpUnidades && pl1.pncpUnidades.SEMAD) { const x = pl1.pncpUnidades.SEMAD.itens.find(i => /ar-condicionado/.test(i.descricao)); if (x) x.valor = 52000; }
+    S.onda5 = true;
+}
+function garantirPncpUnidades(pl) {
+    if (!pl.pncp || pl.pncpUnidades) return;
+    pl.pncpUnidades = {};
+    unidadesDoPlano(pl).forEach((u, n) => { pl.pncpUnidades[u] = { numero: pl.pncp.replace(/-(\d{6})\//, (m, s) => `-${String(Number(s) + n).padStart(6, '0')}/`), itens: pl.itens.filter(i => i.unidade === u).map(i => ({ descricao: i.descricao, valor: i.valor })), conferido: null }; });
+}
+const unidadesDoPlano = pl => [...new Set((pl.abrangencia === 'unidades' ? pl.participantes : []).concat(pl.itens.map(i => i.unidade)))].filter(u => pl.itens.some(i => i.unidade === u));
+function resumoPca(pl) {
+    const dfds = S.demandas.filter(d => exercicioDfd(d) === pl.ano), env = dfds.filter(d => sitDfd(d) !== 'rascunho');
+    const aprov = dfds.filter(d => ['aceita', 'consolidada', 'atendida'].includes(sitDfd(d)));
+    const unidades = [...new Set((pl.participantes || []).concat(pl.itens.map(i => i.unidade)))].map(u => {
+        const its = pl.itens.filter(i => i.unidade === u), du = aprov.filter(d => d.unidade === u), cons = du.filter(d => sitDfd(d) !== 'aceita');
+        return { u, valor: its.reduce((s, i) => s + i.valor, 0), itens: its.length, pncp: pl.pncpUnidades && pl.pncpUnidades[u] ? 'publicado' : 'pendente', total: du.length, consolidados: cons.length, pct: du.length ? cons.length / du.length * 100 : 0 };
+    });
+    const pub = unidades.filter(x => x.itens && x.pncp === 'publicado').length, comItens = unidades.filter(x => x.itens).length;
+    return { valor: pl.itens.reduce((s, i) => s + i.valor, 0), itens: pl.itens.length, dfdsTotal: env.length, dfdsAprov: aprov.length, unidades, pncp: !pl.pncp ? 'nao' : pub >= comItens ? 'publicado' : 'parcial' };
+}
+function etapaAtual(pl) {
+    let ult = null;
+    for (const [k, r] of Object.entries(ETAPAS_PCA)) { const d = (pl.calendario || {})[k]; if (!d) continue; ult = { r, d, enc: true }; if (hoje() <= d) return { r, d, enc: false }; }
+    return ult;
+}
+const voltarPca = (h = '#/pca', t = 'Planos') => `<div><a href="${h}" class="small" style="font-weight:600;display:inline-flex;gap:4px;align-items:center">${ico('voltar', 16)}${t}</a></div>`;
+const ABAS_PCA = [['itens', 'Itens do plano'], ['visao', 'Visão geral'], ['dfds', 'DFDs'], ['operacional', 'Operacional'], ['consolidacao', 'Consolidação']];
+const abasPca = (pl, atual) => `<div class="abas" role="tablist">${ABAS_PCA.map(([k, r]) => `<a href="#/pca/${pl.ano}/${k}" class="${k === atual ? 'on' : ''}" role="tab" aria-selected="${k === atual}">${r}</a>`).join('')}</div>`;
+const barraOk = (p, rotulo) => `<div class="barra" role="progressbar" aria-valuenow="${Math.round(p)}" aria-valuemin="0" aria-valuemax="100" aria-label="${esc(rotulo)}"><span style="width:${Math.min(100, p)}%"></span></div>`;
+const kpi = (lbl, val, foot = '', cls = '') => `<div class="card kpi"><span class="lbl">${lbl}</span><span class="val ${cls}">${val}</span>${foot ? `<span class="foot">${foot}</span>` : ''}</div>`;
+
+function telaPcaRota() {
+    const r = rota();
+    if (!r[1]) return telaPcaLista();
+    const pl = plano(r[1]); if (!pl) return telaPcaLista();
+    garantirPncpUnidades(pl);
+    const aba = r[2] || 'itens';
+    if (aba === 'visao') return telaPcaVisao(pl);
+    if (aba === 'dfds') return telaPcaDfds(pl);
+    if (aba === 'operacional') return telaPcaOperacional(pl);
+    if (aba === 'consolidacao') return telaPcaConsolidacaoDfd(pl);
+    if (aba === 'pncp') return telaPcaPncp(pl);
+    return telaPcaItens(pl);
+}
+function telaPcaLista() {
+    const rotPncp = { publicado: ['Publicado', 'b-ok'], parcial: ['Publicado em parte', 'b-warn'], nao: ['Não publicado', 'b-warn'] };
+    const bot = pode('pca.gerenciar') ? `<button class="btn btn-p" data-acao="pca-cadastro">${ico('mais', 16)}Novo PCA</button>` : '';
+    return cab('Plano de contratações anual', `Um plano por exercício, para o órgão todo ou por unidades participantes. Cada unidade lança os seus DFDs, o planejamento consolida e publica no PNCP. ${lei('Art. 12, VII, e § 1º')}`, bot) +
+    S.pca.slice().sort((a, b) => b.ano - a.ano).map((pl, idx) => {
+        garantirPncpUnidades(pl);
+        const r = resumoPca(pl), et = etapaAtual(pl);
+        const acoes = [`<a class="btn btn-s btn-sm" href="#/pca/${pl.ano}/dfds">Ver DFDs</a>`, `<a class="btn btn-s btn-sm" href="#/pca/${pl.ano}/visao">Visão geral</a>`,
+            pode('pca.gerenciar') ? `<button class="btn btn-s btn-sm" data-acao="pca-cadastro" data-ano="${pl.ano}">Editar cadastro</button>` : '',
+            `<a class="btn btn-s btn-sm" href="#/pca/${pl.ano}/consolidacao">Consolidar</a>`,
+            pode('pncp.enviar') && pl.pncp ? `<a class="btn btn-s btn-sm" href="#/pca/${pl.ano}/pncp">Sincronizar com o PNCP</a>` : '',
+            pode('pncp.enviar') && pl.situacao === 'aprovado' ? `<button class="btn btn-p btn-sm" data-acao="pca-publicar" data-ano="${pl.ano}">${ico('pncp', 15)}${pl.pncp ? 'Atualizar no PNCP' : 'Publicar no PNCP'}</button>` : ''].join('');
+        return `<section class="card"><div class="row" style="align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h2 style="margin:0"><a href="#/pca/${pl.ano}">PCA ${pl.ano}</a></h2><span class="small muted">${esc(ABRANGENCIAS[pl.abrangencia] || '')}${pl.responsavel ? ' · responsável ' + esc(pl.responsavel) : ''}${et ? ` · ${et.enc ? 'calendário encerrado' : 'etapa atual: ' + esc(et.r.charAt(0).toLowerCase() + et.r.slice(1)) + ' até ' + dataBR(et.d)}` : ''}</span></div>
+          <div class="btns" style="margin-left:auto">${badge(SIT_PCA[pl.situacao][0], SIT_PCA[pl.situacao][1])}</div></div>
+          <div class="btns" style="margin-top:10px;flex-wrap:wrap">${acoes}</div>
+          <div class="kpis" style="margin-top:12px">${kpi('Valor estimado', reais(r.valor), '', 'valor')}${kpi('Itens', r.itens)}${kpi('DFDs aprovados', `${r.dfdsAprov} de ${r.dfdsTotal}`)}${kpi('Publicação no PNCP', badge(rotPncp[r.pncp][0], rotPncp[r.pncp][1]))}</div>
+          ${r.unidades.length ? `<details style="margin-top:12px" ${idx === 0 ? 'open' : ''}><summary style="cursor:pointer"><b>Unidades participantes</b> <span class="muted small">· ${r.unidades.length}</span></summary>
+          <div class="tbl-wrap" style="margin-top:8px"><table class="tbl"><thead><tr><th>Unidade</th><th class="num">Valor estimado</th><th class="num">Itens</th><th>PNCP</th><th>DFDs consolidados</th><th>Situação</th></tr></thead><tbody>
+          ${r.unidades.map(u => `<tr><td><span class="sigla">${esc(u.u)}</span><div class="small muted">${esc(UNIDADES_PCA[u.u] || UNIDADES[u.u] || '')}</div></td><td class="num valor">${reais(u.valor)}</td><td class="num">${u.itens}</td><td>${u.pncp === 'publicado' ? badge('Publicado', 'b-ok') : badge('Pendente', 'b-warn')}</td><td style="min-width:180px"><div class="row" style="gap:8px;align-items:center"><div style="flex:1">${barraOk(u.pct, 'DFDs consolidados de ' + u.u)}</div><span class="small">${u.consolidados}/${u.total}</span></div></td><td>${u.total && u.consolidados === u.total ? badge('Consolidado', 'b-ok') : badge('Em elaboração', 'b-info')}</td></tr>`).join('')}
+          </tbody></table></div></details>` : ''}</section>`;
+    }).join('');
+}
+function telaPcaItens(pl) {
+    const ano = pl.ano, total = pl.itens.reduce((s, i) => s + i.valor, 0) || 0;
+    const porNat = {}; pl.itens.forEach(i => porNat[i.natureza] = (porNat[i.natureza] || 0) + i.valor);
+    const bot = [
+        pl.situacao === 'rascunho' && pode('pca.gerenciar') ? `<button class="btn btn-p" data-acao="pca-item" data-ano="${ano}">${ico('mais', 16)}Incluir item</button>` : '',
+        pl.situacao === 'rascunho' && pode('pca.aprovar') ? `<button class="btn btn-t" data-acao="pca-aprovar" data-ano="${ano}">${ico('ok', 16)}Aprovar o plano</button>` : '',
+        pl.situacao === 'aprovado' && pode('pncp.enviar') ? `<button class="btn btn-s" data-acao="pca-publicar" data-ano="${ano}">${ico('enviar', 16)}${pl.pncp ? 'Atualizar no PNCP' : 'Publicar no PNCP'}</button>` : '',
+        pode('pca.gerenciar') ? `<button class="btn btn-s" data-acao="pca-cadastro" data-ano="${ano}">${ico('editar', 16)}Cadastro</button>` : '',
+    ].join('');
+    return voltarPca() + cab(`PCA ${ano}`, `Planejamento do exercício, por unidade e natureza de despesa ${lei('art. 12, VII')}`, bot) + abasPca(pl, 'itens') +
+    `<div class="kpis">${kpi('Valor total', reais(total), pl.itens.length + ' itens', 'valor')}${kpi('Situação', badge(SIT_PCA[pl.situacao][0], SIT_PCA[pl.situacao][1]), pl.aprovadoEm ? 'Aprovado em ' + dataBR(pl.aprovadoEm) : 'Aprovação pela autoridade competente')}
+      ${kpi('PNCP', pl.pncp ? `${Object.keys(pl.pncpUnidades || {}).length} unidade(s)` : '—', pl.pncp ? `<a href="#/pca/${ano}/pncp">Conferir com o portal</a>` : 'Ainda não publicado')}</div>
+    <section class="card card-flush"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Item</th><th>Natureza</th><th>Unidade</th><th>Data desejada</th><th class="num">Valor estimado</th></tr></thead><tbody>
+    ${pl.itens.length ? pl.itens.map((i, n) => `<tr><td><b>${n + 1}. ${esc(i.descricao)}</b><div class="small muted">${esc(CATEGORIAS[i.categoria])}${i.codigo ? ' · CATMAT/CATSER ' + esc(i.codigo) : ''}${i.dfd ? ' · ' + badge(`de ${i.dfd.length} DFD${i.dfd.length > 1 ? 's' : ''}`, 'b-info') : ''}</div></td><td><span class="sigla">${i.natureza}</span><div class="small muted">${esc(NATUREZAS[i.natureza] || '')}</div></td><td>${esc(i.unidade)}</td><td>${MESES[mesItem(i) - 1]}<div class="small muted">${i.trimestre}º trimestre</div></td><td class="num valor">${reais(i.valor)}</td></tr>`).join('') : `<tr><td colspan="5">${vazio('Plano sem itens', 'Consolide os DFDs aprovados na aba Consolidação ou inclua um item.')}</td></tr>`}
+    </tbody></table></div></section>
+    ${pl.itens.length ? `<section class="card"><h2>Por natureza de despesa</h2><p class="hint">Base para controlar o fracionamento nas dispensas ${lei('art. 75, § 1º')}</p><div class="list">${Object.entries(porNat).sort((a, b) => b[1] - a[1]).map(([n, v]) => `<div class="li" style="display:block"><div class="row"><span><b>${n}</b> <span class="muted small">${esc(NATUREZAS[n] || '')}</span></span><b class="valor">${reais(v)}</b></div><div style="margin-top:8px">${barraOk(v / total * 100, 'Participação de ' + n)}</div></div>`).join('')}</div></section>` : ''}`;
+}
+function telaPcaVisao(pl) {
+    const r = resumoPca(pl), et = etapaAtual(pl);
+    const porUn = {}; pl.itens.forEach(i => { const x = porUn[i.unidade] = porUn[i.unidade] || { total: 0, cats: {} }; x.total += i.valor; x.cats[i.categoria] = (x.cats[i.categoria] || 0) + i.valor; });
+    const maior = Math.max(1, ...Object.values(porUn).map(x => x.total));
+    const meses = MESES.map((m, k) => { const its = pl.itens.filter(i => mesItem(i) === k + 1); return { m, q: its.length, v: its.reduce((s, i) => s + i.valor, 0) }; }), maiorMes = Math.max(1, ...meses.map(x => x.v));
+    const usadas = [...new Set(pl.itens.map(i => i.categoria))];
+    return voltarPca() + cab(`Visão geral do PCA ${pl.ano}`, `Onde está o valor planejado e quando as contratações devem acontecer ${lei('art. 12, VII')}`) + abasPca(pl, 'visao') +
+    (et ? `<div class="aviso-lei" role="note"><b>${et.enc ? 'Calendário encerrado' : 'Etapa atual'}:</b> ${esc(et.r)} até ${dataBR(et.d)}.</div>` : '') +
+    `<div class="kpis">${kpi('Valor total do PCA', reais(r.valor), '', 'valor')}${kpi('Unidades', r.unidades.length)}${kpi('Objetos', new Set(pl.itens.map(i => i.descricao)).size, r.itens + ' itens')}${kpi('DFDs aprovados', r.dfdsAprov, 'de ' + r.dfdsTotal + ' enviados')}</div>
+    <section class="card"><h2>Valores por unidade</h2><p class="hint">Valor planejado de cada unidade, dividido pela categoria dos itens.</p>
+      ${pl.itens.length ? `<ul class="small" style="display:flex;flex-wrap:wrap;gap:12px;list-style:none;padding:0;margin:10px 0">${usadas.map(c => `<li style="display:flex;gap:6px;align-items:center"><span aria-hidden="true" style="width:12px;height:12px;border-radius:3px;background:${CORES_CAT[c]}"></span>${esc(CATEGORIAS[c])}</li>`).join('')}</ul>
+      <div style="display:flex;flex-direction:column;gap:10px">${Object.entries(porUn).sort((a, b) => b[1].total - a[1].total).map(([u, x]) => `<div style="display:grid;grid-template-columns:minmax(60px,110px) 1fr;gap:10px;align-items:center"><span class="sigla small">${esc(u)}</span><div><div role="img" aria-label="${esc(u)}: ${reais(x.total)}" style="display:flex;height:16px;width:${Math.max(2, x.total / maior * 100).toFixed(1)}%;border-radius:4px;overflow:hidden">${Object.entries(x.cats).map(([c, v]) => `<span title="${esc(CATEGORIAS[c])}: ${reais(v)}" style="flex:${v};background:${CORES_CAT[c]}"></span>`).join('')}</div><span class="small valor">${reais(x.total)}</span></div></div>`).join('')}</div>` : '<p class="small muted">O plano ainda não tem itens.</p>'}</section>
+    <section class="card"><h2>Calendário de contratações</h2><p class="hint">Itens pelo mês da data desejada.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:10px">${meses.map(x => `<div class="card" style="padding:10px;border-left:6px solid rgba(52,114,156,${x.v ? (0.25 + 0.75 * x.v / maiorMes).toFixed(2) : 0})"><b class="small">${x.m}</b><div class="valor">${reais(x.v)}</div><div class="small muted">${x.q} ${x.q === 1 ? 'item' : 'itens'}</div></div>`).join('')}</div></section>
+    <section class="card"><h2>Calendário de elaboração</h2><div class="list">${Object.entries(ETAPAS_PCA).map(([k, rot]) => { const d = (pl.calendario || {})[k]; return `<div class="li"><div style="flex:1">${esc(rot)}</div><b>${dataBR(d)}</b>${d ? (hoje() > d ? badge('Encerrada', 'b-mute') : et && et.d === d ? badge('Em curso', 'b-info') : badge('Prevista', 'b-ok')) : ''}</div>`; }).join('')}</div></section>`;
+}
+function cartaoDfd(d, pl) {
+    const s = sitDfd(d), dono = d.solicitante === S.sessao || pode('pca.gerenciar');
+    const b = [
+        ['rascunho', 'recusada'].includes(s) && dono && pode('demandas.criar') ? `<button class="btn btn-s btn-sm" data-acao="dfd-enviar" data-id="${d.id}">${s === 'recusada' ? 'Corrigir e reenviar' : 'Enviar'}</button>` : '',
+        s === 'enviada' && pode('pca.gerenciar') ? `<button class="btn btn-s btn-sm" data-acao="dfd-aprovar" data-id="${d.id}">Aprovar</button><button class="btn btn-g btn-sm" data-acao="dfd-devolver" data-id="${d.id}">Devolver</button>` : '',
+        s === 'aceita' && pode('pca.gerenciar') ? `<button class="btn btn-p btn-sm" data-acao="dfd-consolidar" data-id="${d.id}">Consolidar no PCA</button>` : '',
+    ].join('');
+    return `<article class="card" style="padding:12px"><div class="row" style="gap:8px;align-items:flex-start"><b>#${esc(d.numero)} · ${esc(d.objeto)}</b><span style="margin-left:auto;white-space:nowrap">${badge(SIT_DFD[s][0], SIT_DFD[s][1])}</span></div>
+      <div class="small muted" style="margin-top:6px">${esc(d.unidade)} · ${itensDe(d).length} ${itensDe(d).length === 1 ? 'item' : 'itens'} · ${dataBR(d.data)}${d.dataPretendida ? ' · para ' + dataBR(d.dataPretendida) : ''}</div>
+      ${itensDe(d).length ? `<ul class="small" style="margin:6px 0 0;padding-left:18px">${itensDe(d).map(x => `<li>${esc(x.tipo === 'S' ? 'CATSER' : 'CATMAT')} ${esc(x.codigo)} · ${num(x.qtd, 0)} ${esc(x.unidade)} × ${reais(x.valorUnit)}</li>`).join('')}</ul>` : ''}
+      ${s === 'recusada' && d.devolucao ? `<div class="flash flash-aviso" style="margin-top:6px">${ico('alerta')}<span>Devolvido: ${esc(d.devolucao)}</span></div>` : ''}
+      <div class="row" style="margin-top:6px"><span class="valor">${reais(valorDfd(d))}</span><span class="small muted">${esc(nomeUsuario(d.solicitante))}</span></div>
+      ${b ? `<div class="btns" style="margin-top:8px">${b}</div>` : ''}</article>`;
+}
+function telaPcaDfds(pl) {
+    const r = resumoPca(pl), dfds = S.demandas.filter(d => exercicioDfd(d) === pl.ano);
+    const bot = pode('demandas.criar') ? `<button class="btn btn-p" data-acao="demanda-nova" data-ano="${pl.ano}">${ico('mais', 16)}DFD</button>` : '';
+    return voltarPca() + cab(`DFDs do PCA ${pl.ano}`, `Cada unidade lança os seus DFDs com itens do catálogo; o planejamento analisa e consolida no plano ${lei('art. 12, VII')}`, bot) + abasPca(pl, 'dfds') +
+    `<div class="kpis">${kpi('Exercício', pl.ano)}${kpi('Valor total do PCA', reais(r.valor), '', 'valor')}${kpi('Itens no plano', r.itens)}${kpi('DFDs aprovados', r.dfdsAprov)}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;align-items:start">${COLUNAS_DFD.map(([t, sits]) => { const L = dfds.filter(d => sits.includes(sitDfd(d))); return `<section class="card" style="background:var(--color-fundo, #F4FAFD)"><h2 style="margin:0 0 10px">${t} <span class="muted small">(${L.length})</span></h2><div style="display:flex;flex-direction:column;gap:10px">${L.length ? L.map(d => cartaoDfd(d, pl)).join('') : '<p class="small muted">Nenhum DFD.</p>'}</div></section>`; }).join('')}</div>`;
+}
+function telaPcaOperacional(pl) {
+    const procs = S.processos.filter(p => p.ano === pl.ano), plan = p => !/^Fora/.test(p.previsaoPca || '');
+    const dem = p => S.demandas.find(d => d.id === p.demandaId);
+    const tardio = p => !plan(p) || (dem(p) && pl.calendario && dem(p).data > pl.calendario.fim_dfds);
+    const planejados = procs.filter(plan), fora = procs.filter(p => !plan(p)), tard = procs.filter(tardio);
+    const atraso = S.demandas.filter(d => exercicioDfd(d) === pl.ano && ['aceita', 'consolidada'].includes(sitDfd(d)) && !d.processoId && d.dataPretendida && d.dataPretendida < hoje());
+    const ader = procs.length ? planejados.length / procs.length * 100 : 0, ind = procs.length ? tard.length / procs.length * 100 : 0, graus = (3.6 * ind).toFixed(1);
+    const porUn = {}; procs.forEach(p => { const x = porUn[p.unidadeOrigem || 'SEMAD'] = porUn[p.unidadeOrigem || 'SEMAD'] || { t: 0, pl: 0 }; x.t++; if (plan(p)) x.pl++; });
+    return voltarPca() + cab(`Operacional do PCA ${pl.ano}`, `Quanto do que se contrata no exercício estava no plano. Contratação fora do PCA precisa de justificativa ${lei('art. 12, VII, e § 1º; art. 18')}`) + abasPca(pl, 'operacional') +
+    `<div class="kpis">${kpi('Aderência ao PCA', pct(ader), `${planejados.length} de ${procs.length} processos`)}${kpi('Valor planejado', reais(planejados.reduce((s, p) => s + valorProcesso(p), 0)), 'processos com item do PCA', 'valor')}${kpi('Fora do PCA', reais(fora.reduce((s, p) => s + valorProcesso(p), 0)), `${fora.length} ${fora.length === 1 ? 'processo' : 'processos'}`, 'valor')}${kpi('DFDs em atraso', reais(atraso.reduce((s, d) => s + valorDfd(d), 0)), `${atraso.length} aprovados sem processo após a data`, 'valor')}</div>
+    <div class="g2"><section class="card"><h2>Aderência ao planejamento por unidade</h2><p class="hint">Processos com item do PCA sobre o total de processos da unidade.</p><div class="list">${Object.keys(porUn).length ? Object.entries(porUn).map(([u, x]) => `<div class="li" style="display:block"><div class="row"><span class="sigla">${esc(u)}</span><span class="small">${x.pl} de ${x.t} · <b>${pct(x.pl / x.t * 100)}</b></span></div>${barraOk(x.pl / x.t * 100, 'Aderência de ' + u)}</div>`).join('') : '<div class="li muted">Nenhum processo do exercício.</div>'}</div></section>
+      <section class="card"><h2>Índice de planejamento tardio</h2><p class="hint">Processos fora do PCA ou de DFD enviado depois do prazo, sobre o total.</p>
+        <div style="display:flex;justify-content:center;margin:16px 0"><div role="img" aria-label="Índice de planejamento tardio: ${pct(ind)}" style="width:160px;height:160px;border-radius:50%;background:conic-gradient(#C2410C 0 ${graus}deg, #CBEAEC ${graus}deg 360deg);display:grid;place-items:center"><div style="width:116px;height:116px;border-radius:50%;background:var(--color-card, #fff);display:grid;place-items:center"><b style="font-size:22px">${pct(ind)}</b></div></div></div>
+        <p class="small" style="text-align:center">${tard.length} de ${procs.length} contratações · planejadas a tempo: ${procs.length - tard.length}</p></section></div>
+    <div class="g2"><section class="card"><h2>Contratações fora do PCA</h2><div class="list">${fora.length ? fora.map(p => `<a class="li" href="#/processos/${p.id}" style="text-decoration:none;color:inherit"><div style="flex:1">${esc(p.numero)} · ${esc(p.objeto)}<div class="small muted">${esc(p.unidadeOrigem || '')} · ${esc(p.previsaoPca || '')}</div></div><b class="valor">${reais(valorProcesso(p))}</b></a>`).join('') : '<div class="li muted">Nenhuma.</div>'}</div></section>
+      <section class="card"><h2>DFDs aprovados em atraso</h2><div class="list">${atraso.length ? atraso.map(d => `<div class="li"><div style="flex:1">#${esc(d.numero)} · ${esc(d.objeto)}<div class="small muted">${esc(d.unidade)} · pretendido para ${dataBR(d.dataPretendida)}</div></div><b class="valor">${reais(valorDfd(d))}</b></div>`).join('') : '<div class="li muted">Nenhum.</div>'}</div></section></div>`;
+}
+function telaPcaConsolidacaoDfd(pl) {
+    const ap = S.demandas.filter(d => exercicioDfd(d) === pl.ano && ['aceita', 'consolidada', 'atendida'].includes(sitDfd(d)));
+    const cons = ap.filter(d => sitDfd(d) !== 'aceita'), pend = ap.filter(d => sitDfd(d) === 'aceita');
+    const bot = pode('pca.gerenciar') && pend.length ? `<button class="btn btn-p" data-acao="dfd-consolidar-todos" data-ano="${pl.ano}">${ico('organograma', 16)}Consolidar os ${pend.length} aprovados</button>` : '';
+    return voltarPca() + cab(`Consolidação do PCA ${pl.ano}`, `Os DFDs aprovados viram itens do plano, somados por unidade e item do catálogo ${lei('art. 12, VII, e art. 40, V, b')}`, bot + `<a class="btn btn-s" href="#/pca-consolidacao">${ico('cifrao', 16)}Agrupamento e orçamento</a>`) + abasPca(pl, 'consolidacao') +
+    `<section class="card"><div class="row"><h2 style="margin:0">Progresso</h2><b>${cons.length} de ${ap.length} DFDs consolidados</b></div><div style="margin-top:8px">${barraOk(ap.length ? cons.length / ap.length * 100 : 0, 'DFDs consolidados')}</div>
+      ${pl.situacao === 'aprovado' ? `<div class="flash flash-aviso" style="margin-top:10px">${ico('cadeado')}<span>O plano está aprovado: consolidar um DFD novo abre uma revisão justificada ${lei('art. 12, § 1º')}.</span></div>` : ''}</section>
+    <section class="card card-flush"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>DFD</th><th>Unidade</th><th>Itens do catálogo</th><th class="num">Valor</th><th>Situação</th><th class="acoes"></th></tr></thead><tbody>
+    ${ap.length ? ap.map(d => `<tr><td><b>#${esc(d.numero)}</b><div class="small muted">${esc(d.objeto)}</div></td><td>${esc(d.unidade)}</td><td class="small">${itensDe(d).map(x => `${esc(x.codigo)} · ${num(x.qtd, 0)} ${esc(x.unidade)}`).join('<br>') || '—'}</td><td class="num valor">${reais(valorDfd(d))}</td><td>${badge(SIT_DFD[sitDfd(d)][0], SIT_DFD[sitDfd(d)][1])}</td><td class="acoes">${sitDfd(d) === 'aceita' && pode('pca.gerenciar') ? `<button class="btn btn-s btn-sm" data-acao="dfd-consolidar" data-id="${d.id}">Consolidar</button>` : ''}</td></tr>`).join('') : `<tr><td colspan="6">${vazio('Nenhum DFD aprovado', 'Aprove os DFDs na aba DFDs.')}</td></tr>`}
+    </tbody></table></div></section>`;
+}
+function compararPncp(pl, u) {
+    const aqui = pl.itens.filter(i => i.unidade === u), la = (pl.pncpUnidades[u] || { itens: [] }).itens;
+    const r = { iguais: 0, novos: [], removidos: [], alterados: {} };
+    aqui.forEach((i, n) => { const x = la[n]; if (!x) return r.novos.push(n + 1); const difs = []; if (x.descricao !== i.descricao) difs.push(['Descrição', i.descricao, x.descricao]); if (Math.abs(x.valor - i.valor) > 0.009) difs.push(['Valor total', reais(i.valor), reais(x.valor)]); if (difs.length) r.alterados[n + 1] = difs; else r.iguais++; });
+    for (let n = aqui.length; n < la.length; n++) r.removidos.push(n + 1);
+    return r;
+}
+function telaPcaPncp(pl) {
+    const bot = pode('pncp.enviar') ? `<button class="btn btn-s" data-acao="pca-sincronizar" data-ano="${pl.ano}">${ico('relogio', 16)}Sincronizar agora</button>${pl.situacao === 'aprovado' ? `<button class="btn btn-p" data-acao="pca-publicar" data-ano="${pl.ano}">${ico('pncp', 16)}Atualizar no PNCP</button>` : ''}` : '';
+    const partes = Object.entries(pl.pncpUnidades || {});
+    return voltarPca(`#/pca/${pl.ano}`, `PCA ${pl.ano}`) + cab(`PCA ${pl.ano} no PNCP`, `Confere, unidade por unidade, o que o PNCP tem com o plano do sistema. O PNCP recebe um PCA por unidade compradora ${lei('art. 12, § 1º, e art. 174')}`, bot) +
+    (partes.length ? partes.map(([u, x]) => { const s = x.conferido ? compararPncp(pl, u) : null; const al = s ? Object.entries(s.alterados) : [];
+        return `<section class="card"><div class="row"><h2 style="margin:0">${esc(u)} <span class="muted small">${esc(UNIDADES_PCA[u] || '')} · ${esc(x.numero)}</span></h2><span class="small muted" style="margin-left:auto">${x.conferido ? 'Conferido em ' + dataBR(x.conferido) + ' ' + x.conferido.slice(11, 16) : 'Ainda não conferido'}</span></div>
+        ${s ? (!s.novos.length && !s.removidos.length && !al.length ? `<p class="small" style="margin-top:8px">${badge('Em dia', 'b-ok')} Os ${s.iguais} itens do PNCP batem com o plano.</p>` :
+        `<ul class="small" style="margin-top:8px"><li>${s.iguais} ${s.iguais === 1 ? 'item igual' : 'itens iguais'}.</li>${s.novos.length ? `<li>${badge('A incluir', 'b-info')} itens ${s.novos.join(', ')}: estão no plano e não no PNCP. "Atualizar no PNCP" inclui.</li>` : ''}${al.length ? `<li>${badge('A retificar', 'b-warn')} itens ${al.map(a => a[0]).join(', ')}: "Atualizar no PNCP" retifica, com justificativa.</li>` : ''}${s.removidos.length ? `<li>${badge('Só no PNCP', 'b-err')} itens ${s.removidos.join(', ')}: não estão mais no plano.</li>` : ''}</ul>
+        ${al.length ? `<div class="tbl-wrap" style="margin-top:8px"><table class="tbl"><thead><tr><th>Item</th><th>Campo</th><th>No plano</th><th>No PNCP</th></tr></thead><tbody>${al.flatMap(([n, difs]) => difs.map(d => `<tr><td class="sigla">${n}</td><td>${d[0]}</td><td>${esc(d[1])}</td><td>${esc(d[2])}</td></tr>`)).join('')}</tbody></table></div>` : ''}`) : '<p class="hint">Clique em "Sincronizar agora" para baixar o plano publicado e comparar.</p>'}</section>`; }).join('')
+    : `<section class="card">${vazio('PCA ainda não publicado', 'Depois de aprovado, publique no PNCP pela tela do plano.')}</section>`);
+}
+function telaDemandasOnda5() {
+    const bot = pode('demandas.criar') ? `<button class="btn btn-p" data-acao="demanda-nova">${ico('mais', 16)}Nova demanda (DFD)</button>` : '';
+    const L = S.demandas.slice().sort((a, b) => exercicioDfd(b) - exercicioDfd(a) || String(b.data).localeCompare(String(a.data)));
+    return cab('Demandas', `Documento de formalização da demanda das unidades, com itens do catálogo ${lei('art. 12, VII, e art. 19, II')}`, bot) +
+    `<section class="card card-flush"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>DFD</th><th>Objeto</th><th>Unidade</th><th>PCA</th><th class="num">Valor</th><th>Situação</th><th class="acoes"></th></tr></thead><tbody>
+    ${L.map(d => { const s = sitDfd(d), it = S.pca.flatMap(p => p.itens).find(i => i.id === d.itemPca), dono = d.solicitante === S.sessao || pode('pca.gerenciar');
+        const ac = d.processoId ? `<a class="btn btn-g btn-sm" href="#/processos/${d.processoId}">Ver processo</a>`
+            : s === 'enviada' && pode('pca.gerenciar') ? `<button class="btn btn-s btn-sm" data-acao="dfd-aprovar" data-id="${d.id}">Aprovar</button><button class="btn btn-g btn-sm" data-acao="dfd-devolver" data-id="${d.id}">Devolver</button>`
+            : ['rascunho', 'recusada'].includes(s) && dono && pode('demandas.criar') ? `<button class="btn btn-s btn-sm" data-acao="dfd-enviar" data-id="${d.id}">${s === 'recusada' ? 'Corrigir e reenviar' : 'Enviar'}</button>`
+            : ['aceita', 'consolidada'].includes(s) && pode('processos.gerenciar') ? `<button class="btn btn-s btn-sm" data-acao="processo-novo" data-demanda="${d.id}">Abrir processo</button>` : '';
+        return `<tr><td><b>${esc(d.numero)}</b><div class="small muted">${dataBR(d.data)}</div></td><td>${esc(d.objeto)}<div class="small muted">${esc(nomeUsuario(d.solicitante))}${itensDe(d).length ? ' · ' + itensDe(d).length + ' item(ns) do catálogo' : ''}</div></td><td>${esc(d.unidade)}</td><td><a href="#/pca/${exercicioDfd(d)}/dfds">PCA ${exercicioDfd(d)}</a><div class="small muted">${it ? esc(it.descricao) : s === 'consolidada' ? 'consolidado no plano' : ''}</div></td><td class="num valor">${reais(valorDfd(d))}</td><td>${badge(SIT_DFD[s][0], SIT_DFD[s][1])}</td><td class="acoes"><div class="btns">${ac}</div></td></tr>`; }).join('')}
+    </tbody></table></div></section>`;
+}
+
+/* ---- consolidação de um DFD no plano (art. 12, VII) ---- */
+function consolidarDfd(d) {
+    const pl = plano(exercicioDfd(d));
+    if (!pl) return 'Não há PCA cadastrado para o exercício ' + exercicioDfd(d) + '.';
+    const its = itensDe(d).length ? itensDe(d) : [{ codigo: '', tipo: 'M', descricao: d.objeto, natureza: '3.3.90.30', qtd: 1, valorUnit: d.valor }];
+    const mes = d.dataPretendida ? Number(d.dataPretendida.slice(5, 7)) : 1;
+    its.forEach(x => {
+        const ja = pl.itens.find(i => i.unidade === d.unidade && i.codigo && i.codigo === x.codigo);
+        const v = Math.round(x.qtd * x.valorUnit * 100) / 100;
+        if (ja) { ja.valor = Math.round((ja.valor + v) * 100) / 100; ja.dfd = (ja.dfd || []).concat(d.id); d.itemPca = d.itemPca || ja.id; }
+        else { const id = uid(); pl.itens.push({ id, descricao: x.descricao, codigo: x.codigo, natureza: x.natureza, categoria: x.tipo === 'S' ? 'servico' : 'material', unidade: d.unidade, valor: v, trimestre: Math.ceil(mes / 3), mes, dfd: [d.id] }); d.itemPca = d.itemPca || id; }
+    });
+    d.situacao = 'consolidada';
+    if (pl.situacao === 'aprovado') pl.revisaoAberta = true;
+    auditar('DFD consolidado no PCA', `DFD ${d.numero}`, `PCA ${pl.ano} · ${its.length} item(ns)`);
+    return null;
+}
+
+/* ---- PCA por unidade no PNCP: um PCA por unidade compradora (art. 12, § 1º, e art. 174) ---- */
+const payloadPncpBase = payloadPncp;
+payloadPncp = e => {
+    if (e.tipo !== 'pca') return payloadPncpBase(e);
+    const pl = plano(e.ref);
+    return { anoPca: pl.ano, observacao: 'Um PCA por unidade compradora', unidades: unidadesDoPlano(pl).map(u => ({ codigoUnidade: u, itensPlano: pl.itens.filter(i => i.unidade === u).map((i, n) => ({ numeroItem: n + 1, categoriaItemPca: ehEngenharia(i.categoria) ? 3 : i.categoria === 'material' ? 1 : 2, catalogo: i.codigo ? (i.categoria === 'material' ? 'CATMAT ' : 'CATSER ') + i.codigo : null, descricao: i.descricao, valorTotal: i.valor, dataDesejada: `${pl.ano}-${String(mesItem(i)).padStart(2, '0')}-01` })) })) };
+};
+const processarFilaBase = processarFila;
+processarFila = () => {
+    const r = processarFilaBase();
+    S.pncp.filter(e => e.tipo === 'pca' && e.situacao === 'publicado' && !e.aplicadoUnidades).forEach(e => {
+        const pl = plano(e.ref); if (!pl) return;
+        e.aplicadoUnidades = true;
+        if (!pl.pncpUnidades) { garantirPncpUnidades(pl); return; }
+        unidadesDoPlano(pl).forEach(u => {
+            const n = Object.keys(pl.pncpUnidades).length;
+            pl.pncpUnidades[u] = pl.pncpUnidades[u] || { numero: pl.pncp.replace(/-(\d{6})\//, (m, s) => `-${String(Number(s) + n).padStart(6, '0')}/`), conferido: null };
+            pl.pncpUnidades[u].itens = pl.itens.filter(i => i.unidade === u).map(i => ({ descricao: i.descricao, valor: i.valor }));
+        });
+    });
+    return r;
+};
+
+/* ---- edital completo em um clique (art. 25) e caderno do edital ---- */
+const BENEFICIOS_ME = { 1: 'participação exclusiva de microempresas e empresas de pequeno porte', 3: 'cota reservada de até 25% para microempresas e empresas de pequeno porte', 4: 'ampla participação, sem tratamento diferenciado' };
+const rascunhoEdital = {};
+function diasUteisAte(fim) { let n = 0; const d = dt(hoje()); const f = dt(fim.slice(0, 10)); while (d < f) { d.setDate(d.getDate() + 1); if (d.getDay() % 6) n++; } return n; }
+function modelosEdital(p) {
+    const base = p.modalidade === 6 || p.modalidade === 7 ? 'Pregão' : 'Concorrência';
+    const L = [`${base} ${p.modalidade === 5 || p.modalidade === 7 ? 'presencial' : 'eletrônico'} · ${p.categoria === 'material' ? 'aquisição de bens' : ehEngenharia(p.categoria) ? 'obras e serviços de engenharia' : 'serviços comuns'}`];
+    L.push(`${base} · registro de preços`, 'Modelo livre do órgão');
+    return L;
+}
+function dadosEdital(p) {
+    const tr = (p.docs.termo_referencia || { campos: {} }).campos, mc = (p.docs.minuta_contrato || { campos: {} }).campos;
+    const g = /garantia[^\d]{0,30}(\d+(?:[.,]\d+)?)\s*%/i.exec(mc.texto || '');
+    return { modelo: 0, sessao_em: p.sessaoEm || '', local: p.modalidade === 5 || p.modalidade === 7 ? '' : 'Portal de Compras do Governo Federal (www.gov.br/compras)', prazo_assinatura: (S.parametros || {}).prazoAssinatura || 5, garantia_pct: g ? g[1].replace(',', '.') : '', garantia_justificativa: '', habilitacao: tr.h_selecao || '' };
+}
+function formEdital(p, v) {
+    const ms = modelosEdital(p);
+    return `<form data-form="edital-gerar" data-p="${p.id}" class="form-grid" id="form-edital">
+      <p class="full hint" style="margin:0">O sistema escolhe o modelo da modalidade e preenche o edital com os dados do processo, do ETP, do Termo de Referência e da minuta do contrato. O texto vem para a tela sem ser salvo e continua sendo minuta para a sua revisão e a da assessoria jurídica ${lei('art. 53')}.</p>
+      ${campo('modelo', 'Modelo de edital', sel('modelo', Object.fromEntries(ms.map((m, i) => [i, m])), v.modelo), 'O primeiro é o recomendado para a modalidade e a categoria do processo.')}
+      ${campo('sessao_em', 'Data e hora da sessão pública', inp('sessao_em', v.sessao_em, 'type="datetime-local"'), `Respeite o prazo mínimo de divulgação ${lei('art. 55')}.`)}
+      ${campo('local', p.modalidade === 5 || p.modalidade === 7 ? 'Endereço da sessão presencial' : 'Plataforma eletrônica', inp('local', v.local, 'maxlength="300"'))}
+      ${campo('prazo_assinatura', 'Prazo para o vencedor assinar o contrato (dias úteis)', inp('prazo_assinatura', v.prazo_assinatura, 'type="number" min="1" max="30"'), `Padrão do órgão nos parâmetros; prorrogável uma vez ${lei('art. 90, § 1º')}.`)}
+      ${campo('garantia_pct', 'Garantia de execução (% do valor do contrato)', inp('garantia_pct', v.garantia_pct, 'type="number" min="0" max="30" step="0.01" placeholder="0 se não exigir"'), `Até 5%, ou até 10% com justificativa ${lei('arts. 96 a 98')}.`)}
+      ${campo('garantia_justificativa', 'Justificativa da garantia acima de 5%', inp('garantia_justificativa', v.garantia_justificativa, 'maxlength="1000"'))}
+      ${campo('habilitacao', 'Exigências de habilitação desta licitação', txt('habilitacao', v.habilitacao, 'rows="3"'), `Vem do item h) do Termo de Referência. Exija só o proporcional ao objeto ${lei('arts. 62 a 70')}.`, 'full')}
+      <p class="small muted full" style="margin:0">Benefício às ME/EPP: sai item a item, pelo valor de cada item cadastrado na aba Itens ${lei('art. 4º')}.</p>
+      <div class="full form-acoes"><button type="button" class="btn btn-s" data-acao="doc-abrir" data-p="${p.id}" data-tipo="minuta_edital">Voltar</button>${pode('ia.usar') ? `<button type="button" class="btn btn-s" data-acao="edital-ia" data-p="${p.id}">${ico('liga', 16)}Propor o que falta com a NexMind IA</button>` : ''}<button type="submit" class="btn btn-p">${ico('ok', 16)}Gerar edital completo</button></div>
+      <div id="edital-ia-msg" class="full small" aria-live="polite"></div></form>`;
+}
+function montarEdital(p, f) {
+    const pend = [], alertas = [], ms = modelosEdital(p), modelo = ms[Number(f.modelo) || 0];
+    const marca = t => { pend.push(t); return `[${t}]`; };
+    const etp = (p.docs.etp || { campos: {} }).campos, tr = (p.docs.termo_referencia || { campos: {} }).campos;
+    const itens = p.itens.map((it, n) => ({ n: n + 1, d: it.descricao, b: valorItem(it) <= 80000 ? 1 : 4, v: valorItem(it) }));
+    const total = itens.reduce((s, i) => s + i.v, 0);
+    let quando;
+    if (f.sessao_em) {
+        const d = f.sessao_em; quando = `em ${dataBR(d)}, às ${d.slice(11, 13)}h${d.slice(14, 16)} (horário de Brasília)`;
+        const min = p.categoria === 'material' ? 8 : ehEngenharia(p.categoria) ? 10 : 10, du = diasUteisAte(d);
+        if (du < min) alertas.push(`A sessão está a ${du} dia(s) útil(eis) da publicação de hoje. O mínimo para ${p.categoria === 'material' ? 'aquisição de bens com menor preço' : 'serviços comuns'} é ${min} dias úteis (art. 55, ${p.categoria === 'material' ? 'I, a' : 'II, a'}).`);
+    } else quando = marca('informe a data e a hora da sessão');
+    const g = Number(f.garantia_pct) || 0;
+    if (g > 10) alertas.push('Garantia acima de 10% não é permitida nem com justificativa (art. 98).');
+    else if (g > 5 && !String(f.garantia_justificativa || '').trim()) alertas.push('Garantia acima de 5% exige justificativa pela complexidade técnica e pelos riscos (art. 98).');
+    const T = [
+        `${S.orgao.nome.toUpperCase()}`, `EDITAL DE ${MODALIDADES[p.modalidade].toUpperCase()} Nº ${p.numero}`, `Processo administrativo nº ${p.numero} · Modelo: ${modelo}`, '',
+        '1. DO OBJETO',
+        `1.1. O objeto da presente licitação é: ${p.objeto}, conforme as condições, quantidades e exigências do Termo de Referência (Anexo I).`,
+        `1.2. O valor estimado da contratação é de ${reais(total)}, conforme a pesquisa de preços do art. 23 da Lei nº 14.133/2021.`,
+        itens.length === 1 ? '1.3. A licitação será em item único, conforme o Termo de Referência (Anexo I).' : `1.3. A licitação será dividida em ${itens.length} itens, conforme o Termo de Referência (Anexo I), e cada item pode ser disputado e adjudicado separadamente.`,
+        `1.4. Critério de julgamento: ${p.criterio === 1 ? 'menor preço' : 'maior desconto'}${itens.length > 1 ? ' por item' : ''}.`, '',
+        '2. DA FUNDAMENTAÇÃO',
+        `2.1. A contratação está prevista no Plano de Contratações Anual (${p.previsaoPca || marca('informe o item do PCA')}) e fundamentada no Estudo Técnico Preliminar: ${etp.i_necessidade || marca('informe a necessidade (ETP, inciso I)')}`, '',
+        '3. DA PARTICIPAÇÃO',
+        '3.1. Poderão participar os interessados cujo ramo de atividade seja compatível com o objeto e que estejam cadastrados na plataforma indicada neste edital.',
+        '3.2. Não poderão participar os impedidos ou declarados inidôneos (art. 14 e art. 156), conferidos no CEIS e no CNEP.',
+        '3.3. Será permitida a participação de consórcios apenas se prevista no Termo de Referência (art. 15).',
+        '3.4. Tratamento diferenciado às microempresas e empresas de pequeno porte, por item (art. 4º da Lei 14.133/2021 e arts. 47 a 49 da LC 123/2006):',
+        ...itens.map(i => `Item ${i.n}, ${i.d.replace(/\.$/, '')}: ${BENEFICIOS_ME[i.b]}.`), '',
+        '4. DA SESSÃO PÚBLICA',
+        `4.1. A sessão pública ocorrerá ${quando}, ${f.local ? (p.modalidade === 5 || p.modalidade === 7 ? 'no endereço ' : 'na plataforma ') + f.local : marca('informe o local ou a plataforma')}, no modo de disputa ${p.modalidade === 6 || p.modalidade === 7 ? 'aberto' : 'aberto e fechado'}.`, '',
+        '5. DA HABILITAÇÃO',
+        `5.1. ${f.habilitacao ? f.habilitacao.trim() : marca('informe as exigências de habilitação (TR, item h)')}`,
+        '5.2. A habilitação será exigida apenas do licitante vencedor, após o julgamento (art. 63, II).', '',
+        '6. DA GARANTIA',
+        `6.1. ${g ? `Será exigida garantia de execução de ${num(g)}% do valor do contrato, em qualquer das modalidades do art. 96, § 1º${g > 5 ? `, justificada por: ${f.garantia_justificativa || marca('justifique a garantia acima de 5%')}` : ''}.` : 'Não será exigida garantia de execução contratual.'}`, '',
+        '7. DA CONTRATAÇÃO',
+        `7.1. O adjudicatário terá ${f.prazo_assinatura || marca('informe o prazo')} dias úteis para assinar o contrato, contados da convocação, prorrogáveis uma vez por igual período (art. 90, § 1º).`,
+        `7.2. Pagamento: ${tr.g_pagamento || marca('informe os critérios de medição e pagamento (TR, item g)')}`,
+        `7.3. Dotação: ${((p.docs.dotacao || { campos: {} }).campos.dotacao) || marca('informe a dotação orçamentária')}.`, '',
+        '8. DOS ANEXOS',
+        '8.1. Integram este edital: Anexo I · Termo de Referência; Anexo II · Minuta do Contrato; Anexo III · Mapa de Riscos; Anexo IV · Modelos de declarações.', '',
+        `${S.orgao.municipio || 'Vale Verde'}, ${dataBR(hoje())}.`, marca('nome e cargo da autoridade competente'),
+    ];
+    return { texto: T.join('\n'), pendentes: pend, alertas, modelo };
+}
+function cadernoEdital(p) {
+    const doc = t => (p.docs[t] || { campos: {} }), falta = [];
+    const ed = rascunhoEdital[p.id] ? rascunhoEdital[p.id].texto : doc('minuta_edital').campos.texto;
+    if (!ed) falta.push('Edital (minuta não salva)');
+    ['termo_referencia', 'minuta_contrato'].forEach(t => { if (!Object.values(doc(t).campos).some(Boolean)) falta.push(DOCS[t].rot); });
+    if (!(p.riscos || []).length && !Object.values(doc('mapa_riscos').campos).some(Boolean)) falta.push('Mapa de riscos');
+    const pendTexto = (ed || '').match(/\[[^\]]+\]/g) || [];
+    const camposHtml = t => Object.entries(DOCS[t].campos).map(([k, [r]]) => `<h3>${esc(r)}</h3><p>${doc(t).campos[k] ? esc(doc(t).campos[k]).replace(/\n/g, '<br>') : '<span class="pend">[não preenchido]</span>'}</p>`).join('');
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Caderno do edital · ${esc(p.numero)}</title><style>
+      @page { size: A4; margin: 2cm; } body { font: 11pt/1.5 Arial, sans-serif; color: #1b2a35; max-width: 820px; margin: 24px auto; padding: 0 20px; counter-reset: pg; }
+      h1 { color: #1E5470; font-size: 18pt; } h2 { color: #1E5470; font-size: 14pt; border-bottom: 2px solid #1E5470; padding-bottom: 4px; margin-top: 0; } h3 { font-size: 10.5pt; margin: 12px 0 2px; color: #34729C; }
+      .folha { page-break-after: always; padding-bottom: 30px; } .folha:last-child { page-break-after: auto; } pre { white-space: pre-wrap; font: inherit; } .pend { color: #9A3412; } table { border-collapse: collapse; width: 100%; font-size: 9.5pt; } td, th { border: 1px solid #c9d6de; padding: 4px 6px; text-align: left; } th { background: #D1ECFF; }
+      .capa { text-align: center; padding-top: 60px; } .box { text-align: left; border: 1px solid #E0A458; background: #FFF7EC; padding: 10px 14px; margin-top: 30px; } .ok { border-color: #1F8A70; background: #EEF8F4; }
+      .imp { position: fixed; top: 10px; right: 10px; } @media print { .imp { display: none; } }
+    </style></head><body><button class="imp" onclick="print()">Imprimir ou salvar em PDF</button>
+      <div class="folha capa"><p><b>${esc(S.orgao.nome)}</b><br>CNPJ ${esc(S.orgao.cnpj)}</p><h1>Caderno do edital</h1><p>${esc(MODALIDADES[p.modalidade])} nº ${esc(p.numero)}<br>${esc(p.objeto)}</p><p>Edital e anexos I a IV · gerado em ${dataBR(hoje())}</p>
+        <div class="box ${falta.length || pendTexto.length ? '' : 'ok'}"><b>${falta.length || pendTexto.length ? 'Pendências antes da publicação' : 'Sem pendências: o caderno está completo'}</b>${falta.length || pendTexto.length ? `<ul>${falta.map(x => `<li>Falta: ${esc(x)}</li>`).join('')}${pendTexto.map(x => `<li>Completar no edital: ${esc(x)}</li>`).join('')}</ul>` : ''}</div></div>
+      <div class="folha"><h2>Edital</h2>${ed ? `<pre>${esc(ed).replace(/\[[^\]]+\]/g, m => `<span class="pend">${m}</span>`)}</pre>` : '<p class="pend">[minuta do edital não salva]</p>'}</div>
+      <div class="folha"><h2>Anexo I · Termo de Referência</h2>${camposHtml('termo_referencia')}</div>
+      <div class="folha"><h2>Anexo II · Minuta do Contrato</h2>${camposHtml('minuta_contrato')}</div>
+      <div class="folha"><h2>Anexo III · Mapa de Riscos</h2>${(p.riscos || []).length ? `<table><tr><th>Risco</th><th>P × I</th><th>Alocação</th><th>Tratamento</th></tr>${p.riscos.map(r => `<tr><td>${esc(r.descricao)}</td><td>${r.prob} × ${r.impacto}</td><td>${esc(ALOCACOES[r.alocacao] || '')}</td><td>${esc(r.tratamento || '')}</td></tr>`).join('')}</table>` : camposHtml('mapa_riscos')}</div>
+      <div class="folha"><h2>Anexo IV · Modelos de declarações</h2><h3>Declaração de cumprimento dos requisitos de habilitação (art. 63, I)</h3><p>Declaro, sob as penas da lei, que cumpro plenamente os requisitos de habilitação do edital.</p><h3>Declaração de enquadramento como ME/EPP (LC 123/2006, art. 3º)</h3><p>Declaro que a empresa se enquadra como microempresa ou empresa de pequeno porte e não está em nenhuma das vedações do § 4º do art. 3º.</p><h3>Declaração de reserva de cargos (art. 63, IV)</h3><p>Declaro que cumpro a reserva de cargos para pessoa com deficiência e para reabilitado da Previdência Social.</p><h3>Declaração de inexistência de trabalho infantil (art. 7º, XXXIII, da Constituição)</h3><p>Declaro que não emprego menor de 18 anos em trabalho noturno, perigoso ou insalubre, nem menor de 16 anos, salvo como aprendiz a partir de 14 anos.</p>
+      <p style="font-size:9pt;color:#4a5b68;margin-top:30px">Demonstração com dados fictícios. No sistema instalado, o caderno é um PDF paginado gerado no servidor com a última versão salva de cada peça.</p></div></body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) return toast('O navegador bloqueou a nova janela. Permita pop-ups para ver o caderno do edital.', 'erro');
+    w.document.write(html); w.document.close();
+}
+const abrirDocBase = abrirDoc;
+abrirDoc = (pid, tipo) => {
+    abrirDocBase(pid, tipo);
+    if (tipo !== 'minuta_edital') return;
+    const p = processo(pid), form = document.querySelector('#modal form[data-form="doc"]'); if (!form) return;
+    const r = rascunhoEdital[pid], ta = form.querySelector('[name="texto"]');
+    if (r && ta) { ta.value = r.texto; ta.rows = 18; }
+    const bloco = document.createElement('div'); bloco.className = 'full';
+    bloco.innerHTML = `${r ? `<div class="aviso-lei" role="status"><b>Edital montado a partir do modelo "${esc(r.modelo)}".</b> ${r.pendentes.length ? `Falta completar ${r.pendentes.length} trecho(s), marcados entre colchetes no texto:<ul style="margin:6px 0 0 18px">${r.pendentes.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : 'Nenhum trecho ficou entre colchetes. Revise o texto, salve e conclua.'}</div>${r.alertas.map(a => `<div class="aviso-lei" style="border-color:#E0A458;background:#FFF7EC;color:#7A3B0B">${esc(a)}</div>`).join('')}` : ''}
+      <div class="btns" style="margin:4px 0 8px">${podeEditarDoc(p, tipo) && p.docs[tipo]?.situacao !== 'concluido' ? `<button type="button" class="btn btn-p btn-sm" data-acao="edital-form" data-p="${pid}">${ico('ok', 15)}Gerar edital completo</button>` : ''}<button type="button" class="btn btn-s btn-sm" data-acao="edital-caderno" data-p="${pid}">${ico('download', 15)}Caderno do edital em PDF (edital e anexos I a IV)</button></div>`;
+    const ref = form.querySelector('.campo'); if (ref) form.insertBefore(bloco, ref); else form.prepend(bloco);
+};
+
+/* ---- cadastro do PCA e DFD com itens do catálogo ---- */
+function formPca(pl) {
+    const ano = Number(hoje().slice(0, 4)), novo = !pl, prox = Math.max(ano + 1, ...S.pca.map(p => p.ano + 1));
+    const v = pl || { abrangencia: 'unidades', tipoConsolidacao: 'unidade', responsavel: 'SEMAD', nivel: 'item', objetivo: false, objetivoTexto: '', calendario: {}, participantes: Object.keys(UNIDADES_PCA) };
+    return `<form data-form="pca-cadastro" data-ano="${pl ? pl.ano : ''}" class="form-grid">
+      <p class="full hint" style="margin:0">Defina quem participa, como as demandas se consolidam e o calendário de elaboração do plano ${lei('art. 12, VII, e § 1º')}.</p>
+      ${novo ? campo('ano', 'Exercício', inp('ano', prox, 'type="number" min="2023" max="2100" required')) : ''}
+      ${campo('abrangencia', 'Abrangência', sel('abrangencia', ABRANGENCIAS, v.abrangencia), 'O plano do órgão todo recebe DFD de qualquer unidade. Por unidades, só das participantes.')}
+      ${campo('tipoConsolidacao', 'Tipo de consolidação', sel('tipoConsolidacao', TIPOS_CONSOLIDACAO, v.tipoConsolidacao), 'Por unidade: os DFDs dos setores somam na unidade participante.')}
+      ${campo('responsavel', 'Unidade responsável', sel('responsavel', Object.fromEntries(Object.entries(UNIDADES_PCA).map(([k, n]) => [k, k + ' · ' + n])), v.responsavel), 'Conduz a elaboração e a consolidação do plano.')}
+      ${campo('nivel', 'Nível de detalhamento', sel('nivel', NIVEIS_DETALHAMENTO, v.nivel), 'Com item do catálogo, cada item de DFD precisa do código CATMAT/CATSER.')}
+      ${campo('objetivo', 'Possui objetivo estratégico?', sel('objetivo', { 0: 'Não', 1: 'Sim' }, v.objetivo ? 1 : 0))}
+      ${campo('objetivoTexto', 'Objetivo estratégico', txt('objetivoTexto', v.objetivoTexto, 'rows="2"'), '', 'full')}
+      <div class="full"><h3 style="margin:8px 0 0">Calendário de elaboração</h3><p class="hint">O fim do cadastro dos DFDs vira a data-limite das demandas do exercício. Depois dela, só entram as exceções justificadas.</p></div>
+      ${Object.entries(ETAPAS_PCA).map(([k, r]) => campo(k, r, inp(k, v.calendario[k] || '', 'type="date"'))).join('')}
+      <fieldset class="full" style="border:0;padding:0;margin:0"><legend><b>Unidades participantes</b></legend><div class="btns" style="flex-wrap:wrap;margin-top:6px">${Object.entries(UNIDADES_PCA).map(([k, n]) => `<label class="check"><input type="checkbox" name="part_${k}" ${v.participantes.includes(k) ? 'checked' : ''}> ${k} · ${esc(n)}</label>`).join('')}</div></fieldset>
+      <div class="full">${acoesForm('Salvar')}</div></form>`;
+}
+function formDfd(anoSel) {
+    const ano = Number(hoje().slice(0, 4));
+    const planos = S.pca.slice().sort((a, b) => b.ano - a.ano), ex = Number(anoSel) || (planos.find(p => p.situacao !== 'aprovado') || planos[0]).ano;
+    const catOpc = Object.fromEntries([['', 'Escolha um item do catálogo']].concat((S.catOrgao || []).filter(c => c.ativo !== false).map(c => [c.id, `${c.tipo === 'S' ? 'CATSER' : 'CATMAT'} ${c.codigo} · ${c.descricao}`])));
+    const itensPca = Object.fromEntries([['', 'Nenhum (o DFD vira item na consolidação)']].concat(S.pca.flatMap(p => p.itens.map(i => [i.id, `PCA ${p.ano} · ${i.descricao}`]))));
+    const unidade = (usuario().setor || '').includes('Educação') ? 'SEMED' : 'SEMAD';
+    return `<form data-form="dfd" class="form-grid">
+      ${campo('exercicio', 'Exercício (PCA)', sel('exercicio', Object.fromEntries(planos.map(p => [p.ano, `PCA ${p.ano} · ${SIT_PCA[p.situacao][0].toLowerCase()}${p.calendario && p.calendario.fim_dfds ? ' · DFDs até ' + dataBR(p.calendario.fim_dfds) : ''}`])), ex))}
+      ${campo('unidade', 'Unidade requisitante', sel('unidade', Object.fromEntries(Object.entries(UNIDADES_PCA).map(([k, n]) => [k, k + ' · ' + n])), unidade))}
+      ${campo('objeto', 'Objeto', inp('objeto', '', 'required'), '', 'full')}
+      ${campo('necessidade', 'Necessidade da contratação', txt('necessidade', '', 'rows="2"'), `Descreva o problema e a memória de cálculo das quantidades ${lei('art. 18, § 1º, I e IV')}.`, 'full')}
+      ${campo('dataPretendida', 'Data pretendida da contratação', inp('dataPretendida', `${ex}-03-01`, 'type="date"'))}
+      ${campo('itemPca', 'Item do PCA já existente (opcional)', sel('itemPca', itensPca, ''))}
+      <div class="full"><h3 style="margin:8px 0 0">Itens do catálogo</h3><p class="hint">Busque no catálogo do órgão (CATMAT/CATSER). Na planilha da consolidação, os itens iguais da mesma unidade se somam ${lei('art. 19, II')}.</p></div>
+      ${[0, 1, 2].map(i => `${campo('cat' + i, `Item ${i + 1}`, sel('cat' + i, catOpc, ''), '', 'full')}${campo('qtd' + i, 'Quantidade', inp('qtd' + i, '', 'type="number" min="0" step="1"'))}${campo('vu' + i, 'Valor unitário estimado (R$)', inp('vu' + i, '', 'type="number" min="0" step="0.01"'))}`).join('')}
+      ${campo('justificativa', 'Justificativa (DFD fora do prazo ou fora do PCA)', txt('justificativa', '', 'rows="2"'), `Depois do fim do cadastro dos DFDs, só entram exceções justificadas ${lei('art. 12, § 1º')}.`, 'full')}
+      <div class="full form-acoes"><button type="button" class="btn btn-s" data-acao="fechar-modal">Cancelar</button><button type="submit" class="btn btn-s" name="acao" value="rascunho">Salvar rascunho</button><button type="submit" class="btn btn-p" name="acao" value="enviar">${ico('enviar', 16)}Enviar para análise</button></div></form>`;
+}
+function validarEnvioDfd(d) {
+    const e = [], pl = plano(exercicioDfd(d));
+    if (!d.objeto) e.push('Informe o objeto.');
+    if (!d.necessidade || d.necessidade.length < 10) e.push('Descreva a necessidade da contratação.');
+    if (!itensDe(d).length && !(d.valor > 0)) e.push('Inclua pelo menos um item do catálogo com quantidade e valor.');
+    if (pl && pl.nivel === 'item' && itensDe(d).some(x => !x.codigo)) e.push('Este PCA exige o código CATMAT/CATSER em cada item.');
+    if (pl && pl.calendario && pl.calendario.fim_dfds && hoje() > pl.calendario.fim_dfds && String(d.justificativa || '').trim().length < 20) e.push(`O cadastro dos DFDs do PCA ${pl.ano} terminou em ${dataBR(pl.calendario.fim_dfds)}: justifique a exceção em pelo menos 20 caracteres (art. 12, § 1º).`);
+    return e;
+}
+
+Object.assign(ACOES, {
+    'pca-cadastro': d => { if (!pode('pca.gerenciar')) return naoPode(); const pl = d.ano ? plano(d.ano) : null; abrirModal(pl ? `Cadastro do PCA ${pl.ano}` : 'Novo plano de contratações anual', formPca(pl), true); },
+    'pca-publicar': d => {
+        if (!pode('pncp.enviar')) return naoPode();
+        const pl = plano(d.ano);
+        if (pl.situacao !== 'aprovado') return toast('Só o plano aprovado vai ao PNCP.', 'erro');
+        enfileirar('pca', String(pl.ano), pl.pncp ? 'retificar' : 'inserir', `PCA ${pl.ano} (${unidadesDoPlano(pl).length} unidades)`);
+        atualizar(); toast(`${pl.pncp ? 'Atualização' : 'Publicação'} do PCA ${pl.ano} na fila do PNCP: um PCA por unidade compradora. Processe a fila na tela PNCP.`);
+    },
+    'pca-sincronizar': d => {
+        const pl = plano(d.ano); const agora = new Date().toISOString();
+        Object.values(pl.pncpUnidades || {}).forEach(x => { x.conferido = agora.slice(0, 10) + 'T' + new Date().toTimeString().slice(0, 5); });
+        auditar('PCA conferido com o PNCP', `PCA ${pl.ano}`, `${Object.keys(pl.pncpUnidades || {}).length} unidade(s)`); atualizar(); toast('Plano conferido com o PNCP.');
+    },
+    'demanda-nova': d => { if (!pode('demandas.criar')) return naoPode(); abrirModal('Nova demanda (DFD)', formDfd(d.ano), true); },
+    'dfd-enviar': d => {
+        const x = S.demandas.find(y => y.id === d.id); const e = validarEnvioDfd(x);
+        if (e.length) return toast(e[0], 'erro');
+        x.situacao = 'enviada'; x.data = hoje(); auditar('DFD enviado para análise', `DFD ${x.numero}`, x.objeto); atualizar(); toast(`DFD ${x.numero} enviado ao planejamento.`);
+    },
+    'dfd-aprovar': d => { if (!pode('pca.gerenciar')) return naoPode(); const x = S.demandas.find(y => y.id === d.id); x.situacao = 'aceita'; x.devolucao = ''; auditar('DFD aprovado', `DFD ${x.numero}`); atualizar(); toast(`DFD ${x.numero} aprovado. Consolide no PCA.`); },
+    'dfd-devolver': d => { if (!pode('pca.gerenciar')) return naoPode(); const x = S.demandas.find(y => y.id === d.id); abrirModal(`Devolver o DFD ${x.numero}`, `<form data-form="dfd-devolver" data-id="${x.id}" class="form-grid">${campo('motivo', 'O que a unidade precisa corrigir', txt('motivo', '', 'rows="3" required'), '', 'full')}<div class="full">${acoesForm('Devolver')}</div></form>`); },
+    'dfd-consolidar': d => { if (!pode('pca.gerenciar')) return naoPode(); const x = S.demandas.find(y => y.id === d.id); const e = consolidarDfd(x); if (e) return toast(e, 'erro'); atualizar(); toast(`DFD ${x.numero} consolidado no PCA ${exercicioDfd(x)}.`); },
+    'dfd-consolidar-todos': d => { if (!pode('pca.gerenciar')) return naoPode(); const L = S.demandas.filter(x => exercicioDfd(x) === Number(d.ano) && sitDfd(x) === 'aceita'); L.forEach(consolidarDfd); atualizar(); toast(`${L.length} DFD(s) consolidados no PCA ${d.ano}.`); },
+    'edital-form': d => { const p = processo(d.p); if (!podeEditarDoc(p, 'minuta_edital')) return naoPode(); abrirModal('Gerar edital completo', formEdital(p, rascunhoEdital[p.id] ? rascunhoEdital[p.id].dados : dadosEdital(p)), true); },
+    'edital-ia': d => {
+        const p = processo(d.p), f = document.getElementById('form-edital'); if (!f) return;
+        const prop = { sessao_em: somaDias(14, hoje()) + 'T09:00', local: 'Portal de Compras do Governo Federal (www.gov.br/compras)', prazo_assinatura: 5, garantia_pct: p.categoria === 'material' ? '' : 5, habilitacao: 'Habilitação jurídica, regularidade fiscal, social e trabalhista e, para a qualificação técnica, atestado de fornecimento de objeto compatível em até 50% da quantidade licitada (art. 67, § 2º).' };
+        let n = 0; Object.entries(prop).forEach(([k, v]) => { const el = f.querySelector(`[name="${k}"]`); if (el && !String(el.value).trim() && v !== '') { el.value = v; el.style.borderColor = '#6CB1DA'; n++; } });
+        $('#edital-ia-msg').textContent = n ? `${n} campo(s) vazio(s) preenchido(s) pela NexMind IA, destacados em azul. Sugestão da IA: confira antes de gerar. (Demonstração: resposta simulada.)` : 'A IA não teve base para propor nada além do que já está preenchido.';
+    },
+    'edital-caderno': d => cadernoEdital(processo(d.p)),
+});
+Object.assign(FORMS, {
+    'pca-cadastro': (f, el) => {
+        const e = [], novo = !el.dataset.ano, ano = novo ? Number(f.ano) : Number(el.dataset.ano);
+        if (novo && (!(ano >= 2023) || plano(ano))) e.push(plano(ano) ? `Já existe o PCA ${ano}.` : 'Informe o exercício.');
+        let ant = null; Object.entries(ETAPAS_PCA).forEach(([k, r]) => { if (!f[k]) e.push(`Informe a data: ${r}.`); else { if (ant && f[k] < f[ant]) e.push(`${r} não pode ser antes de: ${ETAPAS_PCA[ant].toLowerCase()}.`); ant = k; } });
+        if (f.fim_divulgacao && f.fim_divulgacao > `${ano}-12-31`) e.push(`A divulgação do PCA ${ano} precisa acontecer até 31/12/${ano} (art. 12, § 1º).`);
+        const part = Object.keys(UNIDADES_PCA).filter(k => f['part_' + k]);
+        if (f.abrangencia === 'unidades' && !part.length) e.push('Escolha pelo menos uma unidade participante.');
+        if (f.objetivo === '1' && !f.objetivoTexto.trim()) e.push('Descreva o objetivo estratégico.');
+        if (e.length) return erroForm(el, e);
+        const pl = novo ? { ano, situacao: 'rascunho', itens: [] } : plano(ano);
+        Object.assign(pl, { abrangencia: f.abrangencia, tipoConsolidacao: f.tipoConsolidacao, responsavel: f.responsavel, nivel: f.nivel, objetivo: f.objetivo === '1', objetivoTexto: f.objetivoTexto.trim(), participantes: part, calendario: Object.fromEntries(Object.keys(ETAPAS_PCA).map(k => [k, f[k]])) });
+        if (novo) S.pca.push(pl);
+        auditar(novo ? 'PCA cadastrado' : 'Cadastro do PCA alterado', `PCA ${ano}`, `${ABRANGENCIAS[pl.abrangencia]} · ${part.length} unidade(s)`);
+        fecharModal(); salvar(); ir(`pca/${ano}/visao`); toast(`PCA ${ano} ${novo ? 'cadastrado' : 'atualizado'}.`);
+    },
+    dfd: (f, el, acao) => {
+        const ex = Number(f.exercicio), itens = [0, 1, 2].map(i => ({ c: (S.catOrgao || []).find(c => c.id === f['cat' + i]), q: Number(f['qtd' + i]), v: Number(f['vu' + i]) })).filter(x => x.c);
+        const e = []; if (!f.objeto.trim()) e.push('Informe o objeto.');
+        itens.forEach((x, i) => { if (!(x.q > 0) || !(x.v > 0)) e.push(`Informe a quantidade e o valor unitário do item ${i + 1}.`); });
+        if (e.length) return erroForm(el, e);
+        const n = S.demandas.filter(d => exercicioDfd(d) === ex).length + 1;
+        const d = { id: uid(), numero: `${String(n).padStart(3, '0')}/${ex}`, exercicio: ex, unidade: f.unidade, solicitante: S.sessao, objeto: f.objeto.trim(), necessidade: f.necessidade.trim(), justificativa: f.justificativa.trim(), dataPretendida: f.dataPretendida, itemPca: f.itemPca || null, data: hoje(), situacao: 'rascunho', valor: 0,
+            itens: itens.map(x => ({ id: uid(), codigo: x.c.codigo, tipo: x.c.tipo, descricao: x.c.descricao, unidade: x.c.unidade, natureza: x.c.natureza, qtd: x.q, valorUnit: x.v })) };
+        d.valor = valorDfd(d);
+        if (acao === 'enviar') { const v = validarEnvioDfd(d); if (v.length) return erroForm(el, v); d.situacao = 'enviada'; }
+        S.demandas.push(d); auditar(acao === 'enviar' ? 'DFD enviado para análise' : 'DFD salvo como rascunho', `DFD ${d.numero}`, d.objeto);
+        fecharModal(); atualizar(); toast(`DFD ${d.numero} ${acao === 'enviar' ? 'enviado ao planejamento' : 'salvo como rascunho'}.`);
+    },
+    'dfd-devolver': (f, el) => {
+        if (String(f.motivo || '').trim().length < 10) return erroForm(el, ['Explique o que precisa ser corrigido.']);
+        const x = S.demandas.find(y => y.id === el.dataset.id); x.situacao = 'recusada'; x.devolucao = f.motivo.trim();
+        auditar('DFD devolvido para correção', `DFD ${x.numero}`, x.devolucao); fecharModal(); atualizar(); toast(`DFD ${x.numero} devolvido à unidade.`);
+    },
+    'edital-gerar': (f, el) => {
+        const p = processo(el.dataset.p), r = montarEdital(p, f);
+        rascunhoEdital[p.id] = Object.assign(r, { dados: f });
+        if (f.sessao_em) p.sessaoEm = f.sessao_em;
+        auditar('Edital completo gerado (não salvo)', `Minuta do edital · ${p.numero}`, r.modelo);
+        abrirDoc(p.id, 'minuta_edital'); toast(r.pendentes.length ? `Edital montado. Faltam ${r.pendentes.length} trecho(s) entre colchetes.` : 'Edital montado. Revise, salve e conclua.');
+    },
+});
+Object.assign(TELAS_EXTRA, { pca: [() => telaPcaRota(), 'pca.ver'], demandas: [() => telaDemandasOnda5(), 'demandas.ver'] });
+
 /* ---------------- eventos ---------------- */
 document.addEventListener('click', e => {
     const linha = e.target.closest('tr.linha-link');
@@ -2791,7 +3301,7 @@ document.addEventListener('change', e => {
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#modal').hidden) fecharModal(); });
 window.addEventListener('hashchange', () => { fecharModal(); render(); });
 
-carregar(); garantirNovidades(); garantirOnda4(); salvar();
+carregar(); garantirNovidades(); garantirOnda4(); garantirOnda5(); salvar();
 render();
 })();
 
