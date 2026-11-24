@@ -20,6 +20,16 @@ return [
         'token_minutos' => 55,
     ],
 
+    // Painel de Compras (SIC/SELC): processos, contratos, aditivos, PCA e execução financeira vão para a API de entrada
+    // do painel a cada alteração. Sem endereço e token, a integração fica desligada. O token é gerado no servidor
+    // do painel com `php artisan sic:token-integracao NEXPLANGOV` e fica só no .env.
+    'painel' => [
+        'url' => env('PAINEL_URL'),
+        'token' => env('PAINEL_TOKEN'),
+        'timeout' => (int) env('PAINEL_TIMEOUT', 30),
+        'fila' => env('PAINEL_FILA', 'painel'),
+    ],
+
     // Alertas de vencimento de contrato (dias antes do fim da vigência).
     'alertas_vigencia' => [120, 90, 60, 30, 15, 7],
 

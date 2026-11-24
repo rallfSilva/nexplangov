@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Integracoes\Painel\ObservadorPainel;
 use App\Licitacao\Ia\ClienteClaude;
 use App\Licitacao\Ia\ClienteIa;
 use App\Licitacao\Regras\DiasUteis;
@@ -25,6 +26,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Event::subscribe(AuditarAutenticacao::class);
+
+        // Envio automático ao Painel de Compras (desligado sem PAINEL_URL e PAINEL_TOKEN).
+        ObservadorPainel::registrar();
 
         Paginator::defaultView('components.paginacao');
 
