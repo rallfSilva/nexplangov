@@ -52,3 +52,33 @@ A pesquisa usa as três fontes de preços já praticados:
 - Número SEI do processo na aba Resumo; com `SEI_URL_CONSULTA` (ex.: `https://sei.exemplo.gov.br/...?numero={numero}`) aparece o botão "Abrir no SEI".
 - "Dossiê para o SEI": ZIP com capa, cada peça concluída (HTML ou o arquivo original enviado), assinaturas com código de validação e `manifesto.json` com o SHA-256 de cada arquivo. No SEI, cada arquivo entra como documento externo.
 - A integração automática pelos serviços do SEI (inclusão de documento por web service) depende da liberação do órgão (sigla do sistema e identificação do serviço no SEI) e fica para quando houver um órgão para homologar.
+
+## Painel de Compras (SIC/SELC)
+
+O NexPlanGov alimenta o Painel de Compras pela API de entrada dele (`/api/integracao/v1`, ver `docs/INTEGRACAO.md` no repositório do painel).
+
+**Ligar**
+
+1. No servidor do painel: `php artisan sic:token-integracao NEXPLANGOV`. Copie o token (aparece uma vez só).
+2. No `.env` do NexPlanGov: `PAINEL_URL=https://endereco-do-painel` e `PAINEL_TOKEN=<token>`.
+3. Rode um worker só para a fila do painel, para os lotes chegarem na ordem: `php artisan queue:work --queue=painel`.
+4. Carga do que já existe: `php artisan painel:enviar` (ou `--orgao=SIGLA`; `--simular` só conta). Reenviar não duplica.
+
+**O que vai, e quando.** A cada registro salvo (órgão, unidade, fornecedor, item do PCA, processo e itens, ata e itens, contrato, termo, empenho e liquidação), o estado atual vai para a fila e, 30 segundos depois, para o painel. Alterações seguidas do mesmo registro viram um envio só. Cada envio leva também aquilo de que o registro depende no painel (unidade, fornecedor, processo), na ordem: unidades, fornecedores, catálogo, PCA, processos, atas, contratos, aditivos, execução financeira.
+
+| NexPlanGov | Painel |
+|---|---|
+| Órgão e unidade | Unidades (código `SIGLA-DO-ÓRGÃO-SIGLA-DA-UNIDADE`; a sede usa só a sigla do órgão). O órgão é encontrado pelo CNPJ |
+| Fornecedor | Fornecedores (porte ME/EPP; "demais" vai sem porte) |
+| Item do PCA | PCA |
+| Processo e itens | Processos, uma linha por item, com vencedor e valor homologado. Modalidade e amparo do PNCP viram sistemática, forma, modalidade e amparo do painel |
+| Ata e itens | Atas, uma linha por item, e o item vai ao catálogo do painel |
+| Contrato | Contratos (número `numero/ano`) |
+| Termo aditivo e apostilamento | Aditivos (prazo, valor, misto ou apostilamento). Rescisão vai como situação do contrato |
+| Empenho, liquidação e pagamento | Execução financeira (ligada ao contrato, ou ao processo da ata) |
+
+**Fica de fora, por enquanto:** município (o painel recusa o nome que não bate com o IBGE), consumos e adesões de ata, propostas perdedoras e documentos.
+
+**Conferir.** Cada lote fica na tabela `envios_painel` (enviado, erro ou indisponível, com o número do lote no painel). No painel, em Importação de dados > Histórico, origem NexPlanGov, estão as inconsistências linha a linha. Recusa por conteúdo (4xx) não é reenviada; queda do painel (rede, 5xx, 429) volta para a fila com espera crescente, por até 6 tentativas.
+
+**LGPD.** O CPF de fornecedor pessoa física vai ao painel (é dado de contratação pública, art. 7º, III, da Lei 13.709), que o guarda e exibe mascarado. Gestor e fiscal vão pelo nome.
