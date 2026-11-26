@@ -59,8 +59,10 @@ class DemandaController extends Controller
 
         return [
             'demanda' => $demanda,
-            'unidades' => Unidade::where('ativo', true)->orderBy('sigla')->get(),
-            'itensPca' => ItemPca::whereHas('plano', fn ($q) => $q->whereIn('ano', [$ano, $ano + 1]))->orderBy('numero')->get(),
+            'unidades' => Unidade::with('orgao')->where('ativo', true)->orderBy('sigla')->get(),
+            'itensPca' => ItemPca::with('plano', 'orgao')->whereHas('plano', fn ($q) => $q->whereIn('ano', [$ano, $ano + 1]))->orderBy('numero')->get(),
+            // Administrador geral vê todos os órgãos: as listas mostram a sigla do órgão de cada opção.
+            'mostrarOrgao' => request()->user()?->orgao_id === null,
             'exercicios' => [$ano, $ano + 1],
             'exercicioPadrao' => $demanda?->exercicio ?? $padrao,
             'prazos' => $prazos,
@@ -70,9 +72,6 @@ class DemandaController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $orgaoId = $request->user()->orgao_id;
-        abort_unless($orgaoId, 422, 'Demanda é registrada por usuário de um órgão.');
-
         return $this->salvar($request, null);
     }
 
@@ -91,7 +90,7 @@ class DemandaController extends Controller
         if ($demanda->itens()->doesntExist()) {
             return back()->with('erro', 'Inclua ao menos um item do catálogo antes de enviar o DFD.');
         }
-        if ($motivos = PrazoDemanda::motivos(PrazoDfd::where('exercicio', $demanda->exercicio)->first()?->data_limite, today(), (int) $demanda->exercicio, $demanda->excecao_prazo, $demanda->justificativa_excecao)) {
+        if ($motivos = PrazoDemanda::motivos(PrazoDfd::where('orgao_id', $demanda->orgao_id)->where('exercicio', $demanda->exercicio)->first()?->data_limite, today(), (int) $demanda->exercicio, $demanda->excecao_prazo, $demanda->justificativa_excecao)) {
             return back()->with('erro', implode(' ', $motivos).' Edite o DFD e informe a exceção.');
         }
 
@@ -104,12 +103,28 @@ class DemandaController extends Controller
     private function autorizarEdicao(Request $request, Demanda $demanda): void
     {
         abort_unless($demanda->solicitante_id === $request->user()->id || $request->user()->can('pca.gerenciar'), 403);
-        abort_unless($demanda->editavel(), 422, 'O DFD já foi enviado ao planejamento.');
+        abort_unless($demanda->editavel(), 422, 'O DFD já foi enviado ao planejamento e não pode mais ser alterado. Se precisar mudar algo, peça ao planejamento que o devolva.');
+    }
+
+    /**
+     * Órgão do DFD: o do usuário; para o administrador geral (sem órgão), o da unidade requisitante escolhida.
+     * Sem isso o administrador geral recebia um erro 422 sem explicação ao enviar o formulário.
+     */
+    private function orgaoDaDemanda(Request $request, ?Demanda $demanda): ?int
+    {
+        if ($demanda) {
+            return $demanda->orgao_id;
+        }
+        if ($request->user()->orgao_id) {
+            return $request->user()->orgao_id;
+        }
+
+        return $request->filled('unidade_id') ? Unidade::whereKey($request->integer('unidade_id'))->value('orgao_id') : null;
     }
 
     private function salvar(Request $request, ?Demanda $demanda): RedirectResponse
     {
-        $orgaoId = $request->user()->orgao_id ?? $demanda?->orgao_id;
+        $orgaoId = $this->orgaoDaDemanda($request, $demanda);
         $enviar = $request->input('acao', 'enviar') !== 'rascunho';
 
         // Linhas em branco do quadro de itens são ignoradas; valores no formato brasileiro.
@@ -151,6 +166,12 @@ class DemandaController extends Controller
             'itens.*.quantidade.required' => 'Informe a quantidade do item.',
             'itens.*.valor_unitario_estimado.required' => 'Informe o valor unitário estimado do item.',
             'data_pretendida.required' => 'Informe para quando a contratação é necessária.',
+            'data_pretendida.after_or_equal' => 'A data pretendida não pode ser anterior a hoje.',
+            'unidade_id.required' => 'Escolha a unidade requisitante.',
+            'unidade_id.exists' => 'Escolha uma unidade requisitante do órgão.',
+            'item_pca_id.exists' => 'O item do PCA escolhido não é deste órgão.',
+            'vinculadas.*.exists' => 'Uma das demandas vinculadas não é deste órgão.',
+            'exercicio.in' => 'Escolha o exercício atual ou o seguinte.',
         ], collect($itens)->keys()->flatMap(fn ($n) => [
             "itens.{$n}.descricao" => 'descrição do item '.($n + 1), "itens.{$n}.quantidade" => 'quantidade do item '.($n + 1),
             "itens.{$n}.valor_unitario_estimado" => 'valor unitário do item '.($n + 1), "itens.{$n}.unidade_fornecimento" => 'unidade do item '.($n + 1),
@@ -158,9 +179,21 @@ class DemandaController extends Controller
         ])->all());
 
         // Data-limite do órgão para o exercício: depois dela, só as exceções justificadas. Vale no envio.
-        $validador->after(function (Validator $v) use ($request, $enviar, $itens) {
+        $validador->after(function (Validator $v) use ($request, $enviar, $itens, $orgaoId) {
+            if (! $orgaoId) {
+                if (! $v->errors()->has('unidade_id')) {
+                    $v->errors()->add('unidade_id', 'Escolha a unidade requisitante: o DFD fica registrado no órgão dela.');
+                }
+
+                return;
+            }
+            // O item do PCA precisa ser do plano do exercício escolhido (art. 12, VII).
+            if ($request->filled('item_pca_id') && ! $v->errors()->has('item_pca_id')
+                && ! ItemPca::whereKey($request->integer('item_pca_id'))->whereHas('plano', fn ($q) => $q->where('ano', $request->integer('exercicio')))->exists()) {
+                $v->errors()->add('item_pca_id', 'Este item não é do PCA '.$request->integer('exercicio').'. Escolha um item do plano do exercício ou "Não está no PCA".');
+            }
             // Regras do cadastro do PCA do exercício: unidades participantes e nível de detalhamento (art. 12, VII).
-            if ($plano = PlanoContratacao::where('ano', $request->integer('exercicio'))->first()) {
+            if ($plano = PlanoContratacao::where('orgao_id', $orgaoId)->where('ano', $request->integer('exercicio'))->first()) {
                 if ($request->filled('unidade_id') && ! $plano->aceitaUnidade($request->integer('unidade_id'))) {
                     $v->errors()->add('unidade_id', "Esta unidade não participa do PCA {$plano->ano}. Fale com a unidade responsável pelo plano.");
                 }
@@ -175,7 +208,7 @@ class DemandaController extends Controller
             if (! $enviar) {
                 return;
             }
-            $prazo = PrazoDfd::where('exercicio', $request->integer('exercicio'))->first();
+            $prazo = PrazoDfd::where('orgao_id', $orgaoId)->where('exercicio', $request->integer('exercicio'))->first();
 
             foreach (PrazoDemanda::motivos($prazo?->data_limite, today(), $request->integer('exercicio'), $request->input('excecao_prazo'), $request->input('justificativa_excecao')) as $m) {
                 $v->errors()->add($request->filled('excecao_prazo') ? 'justificativa_excecao' : 'excecao_prazo', $m);
@@ -199,7 +232,8 @@ class DemandaController extends Controller
                 $demanda->update($dados);
                 $demanda->itens()->delete();
             } else {
-                $seq = Demanda::where('ano', $ano)->count() + 1;
+                // Numeração anual por órgão (a chave única é órgão + ano + número).
+                $seq = (int) Demanda::where('orgao_id', $orgaoId)->where('ano', $ano)->pluck('numero')->map(fn ($n) => (int) $n)->max() + 1;
                 $demanda = Demanda::create($dados + ['orgao_id' => $orgaoId, 'solicitante_id' => $request->user()->id, 'ano' => $ano, 'numero' => str_pad((string) $seq, 4, '0', STR_PAD_LEFT)]);
             }
 
