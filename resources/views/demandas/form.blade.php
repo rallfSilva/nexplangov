@@ -25,13 +25,13 @@
             <x-campo nome="unidade_id" rotulo="Unidade requisitante" obrigatorio>
                 <select id="campo-unidade_id" name="unidade_id" class="input">
                     <option value="">Escolha</option>
-                    @foreach ($unidades as $u)<option value="{{ $u->id }}" @selected((int) old('unidade_id', $demanda?->unidade_id) === $u->id)>{{ $u->sigla }} · {{ $u->nome }}</option>@endforeach
+                    @foreach ($unidades as $u)<option value="{{ $u->id }}" @selected((int) old('unidade_id', $demanda?->unidade_id) === $u->id)>@if ($mostrarOrgao){{ $u->orgao?->sigla }} › @endif{{ $u->sigla }} · {{ $u->nome }}</option>@endforeach
                 </select>
             </x-campo>
             <x-campo nome="item_pca_id" rotulo="Item do PCA" ajuda="Se a demanda não estiver no plano, a justificativa precisa dizer por quê.">
                 <select id="campo-item_pca_id" name="item_pca_id" class="input">
                     <option value="">Não está no PCA</option>
-                    @foreach ($itensPca as $i)<option value="{{ $i->id }}" @selected((int) old('item_pca_id', $demanda?->item_pca_id) === $i->id)>{{ $i->numero }} · {{ \Illuminate\Support\Str::limit($i->descricao, 70) }}</option>@endforeach
+                    @foreach ($itensPca as $i)<option value="{{ $i->id }}" data-exercicio="{{ $i->plano?->ano }}" @selected((int) old('item_pca_id', $demanda?->item_pca_id) === $i->id)>@if ($mostrarOrgao){{ $i->orgao?->sigla }} › @endif PCA {{ $i->plano?->ano }} · {{ $i->numero }} · {{ \Illuminate\Support\Str::limit($i->descricao, 70) }}</option>@endforeach
                 </select>
             </x-campo>
             <x-campo nome="objeto" rotulo="O que precisa ser contratado" :valor="$demanda?->objeto" obrigatorio classe="full" maxlength="1000" />

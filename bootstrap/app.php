@@ -9,6 +9,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -35,4 +36,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+        // Operação recusada por regra (abort 422) numa tela: volta ao formulário com a explicação e os dados digitados,
+        // em vez da página de erro crua. Em GET, a página errors/422 mostra a mesma explicação.
+        $exceptions->render(function (HttpExceptionInterface $e, Request $request) {
+            if ($e->getStatusCode() !== 422 || $request->is('api/*') || $request->expectsJson() || $request->isMethod('GET')) {
+                return null;
+            }
+
+            return back()->withInput($request->except(['password', 'password_confirmation', '_token']))
+                ->with('erro', $e->getMessage() !== '' ? $e->getMessage() : 'Não foi possível concluir a operação. Confira os dados e tente de novo.');
+        });
     })->create();

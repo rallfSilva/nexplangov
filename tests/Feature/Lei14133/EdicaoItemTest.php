@@ -88,8 +88,8 @@ class EdicaoItemTest extends TestCase
     {
         $this->p->forceFill(['situacao' => 'analise_juridica'])->save();
 
-        $this->actingAs($this->u['planejamento'])->put("/processos/{$this->p->id}/itens/{$this->item->id}", $this->dados(['quantidade' => '5']))->assertStatus(422);
-        $this->actingAs($this->u['planejamento'])->delete("/processos/{$this->p->id}/itens/{$this->item->id}")->assertStatus(422);
+        $this->actingAs($this->u['planejamento'])->put("/processos/{$this->p->id}/itens/{$this->item->id}", $this->dados(['quantidade' => '5']))->assertRedirect()->assertSessionHas('erro', 'Itens e preços só mudam na fase preparatória.');
+        $this->actingAs($this->u['planejamento'])->delete("/processos/{$this->p->id}/itens/{$this->item->id}")->assertRedirect()->assertSessionHas('erro', 'Itens e preços só mudam na fase preparatória.');
         $this->assertEquals(30.0, (float) $this->item->refresh()->quantidade);
     }
 

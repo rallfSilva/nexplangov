@@ -76,7 +76,7 @@ class EdicaoCotacaoTest extends TestCase
         $c = $this->item->cotacoes()->first();
         $this->p->forceFill(['situacao' => 'analise_juridica'])->save();
 
-        $this->actingAs($this->u['planejamento'])->put("/processos/{$this->p->id}/cotacoes/{$c->id}", $this->dados(['valor_unitario' => '99,00']))->assertStatus(422);
+        $this->actingAs($this->u['planejamento'])->put("/processos/{$this->p->id}/cotacoes/{$c->id}", $this->dados(['valor_unitario' => '99,00']))->assertRedirect()->assertSessionHas('erro', 'Itens e preços só mudam na fase preparatória.');
         $this->assertEquals(10.0, (float) $c->refresh()->valor_unitario);
     }
 
